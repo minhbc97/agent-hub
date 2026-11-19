@@ -42,6 +42,8 @@ on('PATCH', '/api/agents/:id', async (req, _r, p) => {
 on('DELETE', '/api/agents/:id', (_q, _r, p) => {
   const agent = needAgent(p.id!);
   if (isAgentRunning(agent.id)) throw new HttpError(409, 'errors.agentRunningCannotDelete');
+  // Every workspace must keep a lead agent; the UI would immediately force creating another one.
+  if (agent.isOrchestrator) throw new HttpError(409, 'errors.orchestratorCannotDelete');
   deleteAgent(agent.id);
   emit({ type: 'agent', workspaceId: agent.workspaceId });
   return { ok: true };

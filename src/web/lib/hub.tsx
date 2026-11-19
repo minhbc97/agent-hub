@@ -194,6 +194,7 @@ export function waitingText(task: Task, workflows: Workflow[]): string {
 
 /** Top-level screens; the first segment of the hash route. */
 export const PAGE = {
+  home: 'home',
   inbox: 'inbox',
   tasks: 'tasks',
   workflows: 'workflows',
@@ -202,7 +203,7 @@ export const PAGE = {
 } as const;
 
 export function useHashRoute(): [string[], (path: string) => void] {
-  const read = () => (location.hash.replace(/^#\/?/, '') || PAGE.inbox).split('/');
+  const read = () => (location.hash.replace(/^#\/?/, '') || PAGE.home).split('/');
   const [parts, setParts] = useState(read);
   useEffect(() => {
     const on = () => setParts(read());

@@ -59,7 +59,7 @@ Thư mục `data/` (DB SQLite, outbox của agent) nằm trong `.gitignore`.
 ```
 src/server/          Node server (node:http), không framework
   routes/            REST API /api/...
-  bus.ts             hàng đợi, outbox, routing star/mesh, loop guard, ngân sách token
+  bus.ts             hàng đợi, outbox, routing star/mesh, loop guard
   runner.ts          chạy một lượt CLI (prompt qua stdin, timeout, kill cây tiến trình)
   engines/           adapter từng CLI (claude, codex, custom) + catalog model
   workflow.ts        engine workflow / task, lịch cron
@@ -87,17 +87,19 @@ docs/cli-probe.md    kết quả dò output JSON và nguồn hạn mức của t
 - Routing star (qua orchestrator) hoặc mesh (cặp agent được nhắn thẳng).
 - `needs_human` vào hàng "Cần bạn"; câu trả lời thường của agent chỉ người dùng thấy (tránh ping-pong).
 - **Loop guard**: quá `maxHops` tin agent→agent liên tiếp không có người chen vào thì dừng, chờ người bấm Thử lại.
-- Hàng đợi: số agent chạy cùng lúc, số lượt mỗi giờ, **ngân sách token/ngày** cho từng agent.
+- Hàng đợi: số agent chạy cùng lúc và số lượt mỗi giờ.
 - Hub khởi động lại: lượt đang chạy dở chuyển `failed` (không tự chạy lại), có nút **Thử lại**.
 
 **Giao diện** (tiếng Việt / English, dark / light)
-- **Hộp thư**: kênh Cần bạn, Cả team, từng agent; luồng tin kiểu Slack; duyệt / trả lại / trả lời task.
-- **Công việc**: board kanban và list, lọc, tạo task, sheet chi tiết.
+- **Trang chủ**: văn phòng kiểu truyện tranh, mỗi agent một bàn với bong bóng thoại trạng thái; giao việc cho agent điều phối.
+- **Hộp thư**: cột kênh (Cần bạn, agent điều phối, mọi tin, từng agent), tìm tin; luồng tin kiểu Slack; duyệt / trả lại / trả lời task.
+- **Công việc**: board 5 cột TODO / DOING / REVIEW / BLOCKED / DONE mỗi cột một màu, list, lọc, tạo task, sheet chi tiết.
 - **Quy trình (workflow)**: các bước giao cho agent hoặc người, bước cần duyệt, bước quay lại khi bị trả,
   chạy tay hoặc theo lịch cron (xem trước 3 lần chạy), mẫu Viết bài / Báo cáo định kỳ / Ticket dev.
-- **Agents**: thẻ agent, form cấu hình (engine, ô chọn model hoặc tự gõ, lệnh, tham số, isolation, ngân sách),
+- **Agents**: popup bắt buộc tạo agent điều phối khi workspace chưa có, thẻ agent, form cấu hình (avatar và màu nền, vai trò, mục tiêu,
+  engine, ô chọn model hoặc tự gõ, lệnh, tham số, isolation mặc định `worktree`),
   cảnh báo khi CLI chưa có trên PATH, lịch sử lượt chạy với token và chi phí.
-- **Cài đặt**: workspace, giới hạn hàng đợi, loop guard, routing.
+- **Cài đặt**: workspace (đổi thư mục an toàn), giới hạn hàng đợi, loop guard, routing, kiểm tra CLI trên máy.
 
 ## Chưa làm
 
