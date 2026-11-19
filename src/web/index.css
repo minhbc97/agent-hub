@@ -1,0 +1,180 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import 'shadcn/tailwind.css';
+@import '@fontsource-variable/geist';
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * agent-hub design system
+ * - Warm neutral surfaces (stone hue ~60), one action color: honey.
+ * - Status colors: success (mint), warning (honey), danger, info. Never decorative.
+ * - Agent identity comes from each agent's tint (avatar ring, mention chips), not from UI chrome.
+ * - Density: 13-14px body, 32px controls, 8px base radius.
+ */
+
+@theme inline {
+  --font-heading: var(--font-sans);
+  --font-sans: 'Geist Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: ui-monospace, 'Cascadia Code', 'JetBrains Mono', Consolas, monospace;
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-info: var(--info);
+  --color-subtle: var(--subtle);
+
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+/* Light */
+:root {
+  --radius: 0.5rem;
+  --background: oklch(0.985 0.003 75);
+  --foreground: oklch(0.2 0.01 60);
+  --card: oklch(1 0 0);
+  --card-foreground: var(--foreground);
+  --popover: oklch(1 0 0);
+  --popover-foreground: var(--foreground);
+  --primary: oklch(0.82 0.16 85);
+  --primary-foreground: oklch(0.2 0.03 60);
+  --secondary: oklch(0.955 0.005 75);
+  --secondary-foreground: var(--foreground);
+  --muted: oklch(0.955 0.005 75);
+  --muted-foreground: oklch(0.5 0.01 60);
+  --accent: oklch(0.945 0.008 75);
+  --accent-foreground: var(--foreground);
+  --subtle: oklch(0.97 0.004 75);
+  --destructive: oklch(0.58 0.21 27);
+  --success: oklch(0.6 0.14 155);
+  --warning: oklch(0.7 0.15 75);
+  --info: oklch(0.6 0.13 245);
+  --border: oklch(0.91 0.006 75);
+  --input: oklch(0.89 0.006 75);
+  --ring: oklch(0.78 0.15 85);
+  --chart-1: oklch(0.82 0.16 85);
+  --chart-2: oklch(0.6 0.14 155);
+  --chart-3: oklch(0.6 0.13 245);
+  --chart-4: oklch(0.65 0.17 330);
+  --chart-5: oklch(0.6 0.15 30);
+  --sidebar: oklch(0.97 0.004 75);
+  --sidebar-foreground: var(--foreground);
+  --sidebar-primary: var(--primary);
+  --sidebar-primary-foreground: var(--primary-foreground);
+  --sidebar-accent: oklch(0.93 0.008 75);
+  --sidebar-accent-foreground: var(--foreground);
+  --sidebar-border: var(--border);
+  --sidebar-ring: var(--ring);
+}
+
+/* Dark (default): warm charcoal, like an office after hours */
+.dark {
+  --background: oklch(0.175 0.006 60);
+  --foreground: oklch(0.95 0.004 75);
+  --card: oklch(0.205 0.007 60);
+  --card-foreground: var(--foreground);
+  --popover: oklch(0.22 0.008 60);
+  --popover-foreground: var(--foreground);
+  --primary: oklch(0.83 0.16 85);
+  --primary-foreground: oklch(0.2 0.03 60);
+  --secondary: oklch(0.25 0.008 60);
+  --secondary-foreground: var(--foreground);
+  --muted: oklch(0.25 0.008 60);
+  --muted-foreground: oklch(0.68 0.01 70);
+  --accent: oklch(0.26 0.009 60);
+  --accent-foreground: var(--foreground);
+  --subtle: oklch(0.195 0.007 60);
+  --destructive: oklch(0.68 0.19 25);
+  --success: oklch(0.76 0.15 155);
+  --warning: oklch(0.83 0.16 85);
+  --info: oklch(0.72 0.12 245);
+  --border: oklch(1 0 0 / 9%);
+  --input: oklch(1 0 0 / 13%);
+  --ring: oklch(0.83 0.16 85 / 70%);
+  --chart-1: oklch(0.83 0.16 85);
+  --chart-2: oklch(0.76 0.15 155);
+  --chart-3: oklch(0.72 0.12 245);
+  --chart-4: oklch(0.72 0.15 330);
+  --chart-5: oklch(0.7 0.15 30);
+  --sidebar: oklch(0.155 0.006 60);
+  --sidebar-foreground: var(--foreground);
+  --sidebar-primary: var(--primary);
+  --sidebar-primary-foreground: var(--primary-foreground);
+  --sidebar-accent: oklch(0.235 0.008 60);
+  --sidebar-accent-foreground: var(--foreground);
+  --sidebar-border: oklch(1 0 0 / 7%);
+  --sidebar-ring: var(--ring);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    @apply font-sans antialiased;
+    font-size: 14px;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+  button:not(:disabled),
+  [role='button']:not(:disabled) {
+    cursor: pointer;
+  }
+  ::selection {
+    @apply bg-primary text-primary-foreground;
+  }
+}
+
+@layer utilities {
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+  .text-balance {
+    text-wrap: balance;
+  }
+}

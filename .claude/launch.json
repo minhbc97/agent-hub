@@ -1,0 +1,18 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "hub-demo",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["tsx", "src/server/index.ts", "--data", "data/demo"],
+      "port": 4310
+    },
+    {
+      "name": "hub-demo-4311",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["tsx", "src/server/index.ts", "--data", "data/demo"],
+      "env": { "HUB_PORT": "4311" },
+      "port": 4311
+    }
+  ]
+}
