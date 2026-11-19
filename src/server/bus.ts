@@ -1,13 +1,4 @@
-import {
-  USER_ID,
-  HUB_ID,
-  ACT,
-  MESSAGE_STATUS,
-  AGENT_STATUS,
-  TASK_STATUS,
-  ROUTING,
-  workTokens,
-} from '../shared/contracts.ts';
+import { USER_ID, HUB_ID, ACT, MESSAGE_STATUS, AGENT_STATUS, TASK_STATUS, ROUTING } from '../shared/contracts.ts';
 import { mkdirSync, readFileSync, readdirSync, renameSync, statSync, writeFileSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 import {
@@ -26,7 +17,6 @@ import {
   pendingFor,
   resolveLooseQuestions,
   setMessageStatus,
-  tokenTotals,
   turnsLastHour,
   updateAgent,
   updateTask,
@@ -314,9 +304,6 @@ function dispatchAll(): void {
     // Files written outside a turn have no triggering message, so they start a new chain.
     for (const a of team) if (!running.has(a.id)) collectOutbox(a, null);
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const spent = new Map(tokenTotals(ws.id, today.toISOString()).map((t) => [t.agentId, workTokens(t)]));
     let active = team.filter((a) => running.has(a.id)).length;
     for (const agent of team) {
       if (running.has(agent.id)) continue;
@@ -324,7 +311,7 @@ function dispatchAll(): void {
       if (!pending.length) continue;
       const next = pending[0]!;
 
-      const hold = holdReason(agent, ws, spent.get(agent.id) ?? 0);
+      const hold = holdReason(agent, ws);
       if (hold) {
         for (const m of pending)
           if (m.status !== MESSAGE_STATUS.held || m.holdReason !== hold)
@@ -347,10 +334,9 @@ function collectOutbox(agent: Agent, parentId: string | null) {
   }
 }
 
-/** Every hold clears by itself (unpause, next hour, next day), so held mail never needs a manual release. */
-function holdReason(agent: Agent, ws: Workspace, tokensToday: number): string | null {
+/** Every hold clears by itself (unpause or next hour), so held mail never needs a manual release. */
+function holdReason(agent: Agent, ws: Workspace): string | null {
   if (agent.paused) return 'agent paused';
-  if (agent.dailyTokenBudget > 0 && tokensToday >= agent.dailyTokenBudget) return 'daily token budget reached';
   if (turnsLastHour(ws.id) >= ws.settings.maxTurnsPerHour) return 'turn limit per hour reached';
   return null;
 }

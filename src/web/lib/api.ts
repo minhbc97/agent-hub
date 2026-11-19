@@ -66,6 +66,7 @@ async function call<T>(method: string, path: string, body?: unknown): Promise<T>
 
 export const api = {
   meta: () => call<Meta>('GET', '/api/meta'),
+  pickFolder: () => call<{ path: string | null }>('POST', '/api/folders/pick'),
 
   workspaces: () => call<Workspace[]>('GET', '/api/workspaces'),
   createWorkspace: (w: Partial<Workspace>) => call<Workspace>('POST', '/api/workspaces', w),

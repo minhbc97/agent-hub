@@ -18,6 +18,7 @@ import assert from 'node:assert/strict';
 const dataDir = resolve('data/test-workflow');
 rmSync(dataDir, { recursive: true, force: true });
 process.env.HUB_DATA = dataDir;
+const nodeCommand = `"${process.execPath}"`;
 
 const db = await import('../src/server/db.ts');
 const bus = await import('../src/server/bus.ts');
@@ -36,7 +37,7 @@ const ws = db.createWorkspace({ name: 'content' });
 const fake = {
   workspaceId: ws.id,
   engine: ENGINE.custom,
-  command: `node ${resolve('scripts/fake-agent.mjs')}`,
+  command: `${nodeCommand} "${resolve('scripts/fake-agent.mjs')}"`,
   isolation: ISOLATION.custom,
   cwd: work,
 };
@@ -132,7 +133,7 @@ assert.deepEqual(db.getWorkspace(ws.id)!.settings.directPairs, []);
 db.updateAgent(editor.id, { name: 'editor' });
 
 // A failed turn must not leave its task "doing" forever: it goes to the human's queue instead.
-const broken = db.createAgent({ ...fake, name: 'broken', command: 'node -e "process.exit(3)"' });
+const broken = db.createAgent({ ...fake, name: 'broken', command: `${nodeCommand} -e "process.exit(3)"` });
 const stuck = wfe.startTask(db.createTask({ workspaceId: ws.id, title: 'will fail', assigneeId: broken.id }));
 assert.equal(stuck.status, TASK_STATUS.doing);
 await settle();
@@ -215,7 +216,7 @@ const coder = db.createAgent({
   ...fake,
   name: 'coder',
   engine: ENGINE.codex,
-  command: `node ${resolve('scripts/fake-codex.mjs')}`,
+  command: `${nodeCommand} "${resolve('scripts/fake-codex.mjs')}"`,
   extraArgs: '',
 });
 bus.sendFromUser(ws.id, 'coder', 'first');
@@ -240,12 +241,11 @@ const lingered = db.listRuns(coder.id)[0]!;
 assert.equal(lingered.status, 'ok', 'a turn the CLI finished counts as success');
 assert.ok(Date.now() - lingerStart < 20_000);
 
-// Daily token budget: once spent, new mail waits with a reason instead of running.
-db.updateAgent(coder.id, { dailyTokenBudget: 50 });
-const overBudget = bus.sendFromUser(ws.id, 'coder', 'third');
-bus.tick();
-assert.equal(db.getMessage(overBudget.id)!.status, MESSAGE_STATUS.held);
-assert.equal(db.getMessage(overBudget.id)!.holdReason, 'daily token budget reached');
+// A budget stored by an older release no longer holds new work.
+db.openDb().prepare('UPDATE agents SET dailyTokenBudget = 1 WHERE id = ?').run(coder.id);
+const afterLegacyBudget = bus.sendFromUser(ws.id, 'coder', 'third');
+await settle();
+assert.equal(db.getMessage(afterLegacyBudget.id)!.status, MESSAGE_STATUS.delivered);
 db.deleteAgent(coder.id);
 
 // HTTP layer: the UI sends agent ids; a broken %-escape must answer 400, not crash the process.
@@ -260,6 +260,30 @@ const sent = await fetch(`${base}/api/workspaces/${ws.id}/messages`, {
   body: JSON.stringify({ to: writer.id, body: 'hello by id', urgent: false }),
 });
 assert.equal(sent.status, 200, 'send by agent id');
+// The lead agent is mandatory, and an agent's goal reaches its first-turn briefing.
+assert.equal((await fetch(`${base}/api/agents/${writer.id}`, { method: 'DELETE' })).status, 409);
+const withGoal = await fetch(`${base}/api/agents/${writer.id}`, {
+  method: 'PATCH',
+  body: JSON.stringify({ goal: 'ship weekly posts' }),
+});
+assert.equal(withGoal.status, 200);
+// Moving the repo folder drops sessions tied to it; agents with their own folder keep theirs.
+const movingWs = db.createWorkspace({ name: 'moving' });
+const inRepo = db.createAgent({ ...fake, workspaceId: movingWs.id, name: 'inrepo', isolation: ISOLATION.shared });
+const ownFolder = db.createAgent({ ...fake, workspaceId: movingWs.id, name: 'ownfolder' });
+db.updateAgent(inRepo.id, { sessionId: 'old-session', turnsInSession: 3 });
+db.updateAgent(ownFolder.id, { sessionId: 'own-folder-session' });
+const moved = await fetch(`${base}/api/workspaces/${movingWs.id}`, {
+  method: 'PATCH',
+  body: JSON.stringify({ repoPath: work }),
+});
+assert.equal(moved.status, 200);
+assert.equal(db.getAgent(inRepo.id)!.sessionId, null);
+assert.equal(db.getAgent(ownFolder.id)!.sessionId, 'own-folder-session');
+db.deleteWorkspace(movingWs.id);
+const { preamble } = await import('../src/server/preamble.ts');
+const lead = db.getAgent(writer.id)!;
+assert.ok(preamble(lead, team(), db.getWorkspace(ws.id)!, 'outbox').includes('Your goal:\nship weekly posts'));
 const badPath = await fetch(`${base}/api/tasks/%E0%A4%A`, { method: 'DELETE' });
 assert.equal(badPath.status, 400);
 // DNS rebinding: a foreign Host header is refused even when Origin matches it.

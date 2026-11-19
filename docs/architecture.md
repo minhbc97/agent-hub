@@ -25,12 +25,13 @@ Phụ thuộc một chiều: `routes` → logic (`bus`, `workflow`, `runner`) �
 | `src/server/index.ts` | Tạo HTTP server (chỉ `127.0.0.1`), mở DB, khởi động bus, phục vụ UI. |
 | `src/server/http/router.ts` | Router nhỏ, chặn Host lạ (DNS rebinding) và request ghi khác origin (CSRF), map lỗi sang JSON. |
 | `src/server/routes/*.ts` | Từng nhóm endpoint, xem [api.md](api.md). |
+| `src/server/routes/folders.ts` | Mở hộp chọn thư mục của hệ điều hành (Windows qua `scripts/pick-folder.ps1`, macOS `osascript`, Linux `zenity`/`kdialog`). |
 | `src/server/api/validation.ts` | Kiểm tra input ở biên (tên agent, settings, workflow...). |
 | `src/server/bus.ts` | Hàng đợi, quét outbox, routing, loop guard, lý do giữ tin, khôi phục sau restart, thử lại. |
 | `src/server/runner.ts` | Chạy một lượt: dựng lệnh, tạo worktree nếu cần, timeout, kill cây tiến trình, lưu `runs`, chính sách reset session. |
 | `src/server/engines/` | Adapter theo CLI (`claude`, `codex`, `custom`) và `catalog.ts` (tên, lệnh mặc định, model, kiểm tra PATH). |
 | `src/server/workflow.ts` | Engine task / workflow: bắt đầu bước, agent báo xong, duyệt / trả lại, trả lời, lịch cron. |
-| `src/server/preamble.ts` | Lời dặn lượt đầu của session: vai trò, team, cách dùng outbox, quy tắc. |
+| `src/server/preamble.ts` | Lời dặn lượt đầu của session: vai trò, mục tiêu, team, cách dùng outbox, quy tắc. |
 | `src/server/cron.ts` | Bộ đọc cron 5 trường (`*`, danh sách, khoảng, bước). |
 | `src/server/db.ts` | Schema, migration cộng cột, mọi truy vấn SQL. |
 | `src/shared/contracts.ts` | Kiểu và hằng số dùng chung server và web. |
@@ -42,7 +43,7 @@ Phụ thuộc một chiều: `routes` → logic (`bus`, `workflow`, `runner`) �
 2. `tick()` chạy mỗi 3 giây và ngay sau mỗi thay đổi:
    1. Chạy workflow theo lịch đến hạn (`tickSchedules`).
    2. Quét outbox của các agent không chạy.
-   3. Với mỗi agent rảnh có tin chờ: tính **lý do giữ** (tạm dừng → hết ngân sách token/ngày → hết lượt/giờ).
+   3. Với mỗi agent rảnh có tin chờ: tính **lý do giữ** (tạm dừng → hết lượt/giờ).
       Có lý do thì tin thành `held` kèm lý do; lý do hết thì tin tự chạy ở tick sau.
    4. Còn chỗ (`maxConcurrent`) thì bắt đầu lượt cho tin đầu hàng (tin gấp trước, rồi theo thời gian).
 3. `runTurn()` chạy CLI. Lượt đầu session thì ghép preamble trước tin. Kết quả:
@@ -133,5 +134,5 @@ Giới hạn đã biết: hub bị kill đột ngột thì tiến trình CLI con
 - `scripts/fake-codex.mjs`: in JSONL giống Codex với usage cộng dồn; prompt chứa `linger` thì không thoát sau lượt.
 
 Test bao phủ: workflow có duyệt / trả lại, routing, đổi tên / xoá agent, lượt lỗi chặn task, thử lại, khôi phục
-sau restart, outbox quá lớn, loop guard, usage Codex, CLI không thoát, ngân sách token, lớp HTTP (đường dẫn lỗi,
+sau restart, outbox quá lớn, loop guard, usage Codex, CLI không thoát, lớp HTTP (đường dẫn lỗi,
 Host lạ).

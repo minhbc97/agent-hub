@@ -34,9 +34,9 @@ Trạng thái (2026-11-19): **đã hoàn thành khung frontend shadcn, Inbox, Ta
 ## 3. Mô hình dữ liệu (SQLite)
 
 - `workspaces`: id, name, repoPath, worktreesDir, settings (JSON, mục 6).
-- `agents`: id, workspaceId, name, role (prompt vai), briefFiles, engine (`claude|codex|antigravity|custom`),
+- `agents`: id, workspaceId, name, role (prompt vai), goal (mục tiêu), briefFiles, engine (`claude|codex|antigravity|custom`),
   model, command, extraArgs, isolation (`worktree|shared|custom`), cwd, isOrchestrator, tint, avatarSeed,
-  dailyTokenBudget, resetPolicy (`never|turns|context`) + resetValue, sessionId, turnsInSession, paused, status.
+  resetPolicy (`never|turns|context`) + resetValue, sessionId, turnsInSession, paused, status.
 - `missions`: id, workspaceId, name, cron, agentId, prompt, enabled, respectHours, lastRunKey.
 - `messages`: id, workspaceId, fromId, toId (`user` hoặc agentId), act, subject, body, status
   (`queued|held|running|delivered|failed`), urgent, decision (cho approval), parentId, runId, createdAt.
@@ -75,13 +75,13 @@ Prompt đưa qua **stdin** để tránh lỗi quoting và giới hạn độ dà
   được gửi lại cho agent như một tin nhắn.
 - Routing: `star` (mọi tin qua orchestrator, mặc định) hoặc `mesh` (bật thêm đường trực tiếp giữa các cặp agent).
 - Hàng đợi: mỗi agent chạy một lượt một lúc; giới hạn số agent chạy đồng thời và số lượt mỗi giờ của
-  workspace (chống chạy loạn). Tin bị giữ thì có lý do: ngoài giờ, chạm hạn mức, hết ngân sách, agent tạm dừng.
+  workspace (chống chạy loạn). Tin bị giữ thì có lý do: ngoài giờ, chạm hạn mức, agent tạm dừng.
 
 ## 6. Cấu hình người dùng tự setup (UI)
 
 1. **Workspace**: tên, repo, thư mục worktree; nhiều workspace, chuyển qua lại ở header.
 2. **Agent** (nút Add agent, form giống ô Configuration của Munder Difflin): tên, vai/prompt, file brief,
-   engine, model, lệnh + flag, isolation, orchestrator, màu đĩa avatar, ngân sách token/ngày, chính sách
+   engine, model, lệnh + flag, isolation, orchestrator, màu đĩa avatar, chính sách
    reset context. Nút: Chạy thử, Tạm dừng, Session mới, Xoá.
 3. **Routing**: star/mesh và danh sách cặp được nhắn trực tiếp.
 4. **Lịch (Missions)**: tên, agent nhận, prompt, giờ + thứ (chọn trên UI, sinh cron) hoặc nhập cron
