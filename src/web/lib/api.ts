@@ -1,0 +1,128 @@
+import type {
+  Agent,
+  Message,
+  Meta,
+  Run,
+  Task,
+  TokenTotal,
+  Workflow,
+  WorkflowInput,
+  Workspace,
+  WorkspaceSettings,
+} from '../../shared/contracts.ts';
+import { t } from '@/lib/i18n';
+
+export {
+  ACT,
+  AGENT_STATUS,
+  DECISION,
+  ENGINE,
+  ENGINES,
+  HUB_ID,
+  ISOLATION,
+  ISOLATIONS,
+  MESSAGE_STATUS,
+  RESET_POLICY,
+  ROUTING,
+  RUN_STATUS,
+  TASK_STATUS,
+  TRIGGER_KIND,
+  USER_ID,
+  workTokens,
+} from '../../shared/contracts.ts';
+
+export type {
+  AgentStatus,
+  Routing,
+  Agent,
+  EngineInfo,
+  Message,
+  Meta,
+  Run,
+  Task,
+  TaskStatus,
+  TokenTotal,
+  Workflow,
+  WorkflowInput,
+  WorkflowStep,
+  WorkflowTrigger,
+  Workspace,
+  WorkspaceSettings,
+} from '../../shared/contracts.ts';
+
+async function call<T>(method: string, path: string, body?: unknown): Promise<T> {
+  const res = await fetch(path, {
+    method,
+    headers: body !== undefined ? { 'content-type': 'application/json' } : undefined,
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+  });
+  const data = await res.json().catch(() => null);
+  if (!res.ok) {
+    const error = data as { error?: string; errorKey?: string; errorParams?: Record<string, string | number> } | null;
+    throw new Error(error?.errorKey ? t(error.errorKey, error.errorParams) : (error?.error ?? `HTTP ${res.status}`));
+  }
+  return data as T;
+}
+
+export const api = {
+  meta: () => call<Meta>('GET', '/api/meta'),
+
+  workspaces: () => call<Workspace[]>('GET', '/api/workspaces'),
+  createWorkspace: (w: Partial<Workspace>) => call<Workspace>('POST', '/api/workspaces', w),
+  updateWorkspace: (
+    id: string,
+    w: Partial<Omit<Workspace, 'settings'>> & {
+      settings?: Partial<WorkspaceSettings>;
+    },
+  ) => call<Workspace>('PATCH', `/api/workspaces/${id}`, w),
+  deleteWorkspace: (id: string) => call('DELETE', `/api/workspaces/${id}`),
+
+  agents: (ws: string) => call<Agent[]>('GET', `/api/workspaces/${ws}/agents`),
+  createAgent: (ws: string, a: Partial<Agent>) => call<Agent>('POST', `/api/workspaces/${ws}/agents`, a),
+  updateAgent: (id: string, a: Partial<Agent>) => call<Agent>('PATCH', `/api/agents/${id}`, a),
+  deleteAgent: (id: string) => call('DELETE', `/api/agents/${id}`),
+  newSession: (id: string) => call<Agent>('POST', `/api/agents/${id}/new-session`),
+  testAgent: (id: string) => call<Message>('POST', `/api/agents/${id}/test`),
+  runs: (id: string) => call<Run[]>('GET', `/api/agents/${id}/runs`),
+
+  messages: (ws: string) => call<Message[]>('GET', `/api/workspaces/${ws}/messages`),
+  send: (
+    ws: string,
+    m: {
+      to: string;
+      body: string;
+      subject?: string;
+      urgent?: boolean;
+      taskId?: string;
+    },
+  ) => call<Message>('POST', `/api/workspaces/${ws}/messages`, m),
+  retryMessage: (id: string) => call<Message>('POST', `/api/messages/${id}/retry`),
+  tokens: (ws: string) => call<TokenTotal[]>('GET', `/api/workspaces/${ws}/tokens`),
+
+  tasks: (ws: string) => call<Task[]>('GET', `/api/workspaces/${ws}/tasks`),
+  createTask: (
+    ws: string,
+    t: {
+      title: string;
+      body?: string;
+      workflowId?: string | null;
+      assigneeId?: string | null;
+      start?: boolean;
+    },
+  ) => call<Task>('POST', `/api/workspaces/${ws}/tasks`, t),
+  updateTask: (id: string, t: Partial<Pick<Task, 'title' | 'body' | 'status' | 'assigneeId'>>) =>
+    call<Task>('PATCH', `/api/tasks/${id}`, t),
+  deleteTask: (id: string) => call('DELETE', `/api/tasks/${id}`),
+  startTask: (id: string, note?: string) => call<Task>('POST', `/api/tasks/${id}/start`, { note }),
+  decide: (id: string, approve: boolean, note: string) =>
+    call<Task>('POST', `/api/tasks/${id}/decision`, { approve, note }),
+  answer: (id: string, body: string) => call<Task>('POST', `/api/tasks/${id}/answer`, { body }),
+
+  workflows: (ws: string) => call<Workflow[]>('GET', `/api/workspaces/${ws}/workflows`),
+  createWorkflow: (ws: string, w: WorkflowInput) => call<Workflow>('POST', `/api/workspaces/${ws}/workflows`, w),
+  updateWorkflow: (id: string, w: Partial<WorkflowInput>) => call<Workflow>('PATCH', `/api/workflows/${id}`, w),
+  deleteWorkflow: (id: string) => call('DELETE', `/api/workflows/${id}`),
+  runWorkflow: (id: string, title: string, body: string) =>
+    call<Task>('POST', `/api/workflows/${id}/run`, { title, body }),
+  cronPreview: (cron: string) => call<{ next: string[] }>('POST', '/api/cron/preview', { cron }),
+};

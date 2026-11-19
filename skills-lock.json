@@ -1,0 +1,72 @@
+{
+  "version": 2,
+  "skills": {
+    "accessibility": {
+      "source": "addyosmani/web-quality-skills",
+      "sourceType": "autoskills-registry",
+      "computedHash": ""
+    },
+    "composition-patterns": {
+      "source": "vercel-labs/agent-skills",
+      "sourceType": "autoskills-registry",
+      "computedHash": ""
+    },
+    "frontend-design": {
+      "source": "anthropics/skills",
+      "sourceType": "autoskills-registry",
+      "computedHash": ""
+    },
+    "humanizer": {
+      "source": "blader/humanizer",
+      "commit": "b48c832f0f809c1b5658edbb838c2521b72f2413",
+      "sourceType": "github",
+      "skillPath": "SKILL.md",
+      "computedHash": "04cdabbcceaa7b5d4bd4b1ea02339013503d623b270b5b3b2e274837494d7134"
+    },
+    "nodejs-backend-patterns": {
+      "source": "wshobson/agents",
+      "sourceType": "autoskills-registry",
+      "computedHash": ""
+    },
+    "nodejs-best-practices": {
+      "source": "sickn33/antigravity-awesome-skills",
+      "sourceType": "autoskills-registry",
+      "computedHash": ""
+    },
+    "react-best-practices": {
+      "source": "vercel-labs/agent-skills",
+      "sourceType": "autoskills-registry",
+      "computedHash": ""
+    },
+    "seo": {
+      "source": "addyosmani/web-quality-skills",
+      "sourceType": "autoskills-registry",
+      "computedHash": ""
+    },
+    "shadcn": {
+      "source": "shadcn/ui",
+      "sourceType": "autoskills-registry",
+      "computedHash": ""
+    },
+    "tailwind-css-patterns": {
+      "source": "giuseppe-trisciuoglio/developer-kit",
+      "sourceType": "autoskills-registry",
+      "computedHash": ""
+    },
+    "tailwind-v4-shadcn": {
+      "source": "secondsky/claude-skills",
+      "sourceType": "autoskills-registry",
+      "computedHash": ""
+    },
+    "typescript-advanced-types": {
+      "source": "wshobson/agents",
+      "sourceType": "autoskills-registry",
+      "computedHash": ""
+    },
+    "vite": {
+      "source": "antfu/skills",
+      "sourceType": "autoskills-registry",
+      "computedHash": ""
+    }
+  }
+}
