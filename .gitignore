@@ -3,8 +3,3 @@ dist/
 data/
 *.log
 .env
-
-# Third-party skills for coding agents; sources are listed in skills-lock.json
-.agents/
-.claude/skills/
-.claude/agents/
