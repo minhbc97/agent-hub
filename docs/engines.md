@@ -1,0 +1,107 @@
+# Engine (CLI agent)
+
+Mỗi engine là một adapter trong `src/server/engines/`, cài đặt interface `EngineAdapter`
+(`src/server/engines/types.ts`):
+
+| Thành phần | Bắt buộc | Việc |
+| --- | --- | --- |
+| `command(agent, { resumeId, extraDirs })` | có | Trả về dòng lệnh shell cho một lượt. Prompt **luôn đi qua stdin** để tránh lỗi quoting và giới hạn độ dài lệnh trên Windows. `extraDirs` là các thư mục agent cần ghi (outbox). |
+| `parse(stdout, stderr, exitCode)` | có | Trả về `{ text, sessionId, usage, isError }`. |
+| `cumulativeUsage` | không | `true` khi CLI báo token cộng dồn cả session khi resume; runner tự trừ phần đã lưu. |
+| `isTurnOver(stdout)` | không | `true` khi stdout cho thấy lượt đã xong; CLI không thoát sau 10 giây thì runner kill và coi lượt là thành công. |
+
+Runner chạy lệnh bằng `spawn(cmd, { shell: true, cwd })` với biến môi trường `HUB_OUTBOX`, `HUB_AGENT`, `HUB_URL`.
+Hàm `q()` trong `types.ts` quote một tham số cho cả `cmd.exe` và `sh`.
+
+Thông tin hiển thị (tên, lệnh mặc định, tham số mặc định, danh sách model) nằm ở `engines/catalog.ts`.
+Kết quả dò output của từng CLI: [cli-probe.md](cli-probe.md).
+
+## Claude Code
+
+```
+claude -p --output-format json [--model <m>] [--resume <session>] --add-dir <outbox>
+       --disallowedTools "Bash(git push:*)" "Bash(git merge:*)" "Bash(git rebase:*)" <tham số thêm>
+```
+
+- Output: một object JSON có `result`, `session_id`, `is_error`, `total_cost_usd`,
+  `usage.{input_tokens, output_tokens, cache_creation_input_tokens, cache_read_input_tokens}` (đã kiểm với 2.1.328).
+- Tham số mặc định: `--permission-mode acceptEdits`.
+- `--disallowedTools` chặn theo tiền tố lệnh, nên chưa bắt được `git -C <dir> push` hay script tự push.
+  Cần chặn chắc hơn thì dùng hook `PreToolUse`.
+- Claude Code dùng đăng nhập của chính nó; hub không đọc credential.
+
+## Codex
+
+```
+codex exec --json --skip-git-repo-check [-m <model>]
+           -c "sandbox_workspace_write.writable_roots=['<outbox>']" <tham số thêm> [resume <thread>] -
+```
+
+- Output JSONL: `thread.started.thread_id`, `item.completed` (item `agent_message` là câu trả lời),
+  `turn.completed.usage`, `turn.failed` / `error` khi lỗi (đã kiểm với 0.164.0).
+- `turn.completed.usage` là **tổng của cả thread** khi resume. Adapter đặt `cumulativeUsage: true`; runner trừ tổng
+  các lượt đã lưu của cùng session. `input_tokens` của Codex đã gồm phần đọc cache, adapter tách ra
+  `cacheReadTokens`. Đã đối chiếu với `last_token_usage` trong rollout của Codex: khớp.
+- `codex exec resume` **không nhận `--sandbox` và `--add-dir`**, nên thư mục ghi thêm đi qua `-c`, cờ mà cả lượt mới
+  lẫn resume đều nhận. Chuỗi TOML dùng nháy đơn (`'...'`) để giữ nguyên dấu `\` của đường dẫn Windows.
+- Tham số mặc định: `-c sandbox_mode="workspace-write"` (mặc định của `codex exec` là chỉ đọc, agent không ghi được
+  outbox).
+
+### Sandbox trên Windows
+
+Nếu `~/.codex/config.toml` đặt `[windows] sandbox = "elevated"` mà bước cài đặt cần quyền admin chưa xong,
+**mọi lệnh shell trong sandbox đều treo** (kể cả `cmd /c echo`). Khi đó Codex vẫn trả lời nhưng không ghi được outbox,
+và tiến trình `codex exec` không thoát sau khi xong lượt.
+
+Hub xử lý như sau:
+
+- Trên Windows, tham số mặc định của agent Codex có thêm `-c windows.sandbox="unelevated"`. Cờ chỉ áp dụng cho lượt
+  do hub chạy, không sửa config chung. Đã chạy thật: ghi được cwd và outbox, thư mục khác bị chặn
+  (riêng `%TEMP%` mặc định vẫn ghi được, thêm `-c sandbox_workspace_write.exclude_tmpdir_env_var=true` nếu muốn chặn).
+- `isTurnOver` nhận `turn.completed` / `turn.failed` nên lượt không bị treo tới timeout.
+
+Agent Codex tạo trước khi có mặc định này cần tự thêm `-c windows.sandbox="unelevated"` vào **Tham số thêm**.
+Chế độ unelevated cách ly yếu hơn elevated (token bị hạn chế trên chính tài khoản của bạn, không dùng tài khoản
+sandbox riêng). Muốn giữ elevated thì chạy lại bước thiết lập sandbox của Codex, rồi kiểm tra:
+
+```powershell
+codex sandbox -c sandbox_mode=workspace-write -- cmd /c echo hi
+```
+
+Lệnh in `hi` và thoát ngay là sandbox ổn. Lưu ý: chạy từ git-bash thì `/c` bị đổi thành `C:\`, cần
+`MSYS_NO_PATHCONV=1`.
+
+## Custom
+
+Lệnh bất kỳ trong ô **Lệnh** cộng **Tham số thêm**, prompt qua stdin, stdout là câu trả lời. Không có session và
+không đếm token. Exit code khác 0 là lỗi. Dùng cho script riêng hoặc agent giả khi test
+(`node scripts/fake-agent.mjs`).
+
+## Antigravity
+
+Chưa có adapter. Đã dò: `agy -p='<prompt>' --output-format json`, resume `--conversation <id>`. Prompt phải gắn
+vào cờ `-p=` nên bị giới hạn độ dài dòng lệnh trên Windows; cần thử `--input-format stream-json` qua stdin trước khi
+viết adapter. Chi tiết ở [cli-probe.md](cli-probe.md).
+
+## Thêm engine mới
+
+1. Thêm id vào `ENGINE` trong `src/shared/contracts.ts`.
+2. Viết `src/server/engines/<id>.ts` cài đặt `EngineAdapter`; đăng ký trong `engines/index.ts`. Engine có adapter
+   tự được coi là "đã hỗ trợ" (`SUPPORTED_ENGINES` lấy từ danh sách adapter).
+3. Thêm mục vào `BUILT_IN` trong `engines/catalog.ts`: `label`, `defaultCommand`, `defaultExtraArgs`, `models`.
+4. Thêm test với một CLI giả trong `scripts/` (xem `fake-codex.mjs`) vào `scripts/test-workflow.ts`.
+5. Chạy thử một lượt thật: lượt mới, resume, ghi outbox; đối chiếu token với log của CLI.
+
+## Danh sách model
+
+Danh sách có sẵn trong `catalog.ts` chỉ là gợi ý; ô model luôn cho gõ id bất kỳ. Để thay danh sách mà không sửa code,
+tạo `data/models.json` (thay toàn bộ danh sách của engine được khai báo):
+
+```json
+{
+  "claude": [{ "id": "claude-opus-5-5", "label": "Opus 5.5" }],
+  "codex": [{ "id": "gpt-6.2-sol", "label": "GPT-6.2 Sol" }]
+}
+```
+
+File hỏng hoặc sai dạng thì bị bỏ qua (có log), dùng lại danh sách có sẵn. Dòng thiếu `label` thì dùng `id`.

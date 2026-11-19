@@ -4,7 +4,9 @@ Hub tự host để điều phối nhiều agent CLI (Claude Code, Codex, lệnh
 web chạy local. Mỗi tin nhắn chạy CLI một lượt ở chế độ headless và nối session bằng id. Agent nhắn cho nhau bằng cách
 ghi file JSON vào thư mục outbox riêng của mình.
 
-Thiết kế chi tiết nằm ở [PLAN.md](PLAN.md), trạng thái làm việc gần nhất ở [HANDOFF.md](HANDOFF.md), quy tắc code
+Tài liệu chi tiết ở [docs/](docs/README.md): [hướng dẫn sử dụng](docs/user-guide.md),
+[kiến trúc](docs/architecture.md), [API](docs/api.md), [engine](docs/engines.md).
+Thiết kế ban đầu ở [PLAN.md](PLAN.md), trạng thái làm việc gần nhất ở [HANDOFF.md](HANDOFF.md), quy tắc code
 ở [AGENTS.md](AGENTS.md).
 
 ## Yêu cầu
