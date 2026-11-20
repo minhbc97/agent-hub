@@ -18,7 +18,7 @@ Cần Node.js 24 trở lên và ít nhất một agent CLI đã cài và đăng 
 text.
 
 ```bash
-npx @minhbc97/agent-hub
+npx @minhbc/agent-hub
 ```
 
 Mở <http://127.0.0.1:4310>. Tạo workspace (tên, đường dẫn repo, thư mục worktree nếu muốn), rồi tạo Lead Agent khi
@@ -27,10 +27,10 @@ popup hiện ra. Bấm **Chạy thử** trên agent để kiểm tra nó trả l
 Dữ liệu nằm ở `./data` trong thư mục bạn chạy lệnh. Muốn luôn dùng một chỗ cố định:
 
 ```bash
-npx @minhbc97/agent-hub --data "$HOME/.agent-hub"
+npx @minhbc/agent-hub --data "$HOME/.agent-hub"
 ```
 
-Dùng `npx @minhbc97/agent-hub@latest` để lấy bản mới.
+Dùng `npx @minhbc/agent-hub@latest` để lấy bản mới.
 
 ## Tính năng
 
