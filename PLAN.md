@@ -4,7 +4,7 @@ Tool tự host để điều phối nhiều agent CLI (Claude Code, Codex, Antig
 như một team, thay cho Munder Difflin. Lý do: gói free của Munder Difflin tính token context
 (192.2M / 200M mỗi tháng, gồm cả token đọc lại từ cache), nên nhanh chạm giới hạn.
 
-Trạng thái (2026-11-19): **đã hoàn thành khung frontend shadcn, Inbox, Tasks, Workflows, Agents và Cài đặt; backend workflow/task API sẵn sàng. `npm run typecheck`, `npm test`, `npm run build` đều PASS.**
+Trạng thái (2026-11-20): **đã hoàn thành khung frontend shadcn, Inbox, Tasks, Workflows, Agents và Cài đặt; backend workflow/task API sẵn sàng. Agent hỗ trợ Claude Code, Antigravity CLI và OpenRouter (text API).**
 - Bước 1: khung repo, runner Claude, bus + outbox, demo pm → be → pm (`npm run demo:pm-be`). Kết quả dò CLI ở `docs/cli-probe.md`.
 - Bước 2: dashboard comic (Floor, Agents + lịch sử lượt, Cài đặt workspace/hàng đợi/routing), API cấu hình.
   Chạy `npm run dev` (dữ liệu thật ở `data/`) hoặc `npx tsx src/server/index.ts --data data/demo`.
@@ -53,7 +53,8 @@ Prompt đưa qua **stdin** để tránh lỗi quoting và giới hạn độ dà
 | --- | --- | --- | --- |
 | Claude Code | `claude -p --output-format json [--model m] <extra>` | thêm `--resume <id>` | JSON: `result`, `session_id`, `usage.{input_tokens,output_tokens,cache_creation_input_tokens,cache_read_input_tokens}`, `total_cost_usd`, `is_error` |
 | Codex | `codex exec --json --skip-git-repo-check [-c model=…] <extra> -` | `codex exec --json <extra> resume <id> -` | JSONL: `thread.started.thread_id`, `item.completed` (item `agent_message` → text cuối), `turn.completed.usage.{input_tokens,cached_input_tokens,cache_write_input_tokens,output_tokens}`, **cộng dồn cả thread khi resume**, phải trừ lượt trước |
-| Antigravity | `agy -p='<prompt>' --output-format json` (**phải gắn prompt vào cờ** `-p='…'`, nếu không agy hiểu cờ kế tiếp là prompt) | `--conversation <id>` | JSON: `conversation_id`, `status` (SUCCESS/ERROR), `response`, `error`, `usage.{input_tokens,output_tokens,thinking_tokens,cache_read_tokens}` |
+| Antigravity | `agy --input-format stream-json --output-format stream-json`, prompt JSONL qua stdin | `--conversation <id>` | JSONL: event `result` gồm `conversation_id`, `status` (SUCCESS/ERROR), `response`, `usage.{input_tokens,output_tokens,thinking_tokens,cache_read_tokens}` |
+| OpenRouter | `POST https://openrouter.ai/api/v1/chat/completions` với `OPENROUTER_API_KEY` | Không nối session; gửi đầy đủ brief mỗi lượt | OpenAI-compatible JSON: `choices[0].message.content`, `usage.{prompt_tokens,completion_tokens,cost}`; text API chưa có workspace tools |
 | Custom | lệnh người dùng nhập, prompt qua stdin | — | stdout dạng text |
 
 - Isolation `worktree`: nếu `worktreesDir/<agent>` chưa có thì chạy `git -C <repo> worktree add --detach <path>`;
@@ -122,7 +123,7 @@ Frontend dùng shadcn/ui Radix Nova, Tailwind 4, Geist Variable và design token
 - **Inbox**: Cần bạn, Cả team, kênh từng agent; tin nhắn compact có act/status, task link, composer chọn người nhận và Gấp. Task review có Duyệt/Trả lại và ghi chú; task blocked nhận trả lời.
 - **Tasks**: board và list, lọc tìm kiếm/workflow/agent, tạo task và sheet chi tiết có tiến độ, kết quả, hội thoại, Bắt đầu/Duyệt/Trả lại/Trả lời/Lưu trữ/Xoá.
 - **Workflows**: editor dọc, chọn agent hoặc Bạn, chỉ dẫn, phê duyệt và bước quay lại; trigger thủ công/lịch, cron preview, bật/tắt, chạy ngay; mẫu Viết bài, Báo cáo định kỳ, Ticket dev.
-- **Agents**: thẻ, form tạo/sửa, trạng thái, session/token; trang chi tiết hiển thị lượt chạy, token, chi phí và output. Codex/Antigravity hiện ghi rõ chưa hỗ trợ.
+- **Agents**: thẻ, form tạo/sửa, trạng thái, session/token; trang chi tiết hiển thị lượt chạy, token, chi phí và output. Antigravity CLI và OpenRouter được hỗ trợ; Codex/custom runner còn lại trong bước 3.
 - **Cài đặt**: workspace/repo/worktree, concurrency, lượt/giờ, timeout, star/mesh và cặp agent nhắn thẳng, xoá workspace.
 - **Welcome**: tạo workspace đầu tiên.
 
@@ -132,7 +133,7 @@ UI đang hiển thị tiếng Việt. `src/web/lib/i18n.ts` là dict khởi đ�
 
 1. Khung repo; kiểm tra output JSON của CLI và nguồn hạn mức; runner Claude, bus/outbox, demo pm → be → pm — hoàn tất theo trạng thái backend hiện tại.
 2. Dashboard comic + form cấu hình — được thay bằng redesign shadcn ở đợt hiện tại.
-3. Codex, Antigravity, custom; đếm token; trang Usage với hạn mức + giờ reset.
+3. Codex, custom; đếm token; trang Usage với hạn mức + giờ reset.
 4. Missions, giờ làm, ngưỡng hạn mức, approvals, thông báo. Workflow scheduling và approvals theo task đã có API/UI riêng.
 5. Xuất/nhập + template BookLink Scrum; chạy song song với Munder Difflin trên một ticket rồi mới chuyển hẳn.
 6. Hoàn tất i18n extraction và các trường cấu hình agent còn thiếu; xem trực quan app khi port khả dụng.

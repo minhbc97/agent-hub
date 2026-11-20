@@ -3,12 +3,20 @@ type ValueOf<T> = T[keyof T];
 
 /** Sender/recipient id of the human. Agents use their own ids. */
 export const USER_ID = 'user';
+/** Agent names keep the casing the user typed but work as case-insensitive handles (`to`, direct pairs). */
+export const isSameAgentName = (a: string, b: string) => a.toLowerCase() === b.toLowerCase();
 /** Sender id of messages the hub writes itself (workflow briefings). */
 export const HUB_ID = 'hub';
 /** createdBy of tasks started by a workflow schedule. */
 export const SCHEDULER_ID = 'schedule';
 
-export const ENGINE = { claude: 'claude', codex: 'codex', antigravity: 'antigravity', custom: 'custom' } as const;
+export const ENGINE = {
+  claude: 'claude',
+  codex: 'codex',
+  antigravity: 'antigravity',
+  openrouter: 'openrouter',
+  custom: 'custom',
+} as const;
 export type Engine = ValueOf<typeof ENGINE>;
 export const ENGINES = Object.values(ENGINE);
 
@@ -19,6 +27,10 @@ export const ISOLATIONS = Object.values(ISOLATION);
 export const RESET_POLICY = { never: 'never', turns: 'turns', context: 'context' } as const;
 export type ResetPolicy = ValueOf<typeof RESET_POLICY>;
 export const RESET_POLICIES = Object.values(RESET_POLICY);
+/** Engines an agent can fall back to: CLIs with their own plan, files and outbox (not text-only or custom). */
+export const FALLBACK_ENGINES: readonly Engine[] = [ENGINE.claude, ENGINE.codex, ENGINE.antigravity];
+/** Default context size (tokens) at which the hub writes a handoff note and starts a fresh session. */
+export const DEFAULT_CONTEXT_LIMIT = 100_000;
 
 export const ACT = {
   request: 'request',
@@ -111,6 +123,18 @@ export interface Agent {
   avatarSeed: string;
   resetPolicy: ResetPolicy;
   resetValue: number;
+  /** Note the agent wrote for itself when the hub last rotated its session; fed into the next fresh session. */
+  handoff: string;
+  /** Start the CLI without the user's plugins, MCP servers and extra tools (Claude only). */
+  isLean: boolean;
+  /** MCP servers a lean Claude agent still loads, by the name Claude gives them (e.g. `plugin:design:atlassian`). */
+  mcpServers: string[];
+  /** CLI engine the agent switches to while its own engine is out of quota; null = wait instead. */
+  fallbackEngine: Engine | null;
+  /** Model on the fallback engine; empty = that CLI's default. */
+  fallbackModel: string;
+  /** The engine the current session runs on when it is not `engine` (the agent is on its fallback). */
+  activeEngine: Engine | null;
   sessionId: string | null;
   turnsInSession: number;
   paused: boolean;
@@ -132,8 +156,14 @@ export interface Message {
   parentId: string | null;
   runId: string | null;
   taskId: string | null;
+  /** Choices an agent offers with a needs_human question; the human may still answer freely. */
+  options: string[];
   createdAt: string;
 }
+
+/** Bounds for needs_human options, checked when an agent's outbox is read. */
+export const ASK_OPTIONS_MAX = 6;
+export const ASK_OPTION_MAX_LENGTH = 160;
 
 export interface WorkflowStep {
   id: string;
@@ -200,6 +230,8 @@ export interface Run {
   cacheWriteTokens: number;
   cacheReadTokens: number;
   costUsd: number;
+  /** Context size after the turn (last model call's prompt); 0 when the engine does not report it. */
+  contextTokens: number;
   sessionId: string | null;
 }
 
@@ -218,6 +250,12 @@ export interface EngineInfo {
   defaultExtraArgs: string;
   /** Whether defaultCommand resolves on PATH; null when the check could not tell. */
   installed: boolean | null;
+  /** Whether a remote API provider has its required server configuration. */
+  configured: boolean | null;
+  /** Official install guide; null for engines with nothing to install. */
+  installUrl: string | null;
+  /** Command the user runs once in a terminal to sign the CLI in; the hub reuses that sign-in. */
+  loginCommand: string | null;
   models: EngineModel[];
 }
 
@@ -225,6 +263,8 @@ export interface Meta {
   engines: EngineInfo[];
   isolations: Agent['isolation'][];
   resetPolicies: Agent['resetPolicy'][];
+  /** MCP servers found in the user's Claude Code config and plugins, for the lean-mode picker. */
+  claudeMcpServers: string[];
   defaults: WorkspaceSettings;
 }
 
@@ -246,3 +286,40 @@ export const workTokens = (t: Pick<TokenTotal, 'inputTokens' | 'outputTokens' | 
   t.inputTokens + t.outputTokens + t.cacheWriteTokens;
 
 export type WorkflowInput = Pick<Workflow, 'name' | 'description' | 'steps' | 'trigger' | 'enabled'>;
+
+/** Plan limits are per engine account (shared by every agent on that engine), not per agent. */
+/** `quota`: a provider limit with no known window, known only once it is hit (Antigravity). */
+export const LIMIT_WINDOW = { session: 'session', week: 'week', quota: 'quota' } as const;
+export type LimitWindow = ValueOf<typeof LIMIT_WINDOW>;
+
+export const USAGE_STATUS = {
+  ok: 'ok',
+  notInstalled: 'notInstalled',
+  /** The engine exposes no limits the hub can read. */
+  noSource: 'noSource',
+  /** Readable, but nothing recorded yet (e.g. Codex before its first session). */
+  noReading: 'noReading',
+  /** Installed, but its CLI has no signed-in account. */
+  notSignedIn: 'notSignedIn',
+  error: 'error',
+} as const;
+export type UsageStatus = ValueOf<typeof USAGE_STATUS>;
+
+export interface UsageWindow {
+  window: LimitWindow;
+  usedPercent: number;
+  resetsAt: string | null;
+}
+
+export interface EngineUsage {
+  engine: Engine;
+  label: string;
+  plan: string | null;
+  status: UsageStatus;
+  windows: UsageWindow[];
+}
+
+export interface UsageReport {
+  takenAt: string;
+  engines: EngineUsage[];
+}

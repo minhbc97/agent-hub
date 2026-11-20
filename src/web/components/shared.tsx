@@ -1,5 +1,5 @@
 import { useId, useState } from 'react';
-import { FolderOpen, Sparkles } from 'lucide-react';
+import { FolderOpen, Sparkles, UserRound } from 'lucide-react';
 import { toast } from 'sonner';
 import { createAvatar } from '@dicebear/core';
 import { micah } from '@dicebear/collection';
@@ -86,6 +86,18 @@ export function Avatar({ agent, size = 32 }: { agent?: Pick<Agent, 'name' | 'ava
   );
 }
 
+/** The human's avatar: a plain person glyph, so it never reads as one of the generated agents. */
+export function UserAvatar({ size = 32 }: { size?: number }) {
+  return (
+    <div
+      style={{ width: size, height: size }}
+      className="flex shrink-0 items-center justify-center rounded-full bg-secondary text-secondary-foreground ring-1 ring-border"
+    >
+      <UserRound size={size * 0.55} />
+    </div>
+  );
+}
+
 /** Avatar with the agent's live state as a dot; `ringClassName` matches the surface it sits on. */
 export function AgentAvatar({
   agent,
@@ -131,10 +143,26 @@ export function PageHeading({
   );
 }
 
-export function Field({ label: name, children }: { label: string; children: React.ReactNode }) {
+/** `isRequired` only marks the label; also set `required` on the control so assistive tech announces it. */
+export function Field({
+  label: name,
+  isRequired = false,
+  children,
+}: {
+  label: string;
+  isRequired?: boolean;
+  children: React.ReactNode;
+}) {
   return (
     <label className="grid gap-1.5 text-sm">
-      <span className="text-muted-foreground">{name}</span>
+      <span className="text-muted-foreground">
+        {name}
+        {isRequired && (
+          <span aria-hidden className="ml-0.5 text-destructive">
+            *
+          </span>
+        )}
+      </span>
       {children}
     </label>
   );
@@ -145,11 +173,13 @@ export function FolderField({
   value,
   onChange,
   placeholder,
+  isRequired = false,
 }: {
   label: string;
   value: string;
   onChange: (path: string) => void;
   placeholder?: string;
+  isRequired?: boolean;
 }) {
   const id = useId();
   const [isPicking, setPicking] = useState(false);
@@ -168,9 +198,20 @@ export function FolderField({
     <div className="grid gap-1.5">
       <Label htmlFor={id} className="font-normal text-muted-foreground">
         {label}
+        {isRequired && (
+          <span aria-hidden className="-ml-1.5 text-destructive">
+            *
+          </span>
+        )}
       </Label>
       <div className="flex gap-2">
-        <Input id={id} value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} />
+        <Input
+          id={id}
+          value={value}
+          required={isRequired}
+          onChange={(event) => onChange(event.target.value)}
+          placeholder={placeholder}
+        />
         <Button type="button" variant="outline" disabled={isPicking} onClick={pick}>
           <FolderOpen />
           {t('common.chooseFolder')}

@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { Send, Zap } from 'lucide-react';
 import { useHub } from '@/lib/hub';
-import { api, type Agent } from '@/lib/api';
+import type { Agent } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
@@ -35,12 +35,12 @@ export function Composer({
   const send = async (e: FormEvent) => {
     e.preventDefault();
     if (!body.trim() || !h.ws || !to) return;
-    const sent = await h.attempt(() => api.send(h.ws!.id, { to, body, urgent, taskId }));
-    // Keep the draft when sending fails so nothing typed is lost.
-    if (sent) {
-      setBody('');
-      setUrgent(false);
-    }
+    // Clear at once: the message shows in the thread as "sending" while the request runs.
+    setBody('');
+    setUrgent(false);
+    const sent = await h.sendMessage({ to, body, urgent, taskId });
+    // Restore a failed draft so nothing typed is lost, unless something new was typed meanwhile.
+    if (!sent) setBody((current) => current || body);
   };
   const placeholder =
     customPlaceholder ??

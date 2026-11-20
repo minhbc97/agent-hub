@@ -10,15 +10,18 @@ import {
   Plus,
   RotateCcw,
   Settings2,
-  Shuffle,
   Trash2,
 } from 'lucide-react';
 import { PAGE, useHub, agentState } from '@/lib/hub';
 import {
   api,
+  DEFAULT_CONTEXT_LIMIT,
   ENGINE,
+  FALLBACK_ENGINES,
   ISOLATION,
   ISOLATIONS,
+  RESET_POLICIES,
+  RESET_POLICY,
   workTokens,
   type Agent,
   type EngineInfo,
@@ -32,11 +35,16 @@ import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { i18n, t } from '@/lib/i18n';
-import { Avatar, ConfirmButton, Empty, Field, FolderField, PageHeading, statusDot, uid } from '@/components/shared';
+import { AgentMap } from './AgentMap';
+import { EngineSetup } from '@/components/EngineSetup';
+import { Avatar, ConfirmButton, Empty, Field, FolderField, PageHeading, statusDot } from '@/components/shared';
 
 function tokensTodayOf(tokens: TokenTotal[], agentId: string): number {
   const total = tokens.find((x) => x.agentId === agentId);
@@ -71,55 +79,56 @@ export function AgentsPage({ openCreate = false }: { openCreate?: boolean }) {
       {h.agents.length === 0 ? (
         <Empty icon={<Bot />} title={t('agents.noAgentsYet')} body={t('agents.addFirstAgentDescription')} />
       ) : (
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          {h.agents.map((a) => (
-            <Card key={a.id} className="p-4">
-              <div className="flex items-center gap-3">
-                <Avatar agent={a} size={42} />
-                <div className="min-w-0">
-                  <div className="truncate font-medium">
-                    {a.name} {a.isOrchestrator && <Badge variant="secondary">{t('agents.orchestrator')}</Badge>}
+        <>
+          <AgentMap />
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {h.agents.map((a) => (
+              <Card key={a.id} className="p-4">
+                <div className="flex items-center gap-3">
+                  <Avatar agent={a} size={42} />
+                  <div className="min-w-0">
+                    <div className="truncate font-medium">
+                      {a.name} {a.isOrchestrator && <Badge variant="secondary">{t('agents.orchestrator')}</Badge>}
+                    </div>
+                    <div className="text-xs text-muted-foreground">{engineLine(a)}</div>
                   </div>
-                  <div className="text-xs text-muted-foreground">
-                    {a.engine} · {a.model || t('common.default')}
-                  </div>
+                  <span className={`ml-auto size-2 rounded-full ${statusDot[agentState(a, h.messages)]}`} />
                 </div>
-                <span className={`ml-auto size-2 rounded-full ${statusDot[agentState(a, h.messages)]}`} />
-              </div>
-              <p className="mt-3 line-clamp-2 min-h-10 text-sm text-muted-foreground">
-                {a.role || t('agents.noRoleDescription')}
-              </p>
-              <div className="mt-3 flex justify-between border-t pt-3 text-xs text-muted-foreground">
-                <span>{a.sessionId ? t('agents.sessionConnected') : t('agents.noSession')}</span>
-                <span>
-                  {tokensTodayOf(h.tokens, a.id).toLocaleString()} {t('agents.tokensToday')}
-                </span>
-              </div>
-              <div className="mt-3 flex gap-2">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="flex-1"
-                  onClick={() => (location.hash = `/${PAGE.agents}/${a.id}`)}
-                >
-                  <History />
-                  {t('agents.runHistory')}
-                </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => {
-                    setAgent(a);
-                    setOpen(true);
-                  }}
-                >
-                  <Settings2 />
-                  {t('common.configure')}
-                </Button>
-              </div>
-            </Card>
-          ))}
-        </div>
+                <p className="mt-3 line-clamp-2 min-h-10 text-sm text-muted-foreground">
+                  {a.role || t('agents.noRoleDescription')}
+                </p>
+                <div className="mt-3 flex justify-between border-t pt-3 text-xs text-muted-foreground">
+                  <span>{a.sessionId ? t('agents.sessionConnected') : t('agents.noSession')}</span>
+                  <span>
+                    {tokensTodayOf(h.tokens, a.id).toLocaleString()} {t('agents.tokensToday')}
+                  </span>
+                </div>
+                <div className="mt-3 flex gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="flex-1"
+                    onClick={() => (location.hash = `/${PAGE.agents}/${a.id}`)}
+                  >
+                    <History />
+                    {t('agents.runHistory')}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => {
+                      setAgent(a);
+                      setOpen(true);
+                    }}
+                  >
+                    <Settings2 />
+                    {t('common.configure')}
+                  </Button>
+                </div>
+              </Card>
+            ))}
+          </div>
+        </>
       )}
       <AgentEditor
         open={h.agents.some((member) => member.isOrchestrator) && (open || openCreate)}
@@ -157,18 +166,81 @@ type AgentForm = Pick<
   | 'isolation'
   | 'cwd'
   | 'isOrchestrator'
+  | 'resetPolicy'
+  | 'resetValue'
+  | 'isLean'
+  | 'mcpServers'
+  | 'fallbackEngine'
+  | 'fallbackModel'
 >;
 
 // Tints are agent data (stored as hex and drawn as the avatar background), not theme colors.
-const AVATAR_TINTS = ['#f6bf1d', '#f4a28c', '#9fd3c7', '#a5b4fc', '#f9a8d4', '#86efac'] as const;
-const AVATAR_CHOICES = 7;
-const randomSeed = () => uid().slice(0, 8);
+// Light pastels ordered by hue, so the face stays readable; the first is the default for new agents.
+const AVATAR_TINTS = [
+  '#f6bf1d',
+  '#fde047',
+  '#bef264',
+  '#86efac',
+  '#6ee7b7',
+  '#9fd3c7',
+  '#5eead4',
+  '#67e8f9',
+  '#7dd3fc',
+  '#93c5fd',
+  '#a5b4fc',
+  '#c4b5fd',
+  '#d8b4fe',
+  '#f0abfc',
+  '#f9a8d4',
+  '#fda4af',
+  '#fca5a5',
+  '#f4a28c',
+  '#fdba74',
+  '#d6d3d1',
+] as const;
+// A fixed set keeps the picker stable: choosing a face never reorders or replaces the options.
+const AVATAR_SEEDS = [
+  'Ada',
+  'Bao',
+  'Chi',
+  'Dante',
+  'Eun',
+  'Femi',
+  'Gia',
+  'Hugo',
+  'Iris',
+  'Jun',
+  'Kai',
+  'Lena',
+  'Mai',
+  'Nico',
+  'Omar',
+  'Priya',
+  'Quinn',
+  'Rosa',
+  'Sven',
+  'Tala',
+  'Uma',
+  'Vik',
+  'Wren',
+  'Yara',
+] as const;
+const DEFAULT_RESET_TURNS = 20;
+/** Select items cannot carry an empty value. */
+const NO_FALLBACK = 'none';
+
+/** While its own engine is out of quota the agent runs on its fallback; say so wherever its engine shows. */
+function engineLine(a: Agent): string {
+  const own = `${a.engine} · ${a.model || t('common.default')}`;
+  return a.activeEngine ? t('agents.onFallback', { own, fallback: a.activeEngine }) : own;
+}
+const randomAvatarSeed = () => AVATAR_SEEDS[Math.floor(Math.random() * AVATAR_SEEDS.length)];
 
 /** New agents start on Claude with that engine's defaults (e.g. edits allowed, since headless turns cannot ask). */
 function formValues(agent: Agent | null, claude: EngineInfo | undefined, isLeadAgent: boolean): AgentForm {
   return {
     name: agent?.name ?? '',
-    avatarSeed: agent ? agent.avatarSeed || agent.name : randomSeed(),
+    avatarSeed: agent ? agent.avatarSeed || agent.name : randomAvatarSeed(),
     tint: agent?.tint ?? AVATAR_TINTS[0],
     role: agent?.role ?? '',
     goal: agent?.goal ?? '',
@@ -176,9 +248,15 @@ function formValues(agent: Agent | null, claude: EngineInfo | undefined, isLeadA
     model: agent?.model ?? '',
     command: agent?.command ?? claude?.defaultCommand ?? '',
     extraArgs: agent?.extraArgs ?? claude?.defaultExtraArgs ?? '',
-    isolation: agent?.isolation ?? ISOLATION.worktree,
+    isolation: agent?.isolation ?? (agent?.engine === ENGINE.openrouter ? ISOLATION.shared : ISOLATION.worktree),
     cwd: agent?.cwd ?? '',
     isOrchestrator: agent?.isOrchestrator ?? isLeadAgent,
+    resetPolicy: agent?.resetPolicy ?? RESET_POLICY.context,
+    resetValue: agent?.resetValue ?? DEFAULT_CONTEXT_LIMIT,
+    isLean: agent?.isLean ?? false,
+    mcpServers: agent?.mcpServers ?? [],
+    fallbackEngine: agent?.fallbackEngine ?? null,
+    fallbackModel: agent?.fallbackModel ?? '',
   };
 }
 
@@ -199,11 +277,38 @@ function AgentEditor({
   useEffect(() => setV(formValues(agent, claude, isLeadAgent)), [agent, open, claude, isLeadAgent]);
   // Functional update: the engine picker sets two fields in one event.
   const set = <K extends keyof AgentForm>(k: K, x: AgentForm[K]) => setV((cur) => ({ ...cur, [k]: x }));
+  // null until known. Git is only needed for worktree isolation; offices that are not code use the shared folder.
+  const [hasGit, setHasGit] = useState<boolean | null>(null);
+  const wsId = h.ws?.id;
+  useEffect(() => {
+    if (!open || !wsId) return;
+    let isCurrent = true;
+    api
+      .workspaceGit(wsId)
+      .then(({ hasGit: found }) => {
+        if (!isCurrent) return;
+        setHasGit(found);
+        // Only a new agent's default follows the folder; an existing agent keeps what it was saved with.
+        if (!agent) setV((cur) => ({ ...cur, isolation: found ? ISOLATION.worktree : ISOLATION.shared }));
+      })
+      .catch(() => setHasGit(null));
+    return () => {
+      isCurrent = false;
+    };
+  }, [open, wsId, agent]);
+  const suggestedIsolation = hasGit === false ? ISOLATION.shared : ISOLATION.worktree;
   const engineInfo = h.meta?.engines.find((e) => e.id === v.engine);
+  // OpenRouter and custom commands keep no session, so there is nothing to rotate.
+  const hasSessions = v.engine !== ENGINE.openrouter && v.engine !== ENGINE.custom;
+  const fallbackChoices = (h.meta?.engines ?? []).filter(
+    (e) => e.id !== v.engine && e.supported && e.installed !== false && FALLBACK_ENGINES.includes(e.id),
+  );
+  // A saved server that is no longer installed stays visible so it can be unpicked.
+  const mcpChoices = [...new Set([...(h.meta?.claudeMcpServers ?? []), ...v.mcpServers])];
   const fields = (
-    <div className="grid gap-4 px-6 pb-6">
-      <Field label={t('common.name')}>
-        <Input value={v.name} onChange={(e) => set('name', e.target.value)} />
+    <div className="grid gap-4 px-6 py-5">
+      <Field label={t('common.name')} isRequired>
+        <Input required value={v.name} onChange={(e) => set('name', e.target.value)} />
       </Field>
       <AvatarPicker
         name={v.name}
@@ -233,6 +338,8 @@ function AgentEditor({
               set('engine', info.id);
               set('command', info.defaultCommand);
               set('extraArgs', info.defaultExtraArgs);
+              if (info.id === ENGINE.openrouter) set('isolation', ISOLATION.shared);
+              else if (v.engine === ENGINE.openrouter) set('isolation', suggestedIsolation);
               // A model id from another engine would make the new CLI fail at start.
               set('model', '');
             }}
@@ -250,49 +357,180 @@ function AgentEditor({
             </SelectContent>
           </Select>
         </Field>
-        <Field label={t('agents.model')}>
+        <Field label={t('agents.model')} isRequired={v.engine === ENGINE.openrouter}>
           <ModelPicker engine={engineInfo} value={v.model} onChange={(x) => set('model', x)} />
         </Field>
       </div>
-      {engineInfo?.installed === false && (
-        <p className="-mt-2 text-xs text-warning">
-          {t('agents.engineNotInstalled', { command: engineInfo.defaultCommand })}
-        </p>
+      {v.engine === ENGINE.openrouter && (
+        <p className="-mt-2 text-xs text-muted-foreground">{t('agents.openRouterSetupHint')}</p>
       )}
-      <div className="grid grid-cols-2 gap-3">
-        <Field label={t('agents.command')}>
-          <Input value={v.command} onChange={(e) => set('command', e.target.value)} />
-        </Field>
-        <Field label={t('agents.extraArguments')}>
-          <Input value={v.extraArgs} onChange={(e) => set('extraArgs', e.target.value)} />
-        </Field>
-      </div>
-      <Field label={t('agents.isolation')}>
-        <Select
-          value={v.isolation}
-          onValueChange={(x) => {
-            const isolation = ISOLATIONS.find((i) => i === x);
-            if (isolation) set('isolation', isolation);
-          }}
-        >
-          <SelectTrigger>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {ISOLATIONS.map((x) => (
-              <SelectItem key={x} value={x}>
-                {x}
-                {x === ISOLATION.worktree && <span className="text-muted-foreground">{t('agents.recommended')}</span>}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </Field>
-      {v.isolation === ISOLATION.custom && (
-        <FolderField label={t('agents.workingDirectory')} value={v.cwd} onChange={(path) => set('cwd', path)} />
+      {engineInfo && <EngineSetup engine={engineInfo} className="-mt-2" />}
+      {FALLBACK_ENGINES.includes(v.engine) && (
+        <div className="grid grid-cols-2 gap-3">
+          <Field label={t('agents.fallbackEngine')}>
+            <Select
+              value={v.fallbackEngine ?? NO_FALLBACK}
+              onValueChange={(x) => {
+                set('fallbackEngine', FALLBACK_ENGINES.find((e) => e === x) ?? null);
+                // A model id from another engine would make the fallback CLI fail at start.
+                set('fallbackModel', '');
+              }}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={NO_FALLBACK}>{t('agents.noFallback')}</SelectItem>
+                {fallbackChoices.map((engine) => (
+                  <SelectItem key={engine.id} value={engine.id}>
+                    {engine.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
+          {v.fallbackEngine && (
+            <Field label={t('agents.fallbackModel')}>
+              <ModelPicker
+                engine={h.meta?.engines.find((e) => e.id === v.fallbackEngine)}
+                value={v.fallbackModel}
+                onChange={(x) => set('fallbackModel', x)}
+              />
+            </Field>
+          )}
+        </div>
       )}
+      {FALLBACK_ENGINES.includes(v.engine) && (
+        <p className="-mt-2 text-xs/5 text-muted-foreground">{t('agents.fallbackEngineHint')}</p>
+      )}
+      {v.engine !== ENGINE.openrouter && (
+        <div className="grid grid-cols-2 gap-3">
+          <Field label={t('agents.command')} isRequired={v.engine === ENGINE.custom}>
+            <Input
+              required={v.engine === ENGINE.custom}
+              value={v.command}
+              onChange={(e) => set('command', e.target.value)}
+            />
+          </Field>
+          <Field label={t('agents.extraArguments')}>
+            <Input value={v.extraArgs} onChange={(e) => set('extraArgs', e.target.value)} />
+          </Field>
+        </div>
+      )}
+      {v.engine !== ENGINE.openrouter && (
+        <Field label={t('agents.isolation')}>
+          <Select
+            value={v.isolation}
+            onValueChange={(x) => {
+              const isolation = ISOLATIONS.find((i) => i === x);
+              if (isolation) set('isolation', isolation);
+            }}
+          >
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {ISOLATIONS.map((x) => (
+                <SelectItem key={x} value={x} disabled={x === ISOLATION.worktree && hasGit === false}>
+                  {t(`agents.isolationMode.${x}`)}
+                  {x === ISOLATION.worktree && hasGit === false && (
+                    <span className="text-muted-foreground">{t('agents.needsGit')}</span>
+                  )}
+                  {x === suggestedIsolation && <span className="text-muted-foreground">{t('agents.recommended')}</span>}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Field>
+      )}
+      {v.engine !== ENGINE.openrouter && (
+        <p className="-mt-2 text-xs/5 text-muted-foreground">{t(`agents.isolationHint.${v.isolation}`)}</p>
+      )}
+      {v.engine !== ENGINE.openrouter && v.isolation === ISOLATION.custom && (
+        <FolderField
+          isRequired
+          label={t('agents.workingDirectory')}
+          value={v.cwd}
+          onChange={(path) => set('cwd', path)}
+        />
+      )}
+      {hasSessions && (
+        <div className="grid grid-cols-2 gap-3">
+          <Field label={t('agents.resetPolicy')}>
+            <Select
+              value={v.resetPolicy}
+              onValueChange={(x) => {
+                const policy = RESET_POLICIES.find((p) => p === x);
+                if (!policy) return;
+                set('resetPolicy', policy);
+                set('resetValue', policy === RESET_POLICY.context ? DEFAULT_CONTEXT_LIMIT : DEFAULT_RESET_TURNS);
+              }}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {RESET_POLICIES.map((x) => (
+                  <SelectItem key={x} value={x}>
+                    {t(`agents.resetPolicyMode.${x}`)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
+          {v.resetPolicy !== RESET_POLICY.never && (
+            <Field label={t(`agents.resetValueLabel.${v.resetPolicy}`)}>
+              <Input
+                type="number"
+                min={1}
+                step={v.resetPolicy === RESET_POLICY.context ? 10_000 : 1}
+                value={v.resetValue}
+                onChange={(e) => set('resetValue', Math.max(0, Math.round(Number(e.target.value) || 0)))}
+              />
+            </Field>
+          )}
+        </div>
+      )}
+      {hasSessions && <p className="-mt-2 text-xs/5 text-muted-foreground">{t('agents.resetPolicyHint')}</p>}
+      {v.engine === ENGINE.claude && (
+        <div className="grid gap-1.5">
+          <Label className="flex items-center gap-2 font-normal">
+            <Switch checked={v.isLean} onCheckedChange={(x) => set('isLean', x)} />
+            {t('agents.leanMode')}
+          </Label>
+          <p className="text-xs/5 text-muted-foreground">{t('agents.leanModeHint')}</p>
+        </div>
+      )}
+      {v.engine === ENGINE.claude && v.isLean && (
+        <Field label={t('agents.leanMcpServers')}>
+          {mcpChoices.length ? (
+            <ToggleGroup
+              type="multiple"
+              variant="outline"
+              size="sm"
+              className="flex-wrap justify-start"
+              value={v.mcpServers}
+              onValueChange={(x) => set('mcpServers', x)}
+            >
+              {mcpChoices.map((name) => (
+                <ToggleGroupItem key={name} value={name}>
+                  {v.mcpServers.includes(name) && <Check />}
+                  {name.replace(/^plugin:/, '')}
+                </ToggleGroupItem>
+              ))}
+            </ToggleGroup>
+          ) : (
+            <p className="text-xs text-muted-foreground">{t('agents.noMcpServers')}</p>
+          )}
+        </Field>
+      )}
+    </div>
+  );
+  // Pinned under the scrolling fields, so saving never needs a scroll to the bottom of a long form.
+  const footer = (
+    <div className="grid shrink-0 gap-3 border-t px-6 py-4">
       {agent && (
-        <div className="flex flex-wrap gap-2 border-t pt-3">
+        <div className="flex flex-wrap gap-2">
           <Button
             size="sm"
             variant="outline"
@@ -335,7 +573,9 @@ function AgentEditor({
         </div>
       )}
       <Button
-        disabled={!v.name.trim() || engineInfo?.supported === false}
+        disabled={
+          !v.name.trim() || engineInfo?.supported === false || (v.engine === ENGINE.openrouter && !v.model.trim())
+        }
         onClick={async () => {
           if (!h.ws) return;
           const out = agent
@@ -348,33 +588,39 @@ function AgentEditor({
       </Button>
     </div>
   );
+  const body = <div className="min-h-0 flex-1 overflow-y-auto">{fields}</div>;
   if (isLeadAgent) {
     return (
       <Dialog open={open}>
-        <DialogContent className="max-h-[calc(100vh-3rem)] overflow-y-auto p-0 sm:max-w-4xl" showCloseButton={false}>
-          <DialogHeader className="px-6 pt-6">
+        <DialogContent
+          className="flex max-h-[calc(100vh-3rem)] flex-col gap-0 p-0 sm:max-w-4xl"
+          showCloseButton={false}
+        >
+          <DialogHeader className="shrink-0 border-b px-6 py-5">
             <DialogTitle className="text-2xl font-semibold">{t('agents.createLeadAgent')}</DialogTitle>
             <DialogDescription>{t('agents.firstAgentDescription')}</DialogDescription>
           </DialogHeader>
-          {fields}
+          {body}
+          {footer}
         </DialogContent>
       </Dialog>
     );
   }
   return (
     <Sheet open={open} onOpenChange={(nextOpen) => !nextOpen && close()}>
-      <SheetContent className="overflow-y-auto sm:max-w-xl">
-        <SheetHeader>
+      <SheetContent className="gap-0 data-[side=right]:sm:max-w-xl">
+        <SheetHeader className="shrink-0 border-b px-6 py-4">
           <SheetTitle>{agent ? t('agents.agentSettings') : t('agents.addAgent')}</SheetTitle>
           <SheetDescription>{t('agents.settingsDescription')}</SheetDescription>
         </SheetHeader>
-        {fields}
+        {body}
+        {footer}
       </SheetContent>
     </Sheet>
   );
 }
 
-/** A row of generated faces to pick from (shuffle for more) and a background tint. */
+/** Pick a face from the fixed set and a background tint. */
 function AvatarPicker({
   name,
   seed,
@@ -388,54 +634,59 @@ function AvatarPicker({
   onSeedChange: (seed: string) => void;
   onTintChange: (tint: string) => void;
 }) {
-  const freshChoices = () => Array.from({ length: AVATAR_CHOICES - 1 }, randomSeed);
-  const [others, setOthers] = useState(freshChoices);
-  const choices = [seed, ...others.filter((other) => other !== seed)].slice(0, AVATAR_CHOICES);
+  // Older agents may use a seed outside the set; keep it as the first option so it stays selectable.
+  const choices: readonly string[] = AVATAR_SEEDS.some((s) => s === seed) ? AVATAR_SEEDS : [seed, ...AVATAR_SEEDS];
+  const selectedRing = 'ring-2 ring-primary ring-offset-2 ring-offset-card';
   return (
-    <div className="grid gap-1.5 text-sm">
+    <div className="@container grid gap-1.5 text-sm">
       <span className="text-muted-foreground">{t('agents.avatar')}</span>
-      <div className="flex flex-wrap items-center gap-2">
-        {choices.map((choice) => (
-          <Button
-            key={choice}
-            type="button"
-            variant="ghost"
-            size="icon-lg"
-            aria-label={t('agents.chooseAvatar')}
-            aria-pressed={choice === seed}
-            onClick={() => onSeedChange(choice)}
-            className={cn(
-              'rounded-full p-0',
-              choice === seed && 'ring-2 ring-ring ring-offset-2 ring-offset-background',
-            )}
-          >
-            <Avatar agent={{ name, avatarSeed: choice, tint }} size={36} />
-          </Button>
-        ))}
-        <Button
-          type="button"
-          variant="outline"
-          size="icon-lg"
-          aria-label={t('agents.shuffleAvatars')}
-          onClick={() => setOthers(freshChoices())}
-        >
-          <Shuffle />
-        </Button>
-      </div>
-      <div className="flex flex-wrap gap-2">
-        {AVATAR_TINTS.map((color) => (
-          <Button
-            key={color}
-            type="button"
-            variant="outline"
-            size="icon-sm"
-            aria-label={t('agents.avatarColor', { color })}
-            aria-pressed={color === tint}
-            onClick={() => onTintChange(color)}
-            style={{ backgroundColor: color }}
-            className={cn('rounded-full', color === tint && 'ring-2 ring-ring ring-offset-2 ring-offset-background')}
-          />
-        ))}
+      <div className="flex flex-col gap-5 rounded-lg border bg-card p-4 @md:flex-row @md:items-center">
+        <div className="self-center">
+          <Avatar agent={{ name, avatarSeed: seed, tint }} size={80} />
+        </div>
+        <div className="@container grid min-w-0 flex-1 gap-4">
+          <div className="grid gap-2">
+            <span className="text-xs font-medium text-muted-foreground">{t('agents.avatarFace')}</span>
+            <div className="flex flex-wrap gap-2">
+              {choices.map((choice) => (
+                <Button
+                  key={choice}
+                  type="button"
+                  variant="ghost"
+                  aria-label={t('agents.chooseAvatar')}
+                  aria-pressed={choice === seed}
+                  onClick={() => onSeedChange(choice)}
+                  className={cn(
+                    'size-auto rounded-full p-0 opacity-70 hover:bg-transparent hover:opacity-100',
+                    choice === seed && cn('opacity-100', selectedRing),
+                  )}
+                >
+                  <Avatar agent={{ name, avatarSeed: choice, tint }} size={40} />
+                </Button>
+              ))}
+            </div>
+          </div>
+          <div className="grid gap-2">
+            <span className="text-xs font-medium text-muted-foreground">{t('agents.avatarBackground')}</span>
+            <div className="grid w-fit grid-cols-5 gap-2 @sm:grid-cols-10">
+              {AVATAR_TINTS.map((color) => (
+                <Button
+                  key={color}
+                  type="button"
+                  variant="outline"
+                  size="icon-sm"
+                  aria-label={t('agents.avatarColor', { color })}
+                  aria-pressed={color === tint}
+                  onClick={() => onTintChange(color)}
+                  style={{ backgroundColor: color }}
+                  className={cn('rounded-full border-foreground/10', color === tint && selectedRing)}
+                >
+                  {color === tint && <Check className="rounded-full bg-background/80 p-0.5 text-foreground" />}
+                </Button>
+              ))}
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -466,7 +717,11 @@ function ModelPicker({
       <PopoverTrigger asChild>
         <Button variant="outline" role="combobox" aria-expanded={open} className="w-full justify-between font-normal">
           <span className="truncate">
-            {value ? (models.find((m) => m.id === value)?.label ?? value) : t('agents.cliDefault')}
+            {value
+              ? (models.find((m) => m.id === value)?.label ?? value)
+              : engine?.id === ENGINE.openrouter
+                ? t('agents.openRouterModelPlaceholder')
+                : t('agents.cliDefault')}
           </span>
           <ChevronsUpDown className="opacity-50" />
         </Button>
@@ -545,7 +800,7 @@ export function AgentDetail({ id }: { id: string }) {
             </span>
           </div>
           <p className="mt-1 text-sm text-muted-foreground">
-            {a.engine} · {a.model || t('common.default')} · {a.isolation}
+            {engineLine(a)} · {t(`agents.isolationMode.${a.isolation}`)}
           </p>
         </div>
         <div className="flex shrink-0 gap-2">
@@ -587,21 +842,28 @@ export function AgentDetail({ id }: { id: string }) {
           ))}
         </Card>
       </div>
+      {a.handoff && (
+        <Card className="mb-6 p-5">
+          <h2 className="text-xs text-muted-foreground">{t('agents.handoffNote')}</h2>
+          <p className="mt-1.5 text-sm whitespace-pre-wrap">{a.handoff}</p>
+        </Card>
+      )}
       <h2 className="mb-3 text-base font-semibold">{t('agents.runHistory')}</h2>
       <AgentEditor open={isEditing} close={() => setEditing(false)} agent={a} />
       <Card className="overflow-hidden">
-        <div className="grid grid-cols-[1.5fr_repeat(5,100px)] gap-2 bg-muted/40 p-3 text-xs text-muted-foreground">
+        <div className="grid grid-cols-[1.5fr_repeat(6,100px)] gap-2 bg-muted/40 p-3 text-xs text-muted-foreground">
           <span>{t('agents.runs')}</span>
           <span>{t('agents.input')}</span>
           <span>{t('agents.output')}</span>
           <span>{t('agents.cacheWrites')}</span>
           <span>{t('agents.cacheReads')}</span>
+          <span>{t('agents.context')}</span>
           <span>{t('agents.cost')}</span>
         </div>
         {runs.length ? (
           runs.map((r) => (
             <details key={r.id} className="border-t">
-              <summary className="grid cursor-pointer grid-cols-[1.5fr_repeat(5,100px)] gap-2 p-3 text-sm">
+              <summary className="grid cursor-pointer grid-cols-[1.5fr_repeat(6,100px)] gap-2 p-3 text-sm">
                 <span>
                   {new Date(r.startedAt).toLocaleString(i18n.resolvedLanguage || 'vi')} · {r.status}
                 </span>
@@ -609,6 +871,7 @@ export function AgentDetail({ id }: { id: string }) {
                 <span>{r.outputTokens}</span>
                 <span>{r.cacheWriteTokens}</span>
                 <span>{r.cacheReadTokens}</span>
+                <span>{r.contextTokens || ''}</span>
                 <span>${r.costUsd.toFixed(4)}</span>
               </summary>
               <pre className="mx-3 mb-3 max-h-96 overflow-auto rounded-sm bg-muted p-3 text-xs whitespace-pre-wrap">

@@ -17,6 +17,17 @@ import {
 } from './api.ts';
 import { t } from './i18n.ts';
 
+/** A message the user just sent, shown at once until the server has it (or the send fails). */
+export interface OutgoingMessage {
+  key: string;
+  toId: string;
+  body: string;
+  taskId: string | null;
+  createdAt: string;
+}
+
+type SendInput = Parameters<typeof api.send>[1];
+
 interface Hub {
   ready: boolean;
   meta: Meta | null;
@@ -31,6 +42,9 @@ interface Hub {
   reload: () => Promise<void>;
   /** Run an API call; on failure show its message as a toast. Returns undefined on error. */
   attempt: <T>(fn: () => Promise<T>, ok?: string) => Promise<T | undefined>;
+  outgoing: OutgoingMessage[];
+  /** Sends as the user with an optimistic row; resolves false when the send failed. */
+  sendMessage: (input: SendInput) => Promise<boolean>;
   agentById: (id: string | null | undefined) => Agent | undefined;
 }
 
@@ -55,6 +69,7 @@ export function HubProvider({ children }: { children: ReactNode }) {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
   const [tokens, setTokens] = useState<TokenTotal[]>([]);
+  const [outgoing, setOutgoing] = useState<OutgoingMessage[]>([]);
   const wsRef = useRef(wsId);
   wsRef.current = wsId;
 
@@ -136,6 +151,26 @@ export function HubProvider({ children }: { children: ReactNode }) {
     [reload],
   );
 
+  // attempt() reloads before it resolves, so the real message is already listed when the placeholder goes.
+  const sendMessage = useCallback(
+    async (input: SendInput) => {
+      const wsIdNow = wsRef.current;
+      if (!wsIdNow) return false;
+      const item: OutgoingMessage = {
+        key: crypto.randomUUID(),
+        toId: input.to,
+        body: input.body,
+        taskId: input.taskId ?? null,
+        createdAt: new Date().toISOString(),
+      };
+      setOutgoing((current) => [...current, item]);
+      const sent = await attempt(() => api.send(wsIdNow, input));
+      setOutgoing((current) => current.filter((o) => o.key !== item.key));
+      return sent !== undefined;
+    },
+    [attempt],
+  );
+
   const value = useMemo<Hub>(() => {
     const byId = new Map(agents.map((a) => [a.id, a]));
     return {
@@ -151,9 +186,25 @@ export function HubProvider({ children }: { children: ReactNode }) {
       selectWorkspace: setWsId,
       reload,
       attempt,
+      outgoing,
+      sendMessage,
       agentById: (id) => (id ? byId.get(id) : undefined),
     };
-  }, [ready, meta, workspaces, wsId, agents, messages, tasks, workflows, tokens, reload, attempt]);
+  }, [
+    ready,
+    meta,
+    workspaces,
+    wsId,
+    agents,
+    messages,
+    tasks,
+    workflows,
+    tokens,
+    reload,
+    attempt,
+    outgoing,
+    sendMessage,
+  ]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

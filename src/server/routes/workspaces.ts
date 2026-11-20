@@ -15,8 +15,12 @@ import { isAgentRunning } from '../bus.ts';
 import { emit } from '../events.ts';
 import { ISOLATION } from '../../shared/contracts.ts';
 import { on } from '../http/router.ts';
+import { hasGitHead } from '../git.ts';
 
 on('GET', '/api/workspaces', () => listWorkspaces());
+
+/** Whether the working folder can host git worktrees; the agent form picks its default isolation from it. */
+on('GET', '/api/workspaces/:ws/git', (_req, _r, p) => ({ hasGit: hasGitHead(needWorkspace(p.ws!).repoPath) }));
 
 on('POST', '/api/workspaces', async (req) => {
   const b = await body(req);

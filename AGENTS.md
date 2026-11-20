@@ -46,6 +46,8 @@ Thứ tự ưu tiên khi cần UI:
    Thiếu component shadcn thì thêm bằng CLI: `npx shadcn@latest add <name>`, không tự viết lại.
 3. **Icon UI**: dùng `lucide-react`. Không dùng emoji, ký tự Unicode, icon từ bộ khác hoặc SVG tự vẽ để thay icon.
    Nếu Lucide không có icon phù hợp, dùng nhãn chữ rõ ràng.
+   Ngoại lệ: tranh minh hoạ trang trí (cảnh văn phòng trong `features/home/office-art.tsx`) vẽ bằng SVG, tô bằng
+   token `fill-office-*`/`fill-chart-*`, có `aria-hidden`.
 4. Chỉ khi 1–3 không có: viết component mới, dựng từ primitive shadcn/Radix + Tailwind. Nếu dùng ở ≥2 chỗ thì đưa vào
    `components/` thay vì để trong feature.
 
@@ -60,6 +62,9 @@ Quy tắc:
 - Biến thể component: dùng `variant`/`size` có sẵn của shadcn (`<Button variant="ghost" size="sm">`) hoặc thêm vào
   `cva` của component đó, không override bằng một đống class.
 - Không sửa logic trong `components/ui/*` trừ khi cần thiết; chỉnh token/variant thay vì hack từng chỗ.
+- **Trường bắt buộc**: label có dấu `*` qua `<Field isRequired>` / `<FolderField isRequired>`, và đặt `required` trên
+  control. Chỉ đánh dấu trường mà server hoặc nút lưu thật sự bắt buộc; bắt buộc có điều kiện thì truyền điều kiện
+  (`isRequired={engine === ENGINE.custom}`). Không tự viết `*` trong chuỗi i18n.
 - Hỗ trợ cả dark và light mode (dùng token, không màu cố định). Giữ accessibility: `Label` cho input, `aria-label` cho
   nút chỉ có icon, điều hướng được bằng bàn phím.
 - Gọi API qua `src/web/lib/api.ts` / `useHub`, không `fetch` trực tiếp trong component.

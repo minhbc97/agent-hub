@@ -1,4 +1,5 @@
 import { EMPTY_USAGE, q, type EngineAdapter } from './types.ts';
+import { mcpToolPrefix, writeMcpConfig } from './claude-mcp.ts';
 
 /**
  * Hard backstop for the preamble rule "never push, merge or rebase": a prompt rule can be lost when a long
@@ -6,6 +7,18 @@ import { EMPTY_USAGE, q, type EngineAdapter } from './types.ts';
  * shortcut: prefix rules miss forms like `git -C dir push` or a script that pushes; add a PreToolUse hook if that matters.
  */
 const DENIED_TOOLS = ['Bash(git push:*)', 'Bash(git merge:*)', 'Bash(git rebase:*)'];
+
+/**
+ * Lean start: without the user's plugins, skills, hooks and MCP servers, and with only the file and shell tools.
+ * Measured on 2.1.329: the fixed prompt every model call carries drops from ~49k to ~9k tokens.
+ */
+const LEAN_ARGS = [
+  '--strict-mcp-config',
+  '--setting-sources',
+  'project,local',
+  '--tools',
+  'Read,Write,Edit,Bash,Glob,Grep',
+];
 
 /**
  * Claude Code headless: `claude -p --output-format json`, prompt on stdin.
@@ -18,6 +31,11 @@ export const claude: EngineAdapter = {
     if (agent.model) parts.push('--model', q(agent.model));
     if (resumeId) parts.push('--resume', q(resumeId));
     for (const d of extraDirs) parts.push('--add-dir', q(d));
+    if (agent.isLean) parts.push(...LEAN_ARGS);
+    // Picked servers are the user's explicit choice, so their tools run without a permission prompt headless
+    // turns could not answer.
+    if (agent.isLean && agent.mcpServers.length)
+      parts.push('--mcp-config', q(writeMcpConfig(agent)), '--allowedTools', ...agent.mcpServers.map(mcpToolPrefix));
     parts.push('--disallowedTools', ...DENIED_TOOLS.map(q));
     if (agent.extraArgs.trim()) parts.push(agent.extraArgs.trim());
     return parts.join(' ');
@@ -34,6 +52,9 @@ export const claude: EngineAdapter = {
       };
     }
     const u = (json.usage ?? {}) as Record<string, number>;
+    // usage sums every model call of the turn; the last iteration is the context the session now carries.
+    const iterations = (json.usage as { iterations?: Record<string, number>[] } | undefined)?.iterations;
+    const last = iterations?.at(-1);
     return {
       text: String(json.result ?? ''),
       sessionId: (json.session_id as string) ?? null,
@@ -44,6 +65,9 @@ export const claude: EngineAdapter = {
         cacheReadTokens: u.cache_read_input_tokens ?? 0,
         costUsd: Number(json.total_cost_usd ?? 0),
       },
+      contextTokens: last
+        ? (last.input_tokens ?? 0) + (last.cache_read_input_tokens ?? 0) + (last.cache_creation_input_tokens ?? 0)
+        : undefined,
       isError: !!json.is_error || exitCode !== 0,
     };
   },

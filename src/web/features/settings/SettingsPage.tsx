@@ -1,3 +1,4 @@
+import { EngineSetup } from '@/components/EngineSetup';
 import { useEffect, useState } from 'react';
 import {
   ArrowLeftRight,
@@ -13,7 +14,7 @@ import {
   TriangleAlert,
 } from 'lucide-react';
 import { PAGE, useHub } from '@/lib/hub';
-import { api, ROUTING, type Routing } from '@/lib/api';
+import { api, ENGINE, ROUTING, type Routing } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -67,8 +68,8 @@ export function SettingsPage() {
       <PageHeading title={t('settings.title')} subtitle={t('settings.description')} />
       <div className="grid items-start gap-4 xl:grid-cols-2">
         <SettingsCard icon={<FolderGit2 />} title={t('workspace.workspace')} description={t('settings.workspaceHint')}>
-          <Field label={t('workspace.name')}>
-            <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+          <Field label={t('workspace.name')} isRequired>
+            <Input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
           </Field>
           <FolderField
             label={t('workspace.repositoryPath')}
@@ -291,24 +292,37 @@ function EnginesCard() {
     <SettingsCard icon={<TerminalSquare />} title={t('settings.engines')} description={t('settings.enginesHint')}>
       <ul className="grid gap-2">
         {(h.meta?.engines ?? []).map((engine) => (
-          <li key={engine.id} className="flex items-center gap-3 rounded-md border px-3 py-2 text-sm">
-            {engine.installed === true ? (
-              <CircleCheck className="size-4 text-success" />
-            ) : engine.installed === false ? (
-              <CircleX className="size-4 text-destructive" />
-            ) : (
-              <CircleHelp className="size-4 text-muted-foreground" />
-            )}
-            <span className="font-medium">{engine.label}</span>
-            {!engine.supported && <Badge variant="outline">{t('settings.notSupportedYet')}</Badge>}
-            <code className="ml-auto text-xs text-muted-foreground">{engine.defaultCommand || '-'}</code>
-            <span className="w-32 text-right text-xs text-muted-foreground">
-              {engine.installed === true
-                ? t('settings.installed')
-                : engine.installed === false
-                  ? t('settings.notOnPath')
-                  : t('settings.unknown')}
-            </span>
+          <li key={engine.id} className="grid gap-1.5 rounded-md border px-3 py-2 text-sm">
+            <div className="flex items-center gap-3">
+              {engine.id === ENGINE.openrouter ? (
+                engine.configured ? (
+                  <CircleCheck className="size-4 text-success" />
+                ) : (
+                  <CircleHelp className="size-4 text-warning" />
+                )
+              ) : engine.installed === true ? (
+                <CircleCheck className="size-4 text-success" />
+              ) : engine.installed === false ? (
+                <CircleX className="size-4 text-destructive" />
+              ) : (
+                <CircleHelp className="size-4 text-muted-foreground" />
+              )}
+              <span className="font-medium">{engine.label}</span>
+              {!engine.supported && <Badge variant="outline">{t('settings.notSupportedYet')}</Badge>}
+              {engine.defaultCommand && (
+                <code className="ml-auto text-xs text-muted-foreground">{engine.defaultCommand}</code>
+              )}
+              <span className="w-32 text-right text-xs text-muted-foreground">
+                {engine.id === ENGINE.openrouter
+                  ? t(engine.configured ? 'settings.apiKeyConfigured' : 'settings.apiKeyMissing')
+                  : engine.installed === true
+                    ? t('settings.installed')
+                    : engine.installed === false
+                      ? t('settings.notOnPath')
+                      : t('settings.unknown')}
+              </span>
+            </div>
+            <EngineSetup engine={engine} />
           </li>
         ))}
       </ul>

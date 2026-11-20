@@ -12,16 +12,19 @@ import {
   type WorkspaceSettings,
 } from '../db.ts';
 import { nextRuns } from '../cron.ts';
+import { hasGitHead } from '../git.ts';
 import { isEngineSupported } from '../engines/index.ts';
 import {
   ENGINE,
   ENGINES,
+  FALLBACK_ENGINES,
   ISOLATION,
   ISOLATIONS,
   RESET_POLICIES,
   ROUTING,
   TRIGGER_KIND,
   USER_ID,
+  isSameAgentName,
   type Engine,
 } from '../../shared/contracts.ts';
 import { HttpError } from '../http/errors.ts';
@@ -29,7 +32,7 @@ import { str } from '../http/request.ts';
 
 export const SUPPORTED_ENGINES: readonly Engine[] = ENGINES.filter(isEngineSupported);
 
-const NAME_RE = /^[a-z0-9][a-z0-9_-]{0,31}$/;
+const NAME_RE = /^[a-z0-9][a-z0-9_-]{0,31}$/i;
 
 export function needWorkspace(id: string) {
   const ws = getWorkspace(id);
@@ -53,7 +56,7 @@ export function resolveAssignee(workspaceId: string, v: unknown): string | null 
   const id = str(v);
   if (!id) return null;
   if (id === USER_ID) return USER_ID;
-  const a = listAgents(workspaceId).find((x) => x.id === id || x.name === id.toLowerCase());
+  const a = listAgents(workspaceId).find((x) => x.id === id || isSameAgentName(x.name, id));
   if (!a) throw new HttpError(400, 'errors.assigneeNotFound');
   return a.id;
 }
@@ -142,14 +145,16 @@ export function settingsFields(v: unknown, workspaceId: string): Partial<Workspa
     out.routing = s.routing;
   }
   if (s.directPairs !== undefined) {
-    const names = new Set(listAgents(workspaceId).map((a) => a.name));
+    const names = listAgents(workspaceId).map((a) => a.name);
+    // Store pairs with each agent's own spelling so later exact comparisons keep working.
+    const canonical = (n: unknown) => names.find((name) => isSameAgentName(name, str(n))) ?? str(n);
     if (!Array.isArray(s.directPairs)) throw new HttpError(400, 'errors.directPairsArray');
     const seen = new Set<string>();
     out.directPairs = [];
     for (const pair of s.directPairs) {
       if (!Array.isArray(pair) || pair.length !== 2) throw new HttpError(400, 'errors.directPairSize');
-      const [x, y] = pair.map((n) => str(n).toLowerCase()) as [string, string];
-      if (!names.has(x) || !names.has(y) || x === y)
+      const [x, y] = pair.map(canonical) as [string, string];
+      if (!names.includes(x) || !names.includes(y) || x === y)
         throw new HttpError(400, 'errors.directPairInvalid', { pair: `${x} ↔ ${y}` });
       const key = [x, y].sort().join('|');
       if (!seen.has(key)) out.directPairs.push([x, y]);
@@ -177,19 +182,23 @@ export function settingsFields(v: unknown, workspaceId: string): Partial<Workspa
 export function agentFields(b: Record<string, unknown>, workspaceId: string, cur: Agent | null): Partial<Agent> {
   const out: Partial<Agent> = {};
   if (b.name !== undefined) {
-    const name = str(b.name).trim().toLowerCase();
+    const name = str(b.name).trim();
     if (!NAME_RE.test(name)) throw new HttpError(400, 'errors.agentNameFormat');
-    if (name === USER_ID) throw new HttpError(400, 'errors.reservedAgentName');
-    const clash = listAgents(workspaceId).find((a) => a.name === name && a.id !== cur?.id);
+    if (isSameAgentName(name, USER_ID)) throw new HttpError(400, 'errors.reservedAgentName');
+    const clash = listAgents(workspaceId).find((a) => isSameAgentName(a.name, name) && a.id !== cur?.id);
     if (clash) throw new HttpError(400, 'errors.agentNameExists', { name: name });
     out.name = name;
   }
-  const text = (k: 'role' | 'goal' | 'model' | 'command' | 'extraArgs' | 'cwd' | 'avatarSeed', max: number) => {
+  const text = (
+    k: 'role' | 'goal' | 'model' | 'command' | 'extraArgs' | 'cwd' | 'avatarSeed' | 'fallbackModel',
+    max: number,
+  ) => {
     if (b[k] !== undefined) out[k] = str(b[k]).slice(0, max);
   };
   text('role', 20_000);
   text('goal', 5_000);
   text('model', 100);
+  text('fallbackModel', 100);
   text('command', 500);
   text('extraArgs', 1000);
   text('cwd', 500);
@@ -208,6 +217,14 @@ export function agentFields(b: Record<string, unknown>, workspaceId: string, cur
   };
   oneOf('engine', ENGINES);
   oneOf('isolation', ISOLATIONS);
+  // A new agent without a choice gets what its folder supports: separate git copies in a repo, the shared folder otherwise.
+  const engine = out.engine ?? cur?.engine ?? ENGINE.claude;
+  if (!cur && out.isolation === undefined) {
+    out.isolation =
+      engine === ENGINE.openrouter || !hasGitHead(needWorkspace(workspaceId).repoPath)
+        ? ISOLATION.shared
+        : ISOLATION.worktree;
+  }
   oneOf('resetPolicy', RESET_POLICIES);
   if (b.tint !== undefined) {
     if (!/^#[0-9a-f]{6}$/i.test(str(b.tint))) throw new HttpError(400, 'errors.tintInvalid');
@@ -222,12 +239,38 @@ export function agentFields(b: Record<string, unknown>, workspaceId: string, cur
   int('resetValue');
   if (b.isOrchestrator !== undefined) out.isOrchestrator = !!b.isOrchestrator;
   if (b.paused !== undefined) out.paused = !!b.paused;
+  if (b.isLean !== undefined) out.isLean = !!b.isLean;
+  if (b.mcpServers !== undefined) {
+    if (!Array.isArray(b.mcpServers)) throw new HttpError(400, 'errors.fieldInvalid', { field: 'mcpServers' });
+    out.mcpServers = [...new Set(b.mcpServers.map((name) => str(name).trim()).filter(Boolean))].slice(0, 50);
+  }
+  if (b.fallbackEngine !== undefined) {
+    const fallback =
+      b.fallbackEngine === null || b.fallbackEngine === ''
+        ? null
+        : FALLBACK_ENGINES.find((e) => e === str(b.fallbackEngine) && isEngineSupported(e));
+    if (fallback === undefined) throw new HttpError(400, 'errors.fieldInvalid', { field: 'fallbackEngine' });
+    out.fallbackEngine = fallback;
+  }
+  // Falling back to the engine itself would only retry the same exhausted plan.
+  if ((out.fallbackEngine ?? cur?.fallbackEngine) === engine) out.fallbackEngine = null;
 
-  const engine = out.engine ?? cur?.engine ?? ENGINE.claude;
   const isolation = out.isolation ?? cur?.isolation ?? ISOLATION.worktree;
   if (engine === ENGINE.custom && !(out.command ?? cur?.command)?.trim())
     throw new HttpError(400, 'errors.customEngineCommandRequired');
+  if (engine === ENGINE.openrouter && !(out.model ?? cur?.model)?.trim())
+    throw new HttpError(400, 'errors.openRouterModelRequired');
   if (isolation === ISOLATION.custom && !(out.cwd ?? cur?.cwd)?.trim())
     throw new HttpError(400, 'errors.customIsolationDirectoryRequired');
+  // Checked when an agent starts using worktrees, not on every edit, so a later repo problem never blocks a rename.
+  const startsWorktree =
+    engine !== ENGINE.openrouter && isolation === ISOLATION.worktree && (!cur || cur.isolation !== ISOLATION.worktree);
+  if (startsWorktree) assertWorktreeRepo(needWorkspace(workspaceId).repoPath);
   return out;
+}
+
+/** Fails early with a fixable message instead of a raw `git worktree` error on the agent's first turn. */
+export function assertWorktreeRepo(repoPath: string) {
+  if (!repoPath) throw new HttpError(400, 'errors.worktreeNeedsRepo');
+  if (!hasGitHead(repoPath)) throw new HttpError(400, 'errors.worktreeNeedsGit', { path: repoPath });
 }

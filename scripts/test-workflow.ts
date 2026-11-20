@@ -10,6 +10,7 @@ import {
   TASK_STATUS,
   ROUTING,
   TRIGGER_KIND,
+  RESET_POLICY,
 } from '../src/shared/contracts.ts';
 import { mkdirSync, rmSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -166,6 +167,62 @@ assert.deepEqual(
 );
 assert.equal(db.getMessage(interrupted.id)!.status, MESSAGE_STATUS.failed);
 
+// Worktree isolation needs a git repo with a commit; the agent form says so instead of failing on the first turn.
+{
+  const { agentFields } = await import('../src/server/api/validation.ts');
+  const { execFileSync } = await import('node:child_process');
+  const { mkdtempSync } = await import('node:fs');
+  const { tmpdir } = await import('node:os');
+  // Outside this checkout: inside it, git would find agent-hub's own repo and the folder would count as git.
+  const plain = mkdtempSync(resolve(tmpdir(), 'agent-hub-nogit-'));
+  const gitless = db.createWorkspace({ name: 'gitless', repoPath: plain });
+  assert.throws(() => agentFields({ name: 'w1', isolation: ISOLATION.worktree }, gitless.id, null), {
+    key: 'errors.worktreeNeedsGit',
+  });
+  assert.doesNotThrow(() => agentFields({ name: 'w1', isolation: ISOLATION.shared }, gitless.id, null));
+  const noRepo = db.createWorkspace({ name: 'norepo' });
+  assert.throws(() => agentFields({ name: 'w1', isolation: ISOLATION.worktree }, noRepo.id, null), {
+    key: 'errors.worktreeNeedsRepo',
+  });
+  // Without a choice, a new agent gets what the folder supports: no git means the shared folder.
+  assert.equal(agentFields({ name: 'w1' }, noRepo.id, null).isolation, ISOLATION.shared);
+  assert.equal(agentFields({ name: 'w1' }, gitless.id, null).isolation, ISOLATION.shared);
+  execFileSync('git', ['init', '-q', plain]);
+  execFileSync('git', [
+    '-C',
+    plain,
+    '-c',
+    'user.name=t',
+    '-c',
+    'user.email=t@t',
+    'commit',
+    '-q',
+    '--allow-empty',
+    '-m',
+    'init',
+  ]);
+  assert.doesNotThrow(() => agentFields({ name: 'w1', isolation: ISOLATION.worktree }, gitless.id, null));
+  assert.equal(agentFields({ name: 'w1' }, gitless.id, null).isolation, ISOLATION.worktree);
+  rmSync(plain, { recursive: true, force: true });
+}
+
+// needs_human options: cleaned at the outbox boundary and stored as a list.
+assert.deepEqual(bus.askOptions([' Yes ', '', 'Yes', 42, 'No']), ['Yes', 'No']);
+assert.deepEqual(bus.askOptions('Yes'), []);
+assert.equal(bus.askOptions(Array.from({ length: 10 }, (_, i) => `choice ${i}`)).length, 6);
+assert.equal(bus.askOptions(['x'.repeat(500)])[0]!.length, 160);
+const asked = db.createMessage({
+  workspaceId: ws.id,
+  fromId: writer.id,
+  toId: USER_ID,
+  act: 'needs_human',
+  body: 'Which one?',
+  options: ['A', 'B'],
+  status: MESSAGE_STATUS.held,
+});
+assert.deepEqual(db.getMessage(asked.id)!.options, ['A', 'B']);
+assert.deepEqual(db.getMessage(interrupted.id)!.options, [], 'messages without options read as an empty list');
+
 // Outbox: an oversized file is rejected unread; a valid file is queued exactly once.
 const { outboxDir } = await import('../src/server/runner.ts');
 const { existsSync, readdirSync, writeFileSync } = await import('node:fs');
@@ -177,6 +234,32 @@ bus.tick();
 assert.equal(db.listMessages(ws.id).filter((m) => m.subject === 'outbox ok').length, 1);
 assert.ok(readdirSync(resolve(box, 'rejected')).some((f) => f.endsWith('big.json')));
 assert.ok(!existsSync(resolve(box, 'ok.json')) && !existsSync(resolve(box, 'big.json')));
+// A rejected file is reported to the human, who would otherwise never learn the agent's message was lost.
+assert.ok(
+  db
+    .listMessages(ws.id)
+    .some(
+      (m) => m.fromId === 'hub' && m.toId === USER_ID && m.body.includes('big.json') && m.subject.includes('rejected'),
+    ),
+);
+// An "ASK ME" style question with task "new" stays a question (no card) instead of being dropped.
+writeFileSync(
+  resolve(box, 'ask.json'),
+  JSON.stringify({
+    to: 'user',
+    act: 'needs_human',
+    task: 'new',
+    subject: 'ask card',
+    body: 'Which?',
+    options: ['A', 'B'],
+  }),
+);
+bus.tick();
+const askCard = db.listMessages(ws.id).find((m) => m.subject === 'ask card');
+assert.ok(askCard, 'needs_human with task "new" is accepted');
+assert.equal(askCard.taskId, null);
+assert.deepEqual(askCard.options, ['A', 'B']);
+assert.equal(askCard.status, MESSAGE_STATUS.held);
 
 // Model overrides: bad rows are dropped, a missing label falls back to the id.
 const { parseOverrides } = await import('../src/server/engines/catalog.ts');
@@ -210,6 +293,18 @@ await settle(loops.id);
 // The released message is hop 1 of the new chain: two more go through, the next one stops again.
 assert.equal(agentMail().length, 7);
 assert.equal(agentMail().filter((m) => m.status === MESSAGE_STATUS.failed).length, 1);
+
+// Messages waiting for an agent run together in one turn.
+db.updateAgent(editor.id, { paused: true });
+const waiting = [bus.sendFromUser(ws.id, 'editor', 'first note'), bus.sendFromUser(ws.id, 'editor', 'second note')];
+await settle();
+const editorRuns = db.listRuns(editor.id).length;
+db.updateAgent(editor.id, { paused: false });
+await settle();
+assert.equal(db.listRuns(editor.id).length, editorRuns + 1, 'both waiting messages share one turn');
+const [firstNote, secondNote] = waiting.map((m) => db.getMessage(m.id)!);
+assert.equal(firstNote!.status, MESSAGE_STATUS.delivered);
+assert.equal(firstNote!.runId, secondNote!.runId);
 
 // Codex: usage on resume is the thread's running total; runs must store per-turn numbers.
 const coder = db.createAgent({
@@ -246,6 +341,47 @@ db.openDb().prepare('UPDATE agents SET dailyTokenBudget = 1 WHERE id = ?').run(c
 const afterLegacyBudget = bus.sendFromUser(ws.id, 'coder', 'third');
 await settle();
 assert.equal(db.getMessage(afterLegacyBudget.id)!.status, MESSAGE_STATUS.delivered);
+
+// Rotation past the turn limit: a handoff turn on the old thread, then the message runs in a new one.
+db.updateAgent(coder.id, { resetPolicy: RESET_POLICY.turns, resetValue: 2 });
+const runsBefore = db.listRuns(coder.id).length;
+bus.sendFromUser(ws.id, 'coder', 'after the limit');
+await settle();
+const [afterRotation, handoffRun] = db.listRuns(coder.id);
+assert.equal(db.listRuns(coder.id).length, runsBefore + 2, 'one handoff run plus the turn itself');
+assert.equal(handoffRun!.output, 'second', 'the handoff note is asked in the old thread');
+assert.equal(afterRotation!.output, 'first', 'the message itself starts a new thread');
+assert.equal(db.getAgent(coder.id)!.handoff, 'second');
+assert.equal(db.getAgent(coder.id)!.turnsInSession, 1);
+// Idle rotation: a session whose last turn ended over an hour ago is rotated whatever the policy.
+db.updateAgent(coder.id, { resetPolicy: RESET_POLICY.never, resetValue: 0 });
+db.openDb()
+  .prepare('UPDATE runs SET endedAt = ? WHERE agentId = ?')
+  .run(new Date(Date.now() - 2 * 3600_000).toISOString(), coder.id);
+const idleRuns = db.listRuns(coder.id).length;
+bus.sendFromUser(ws.id, 'coder', 'after a long break');
+await settle();
+assert.equal(db.listRuns(coder.id).length, idleRuns + 2, 'idle session rotated before the turn');
+
+// Out of quota: the message is held until the engine's reset instead of failing, then runs by itself.
+const availability = await import('../src/server/availability.ts');
+process.env.FAKE_CODEX_QUOTA = '1';
+const quotaMsg = bus.sendFromUser(ws.id, 'coder', 'during the outage');
+for (let i = 0; i < 50 && db.getMessage(quotaMsg.id)!.status !== MESSAGE_STATUS.held; i++) {
+  bus.tick();
+  await new Promise((r) => setTimeout(r, 150));
+}
+assert.equal(db.getMessage(quotaMsg.id)!.status, MESSAGE_STATUS.held, 'held, not failed');
+assert.match(db.getMessage(quotaMsg.id)!.holdReason ?? '', /codex quota reached; retrying at/);
+const blockedFor = availability.engineBlock(ENGINE.codex)!.until - Date.now();
+assert.ok(blockedFor > 55 * 60_000 && blockedFor <= 3600_000, 'blocked until the reset the CLI reported');
+// A fallback takes over while the main engine is blocked; without one the mail waits.
+assert.equal(bus.pickEngine({ ...db.getAgent(coder.id)!, fallbackEngine: ENGINE.claude }), ENGINE.claude);
+assert.ok(typeof bus.pickEngine(db.getAgent(coder.id)!) === 'object');
+delete process.env.FAKE_CODEX_QUOTA;
+availability.blockEngine(ENGINE.codex, 'test reset', 0);
+await settle();
+assert.equal(db.getMessage(quotaMsg.id)!.status, MESSAGE_STATUS.delivered, 'runs by itself after the reset');
 db.deleteAgent(coder.id);
 
 // HTTP layer: the UI sends agent ids; a broken %-escape must answer 400, not crash the process.
@@ -284,6 +420,19 @@ db.deleteWorkspace(movingWs.id);
 const { preamble } = await import('../src/server/preamble.ts');
 const lead = db.getAgent(writer.id)!;
 assert.ok(preamble(lead, team(), db.getWorkspace(ws.id)!, 'outbox').includes('Your goal:\nship weekly posts'));
+// A fresh session carries the handoff note, inlined briefs and open tasks instead of rediscovering them.
+const openTask = db.createTask({ workspaceId: ws.id, title: 'carried task', assigneeId: writer.id });
+const carried = preamble({ ...lead, handoff: 'pick up T-9' }, team(), db.getWorkspace(ws.id)!, 'outbox', {
+  briefs: [
+    { path: 'pm.md', content: 'be brief' },
+    { path: 'huge.md', content: null },
+  ],
+  openTasks: [openTask],
+});
+assert.ok(carried.includes('Brief file pm.md (already loaded, do not read it again):\nbe brief'));
+assert.ok(carried.includes('Read these brief files before working: huge.md'));
+assert.ok(carried.includes('Handoff note from your previous session:\npick up T-9'));
+assert.ok(carried.includes(`- ${openTask.key} [${openTask.status}] carried task`));
 const badPath = await fetch(`${base}/api/tasks/%E0%A4%A`, { method: 'DELETE' });
 assert.equal(badPath.status, 400);
 // DNS rebinding: a foreign Host header is refused even when Origin matches it.

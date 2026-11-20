@@ -8,6 +8,13 @@ let input = '';
 process.stdin.setEncoding('utf8');
 process.stdin.on('data', (d) => (input += d));
 process.stdin.on('end', () => {
+  // FAKE_CODEX_QUOTA set: answer like an exhausted plan, so the hub's quota hold can be tested.
+  if (process.env.FAKE_CODEX_QUOTA) {
+    console.log(
+      JSON.stringify({ type: 'turn.failed', error: { message: "You've hit your usage limit. Resets in 1h0m0s" } }),
+    );
+    process.exit(1);
+  }
   for (const event of [
     { type: 'thread.started', thread_id: 'thread-1' },
     { type: 'item.completed', item: { type: 'agent_message', text: resumed ? 'second' : 'first' } },

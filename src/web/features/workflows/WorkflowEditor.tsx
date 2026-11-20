@@ -48,215 +48,236 @@ export function WorkflowEditor({
   };
 
   return (
-    <div>
-      <Button variant="ghost" size="sm" onClick={close}>
-        <ArrowLeft />
-        {t('common.backToList')}
-      </Button>
-      <div className="mt-4 grid gap-4 lg:grid-cols-[1fr_300px]">
-        <div className="grid gap-4">
-          <Card className="grid gap-3 p-4">
-            <Field label={t('workflows.name')}>
-              <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-            </Field>
-            <Field label={t('common.description')}>
-              <Textarea
-                value={form.description}
-                onChange={(e) => setForm({ ...form, description: e.target.value })}
-                rows={2}
-              />
-            </Field>
-          </Card>
-
-          <Card className="p-4">
-            <div className="mb-4 flex justify-between">
-              <div>
-                <h3 className="font-medium">{t('workflows.steps')}</h3>
-                <p className="text-xs text-muted-foreground">{t('workflows.stepsDescription')}</p>
-              </div>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() =>
-                  setSteps([
-                    ...form.steps,
-                    {
-                      id: uid(),
-                      name: t('workflows.stepName', { number: form.steps.length + 1 }),
-                      agentId: null,
-                      instruction: '',
-                      approval: false,
-                      onReject: null,
-                    },
-                  ])
-                }
-              >
-                <Plus />
-                {t('workflows.addStep')}
-              </Button>
-            </div>
-            <div className="space-y-3">
-              {form.steps.map((s, i) => (
-                <div key={s.id} className="rounded-lg border p-3">
-                  <div className="mb-3 flex items-center gap-2">
-                    <Badge variant="secondary">{i + 1}</Badge>
-                    <Input
-                      value={s.name}
-                      aria-label={t('workflows.stepName', { number: i + 1 })}
-                      onChange={(e) => changeStep(i, { name: e.target.value })}
-                    />
-                    <Button
-                      variant="ghost"
-                      size="icon-sm"
-                      aria-label={t('workflows.moveStepUp')}
-                      disabled={i === 0}
-                      onClick={() => moveStep(i, i - 1)}
-                    >
-                      <ArrowUp />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon-sm"
-                      aria-label={t('workflows.moveStepDown')}
-                      disabled={i === form.steps.length - 1}
-                      onClick={() => moveStep(i, i + 1)}
-                    >
-                      <ArrowDown />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon-sm"
-                      aria-label={t('workflows.removeStep')}
-                      disabled={form.steps.length < 2}
-                      onClick={() => setSteps(form.steps.filter((_, n) => n !== i))}
-                    >
-                      <X />
-                    </Button>
-                  </div>
-                  <div className="grid gap-3 md:grid-cols-2">
-                    <Field label={t('tasks.assignee')}>
-                      <Select
-                        value={s.agentId || USER_ID}
-                        onValueChange={(v) => changeStep(i, { agentId: v === USER_ID ? null : v })}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value={USER_ID}>{t('common.you')}</SelectItem>
-                          {h.agents.map((a) => (
-                            <SelectItem key={a.id} value={a.id}>
-                              {a.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </Field>
-                    <Field label={t('workflows.instructions')}>
-                      <Textarea
-                        rows={2}
-                        value={s.instruction}
-                        onChange={(e) => changeStep(i, { instruction: e.target.value })}
-                      />
-                    </Field>
-                  </div>
-                  <div className="mt-3 flex items-center gap-3">
-                    <label className="flex items-center gap-2 text-sm">
-                      <Switch checked={s.approval} onCheckedChange={(v) => changeStep(i, { approval: v })} />
-                      {t('inbox.needsYourReview')}
-                    </label>
-                    {s.approval && (
-                      <Select value={s.onReject || s.id} onValueChange={(v) => changeStep(i, { onReject: v })}>
-                        <SelectTrigger className="w-52" aria-label={t('workflows.returnToStepIfRejected')}>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {form.steps.slice(0, i + 1).map((x) => (
-                            <SelectItem key={x.id} value={x.id}>
-                              {x.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </Card>
+    <div className="-mx-7 -mt-7 flex min-h-[calc(100vh-4.5rem)] flex-1 flex-col">
+      <header className="sticky top-0 z-20 flex shrink-0 items-center gap-3 border-b bg-background px-7 py-3">
+        <Button variant="ghost" size="sm" onClick={close}>
+          <ArrowLeft />
+          {t('common.backToList')}
+        </Button>
+        <div className="min-w-0 flex-1">
+          <h1 className="truncate text-lg font-semibold">{id ? form.name : t('workflows.newWorkflow')}</h1>
+          <p className="text-xs text-muted-foreground">{t('workflows.editorDescription')}</p>
         </div>
+      </header>
+      <div className="min-h-0 flex-1 overflow-y-auto px-7 py-5">
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
+          <div className="grid gap-4">
+            <Card className="grid gap-3 p-4">
+              <Field label={t('workflows.name')} isRequired>
+                <Input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+              </Field>
+              <Field label={t('common.description')}>
+                <Textarea
+                  value={form.description}
+                  onChange={(e) => setForm({ ...form, description: e.target.value })}
+                  rows={2}
+                />
+              </Field>
+            </Card>
 
-        <div className="grid content-start gap-4">
-          <Card className="grid gap-3 p-4">
-            <h3 className="font-medium">{t('workflows.trigger')}</h3>
-            <Field label={t('workflows.mode')}>
-              <Select
-                value={form.trigger.kind}
-                onValueChange={(v) =>
-                  changeTrigger({ kind: v === TRIGGER_KIND.schedule ? TRIGGER_KIND.schedule : TRIGGER_KIND.manual })
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="manual">{t('workflows.manual')}</SelectItem>
-                  <SelectItem value="schedule">{t('workflows.scheduled')}</SelectItem>
-                </SelectContent>
-              </Select>
-            </Field>
-            {form.trigger.kind === TRIGGER_KIND.schedule && (
-              <>
-                <Field label={t('workflows.scheduleFiveFieldCron')}>
-                  <Input value={form.trigger.cron} onChange={(e) => changeTrigger({ cron: e.target.value })} />
-                </Field>
-                <p className="text-xs text-muted-foreground">{t('workflows.cronExample')}</p>
+            <Card className="p-4">
+              <div className="mb-4 flex justify-between">
+                <div>
+                  <h3 className="font-medium">{t('workflows.steps')}</h3>
+                  <p className="text-xs text-muted-foreground">{t('workflows.stepsDescription')}</p>
+                </div>
                 <Button
                   size="sm"
                   variant="outline"
-                  onClick={async () =>
-                    setPreview((await h.attempt(() => api.cronPreview(form.trigger.cron)))?.next ?? [])
+                  onClick={() =>
+                    setSteps([
+                      ...form.steps,
+                      {
+                        id: uid(),
+                        name: t('workflows.stepName', { number: form.steps.length + 1 }),
+                        agentId: null,
+                        instruction: '',
+                        approval: false,
+                        onReject: null,
+                      },
+                    ])
                   }
                 >
-                  <CalendarSearch />
-                  {t('workflows.previewNextRuns')}
+                  <Plus />
+                  {t('workflows.addStep')}
                 </Button>
-                {preview.map((v) => (
-                  <div className="text-xs text-muted-foreground" key={v}>
-                    {new Date(v).toLocaleString(i18n.resolvedLanguage || 'vi')}
+              </div>
+              <div className="space-y-3">
+                {form.steps.map((s, i) => (
+                  <div key={s.id} className="rounded-lg border p-3">
+                    <div className="mb-3 flex items-center gap-2">
+                      <Badge variant="secondary">{i + 1}</Badge>
+                      <Input
+                        required
+                        value={s.name}
+                        aria-label={t('workflows.stepName', { number: i + 1 })}
+                        onChange={(e) => changeStep(i, { name: e.target.value })}
+                      />
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-label={t('workflows.moveStepUp')}
+                        disabled={i === 0}
+                        onClick={() => moveStep(i, i - 1)}
+                      >
+                        <ArrowUp />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-label={t('workflows.moveStepDown')}
+                        disabled={i === form.steps.length - 1}
+                        onClick={() => moveStep(i, i + 1)}
+                      >
+                        <ArrowDown />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-label={t('workflows.removeStep')}
+                        disabled={form.steps.length < 2}
+                        onClick={() => setSteps(form.steps.filter((_, n) => n !== i))}
+                      >
+                        <X />
+                      </Button>
+                    </div>
+                    <div className="grid gap-3 md:grid-cols-2">
+                      <Field label={t('tasks.assignee')}>
+                        <Select
+                          value={s.agentId || USER_ID}
+                          onValueChange={(v) => changeStep(i, { agentId: v === USER_ID ? null : v })}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value={USER_ID}>{t('common.you')}</SelectItem>
+                            {h.agents.map((a) => (
+                              <SelectItem key={a.id} value={a.id}>
+                                {a.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </Field>
+                      <Field label={t('workflows.instructions')}>
+                        <Textarea
+                          rows={2}
+                          value={s.instruction}
+                          onChange={(e) => changeStep(i, { instruction: e.target.value })}
+                        />
+                      </Field>
+                    </div>
+                    <div className="mt-3 flex items-center gap-3">
+                      <label className="flex items-center gap-2 text-sm">
+                        <Switch checked={s.approval} onCheckedChange={(v) => changeStep(i, { approval: v })} />
+                        {t('inbox.needsYourReview')}
+                      </label>
+                      {s.approval && (
+                        <Select value={s.onReject || s.id} onValueChange={(v) => changeStep(i, { onReject: v })}>
+                          <SelectTrigger className="w-52" aria-label={t('workflows.returnToStepIfRejected')}>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {form.steps.slice(0, i + 1).map((x) => (
+                              <SelectItem key={x.id} value={x.id}>
+                                {x.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    </div>
                   </div>
                 ))}
-              </>
-            )}
-            <Field label={t('workflows.taskTitleSupportsDate')}>
-              <Input value={form.trigger.title} onChange={(e) => changeTrigger({ title: e.target.value })} />
-            </Field>
-            <Field label={t('workflows.defaultContext')}>
-              <Textarea rows={3} value={form.trigger.body} onChange={(e) => changeTrigger({ body: e.target.value })} />
-            </Field>
-            <label className="flex items-center gap-2 text-sm">
-              <Switch checked={form.enabled} onCheckedChange={(v) => setForm({ ...form, enabled: v })} />
-              {t('workflows.enabled')}
-            </label>
-          </Card>
-          <Button disabled={!form.name.trim() || !form.steps.length} onClick={save}>
-            <Save />
-            {t('workflows.saveWorkflow')}
-          </Button>
-          {id && (
-            <ConfirmButton
-              title={t('workflows.deleteWorkflowTitle', { name: form.name })}
-              description={t('workflows.deleteWorkflowDescription')}
-              onConfirm={async () => {
-                if (await h.attempt(() => api.deleteWorkflow(id), t('workflows.workflowDeleted'))) close();
-              }}
-            >
-              <Trash2 />
-              {t('workflows.deleteWorkflow')}
-            </ConfirmButton>
-          )}
+              </div>
+            </Card>
+          </div>
+
+          <aside className="grid content-start gap-4 lg:sticky lg:top-5 lg:self-start">
+            <Card className="grid gap-3 p-4">
+              <h3 className="font-medium">{t('workflows.trigger')}</h3>
+              <Field label={t('workflows.mode')}>
+                <Select
+                  value={form.trigger.kind}
+                  onValueChange={(v) =>
+                    changeTrigger({ kind: v === TRIGGER_KIND.schedule ? TRIGGER_KIND.schedule : TRIGGER_KIND.manual })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="manual">{t('workflows.manual')}</SelectItem>
+                    <SelectItem value="schedule">{t('workflows.scheduled')}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </Field>
+              {form.trigger.kind === TRIGGER_KIND.schedule && (
+                <>
+                  <Field label={t('workflows.scheduleFiveFieldCron')} isRequired>
+                    <Input
+                      required
+                      value={form.trigger.cron}
+                      onChange={(e) => changeTrigger({ cron: e.target.value })}
+                    />
+                  </Field>
+                  <p className="text-xs text-muted-foreground">{t('workflows.cronExample')}</p>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={async () =>
+                      setPreview((await h.attempt(() => api.cronPreview(form.trigger.cron)))?.next ?? [])
+                    }
+                  >
+                    <CalendarSearch />
+                    {t('workflows.previewNextRuns')}
+                  </Button>
+                  {preview.map((v) => (
+                    <div className="text-xs text-muted-foreground" key={v}>
+                      {new Date(v).toLocaleString(i18n.resolvedLanguage || 'vi')}
+                    </div>
+                  ))}
+                </>
+              )}
+              <Field label={t('workflows.taskTitleSupportsDate')}>
+                <Input value={form.trigger.title} onChange={(e) => changeTrigger({ title: e.target.value })} />
+              </Field>
+              <Field label={t('workflows.defaultContext')}>
+                <Textarea
+                  rows={3}
+                  value={form.trigger.body}
+                  onChange={(e) => changeTrigger({ body: e.target.value })}
+                />
+              </Field>
+              <label className="flex items-center gap-2 text-sm">
+                <Switch checked={form.enabled} onCheckedChange={(v) => setForm({ ...form, enabled: v })} />
+                {t('workflows.enabled')}
+              </label>
+            </Card>
+          </aside>
         </div>
       </div>
+      <footer className="sticky bottom-0 z-20 flex shrink-0 items-center justify-between gap-3 border-t bg-background/95 px-7 py-3 backdrop-blur-sm">
+        {id ? (
+          <ConfirmButton
+            title={t('workflows.deleteWorkflowTitle', { name: form.name })}
+            description={t('workflows.deleteWorkflowDescription')}
+            onConfirm={async () => {
+              if (await h.attempt(() => api.deleteWorkflow(id), t('workflows.workflowDeleted'))) close();
+            }}
+          >
+            <Trash2 />
+            {t('workflows.deleteWorkflow')}
+          </ConfirmButton>
+        ) : (
+          <span />
+        )}
+        <Button disabled={!form.name.trim() || !form.steps.length} onClick={save}>
+          <Save />
+          {t('workflows.saveWorkflow')}
+        </Button>
+      </footer>
     </div>
   );
 }

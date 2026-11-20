@@ -1,4 +1,18 @@
-import { USER_ID, HUB_ID, ACT, MESSAGE_STATUS, AGENT_STATUS, TASK_STATUS, ROUTING } from '../shared/contracts.ts';
+import {
+  USER_ID,
+  isSameAgentName,
+  ASK_OPTIONS_MAX,
+  ASK_OPTION_MAX_LENGTH,
+  HUB_ID,
+  ACT,
+  MESSAGE_STATUS,
+  AGENT_STATUS,
+  ENGINE,
+  TASK_STATUS,
+  ROUTING,
+  FALLBACK_ENGINES,
+  type Engine,
+} from '../shared/contracts.ts';
 import { mkdirSync, readFileSync, readdirSync, renameSync, statSync, writeFileSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 import {
@@ -29,6 +43,8 @@ import { emit } from './events.ts';
 import { DomainError } from './domain-error.ts';
 import { outboxDir, resetSession, runTurn } from './runner.ts';
 import { agentAsks, agentDone, tickSchedules } from './workflow.ts';
+import { parseTaskReply } from './engines/openrouter.ts';
+import { blockEngine, engineBlock, quotaRetryAt } from './availability.ts';
 
 /** Outbox "task" value that asks the hub to create a new task for the recipient. */
 const NEW_TASK_REF = 'new';
@@ -130,6 +146,7 @@ function scanOutbox(agent: Agent, parentId: string | null): OutboxResult {
         urgent: v.urgent,
         taskId,
         parentId,
+        options: v.options,
         // Messages to the human are final; needs_human waits in the approvals queue.
         // A stopped message waits as failed: the human reads it and presses Retry to let the chain go on.
         status: stopped
@@ -163,7 +180,22 @@ function scanOutbox(agent: Agent, parentId: string | null): OutboxResult {
     }
   }
   if (finished) resetSession(agent.id);
+  if (res.rejected.length) reportRejected(agent, res.rejected);
   return res;
+}
+
+/** The agent believes it sent these; tell the human, or a lost question waits forever without anyone knowing. */
+function reportRejected(agent: Agent, rejected: OutboxResult['rejected']) {
+  const msg = createMessage({
+    workspaceId: agent.workspaceId,
+    fromId: HUB_ID,
+    toId: USER_ID,
+    act: ACT.inform,
+    subject: `${agent.name}: ${rejected.length} outbox message(s) rejected`,
+    body: rejected.map((r) => `${r.file}: ${r.reason}`).join('\n'),
+    status: MESSAGE_STATUS.delivered,
+  });
+  emit({ type: 'message', workspaceId: agent.workspaceId, id: msg.id });
 }
 
 interface Valid {
@@ -174,6 +206,17 @@ interface Valid {
   urgent: boolean;
   taskId: string | null;
   newTask: boolean;
+  options: string[];
+}
+
+/** Agent-written choices: trimmed, non-empty, unique, capped in count and length. Anything else is dropped. */
+export function askOptions(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  const clean = raw
+    .filter((o): o is string => typeof o === 'string')
+    .map((o) => o.trim().slice(0, ASK_OPTION_MAX_LENGTH))
+    .filter(Boolean);
+  return [...new Set(clean)].slice(0, ASK_OPTIONS_MAX);
 }
 
 function validate(item: unknown, from: Agent, team: Agent[], ws: Workspace): Valid | string {
@@ -196,7 +239,9 @@ function validate(item: unknown, from: Agent, team: Agent[], ws: Workspace): Val
     taskId = task.id;
   }
   if (to === USER_ID) {
-    if (newTask) return 'task "new" needs an agent as recipient';
+    // Agents used to other tools open a card for every question ("ASK ME"); here a loose question already shows
+    // in Needs you, so the card part is dropped rather than losing the question.
+    if (newTask && act !== ACT.needsHuman) return 'task "new" needs an agent as recipient';
     return {
       toId: USER_ID,
       act,
@@ -204,11 +249,12 @@ function validate(item: unknown, from: Agent, team: Agent[], ws: Workspace): Val
       body,
       urgent: !!m.urgent,
       taskId,
-      newTask,
+      newTask: false,
+      options: act === ACT.needsHuman ? askOptions(m.options) : [],
     };
   }
 
-  const target = team.find((a) => a.name === to);
+  const target = team.find((a) => isSameAgentName(a.name, to));
   if (!target) return `no agent named "${to}"`;
   if (target.id === from.id) return 'cannot message yourself';
 
@@ -223,6 +269,7 @@ function validate(item: unknown, from: Agent, team: Agent[], ws: Workspace): Val
     urgent: !!m.urgent,
     taskId,
     newTask,
+    options: [],
   };
 }
 
@@ -267,8 +314,7 @@ export function sendFromUser(
     taskId?: string | null;
   } = {},
 ) {
-  const wanted = to.trim().toLowerCase();
-  const target = listAgents(workspaceId).find((a) => a.id === to || a.name === wanted);
+  const target = listAgents(workspaceId).find((a) => a.id === to || isSameAgentName(a.name, to.trim()));
   if (!target) throw new DomainError('errors.recipientNotFound', { name: to });
   const msg = createMessage({
     workspaceId,
@@ -297,6 +343,9 @@ export function tick(): void {
   }
 }
 
+/** Bounds one turn's prompt when a backlog has built up; the rest goes in the next turn. */
+const MAX_BATCH = 10;
+
 function dispatchAll(): void {
   tickSchedules();
   for (const ws of listWorkspaces()) {
@@ -309,10 +358,10 @@ function dispatchAll(): void {
       if (running.has(agent.id)) continue;
       const pending = pendingFor(agent.id);
       if (!pending.length) continue;
-      const next = pending[0]!;
 
-      const hold = holdReason(agent, ws);
-      if (hold) {
+      const engine = pickEngine(agent);
+      const hold = holdReason(agent, ws) ?? (typeof engine === 'string' ? null : engine.hold);
+      if (hold || typeof engine !== 'string') {
         for (const m of pending)
           if (m.status !== MESSAGE_STATUS.held || m.holdReason !== hold)
             setMessageStatus(m.id, MESSAGE_STATUS.held, { holdReason: hold });
@@ -320,7 +369,9 @@ function dispatchAll(): void {
       }
       if (active >= ws.settings.maxConcurrent) break;
       active++;
-      start(agent, next, team);
+      // OpenRouter turns map one reply to one task, so they stay one message per turn.
+      const batch = agent.engine === ENGINE.openrouter ? pending.slice(0, 1) : pending.slice(0, MAX_BATCH);
+      start(agent, batch, team, engine);
     }
   }
 }
@@ -341,20 +392,56 @@ function holdReason(agent: Agent, ws: Workspace): string | null {
   return null;
 }
 
-function start(agent: Agent, msg: Message, team: Agent[]) {
-  running.add(agent.id);
-  setMessageStatus(msg.id, MESSAGE_STATUS.running);
-  emit({ type: 'message', workspaceId: agent.workspaceId, id: msg.id });
-  const fromName =
-    msg.fromId === USER_ID || msg.fromId === HUB_ID
-      ? msg.fromId
-      : (team.find((a) => a.id === msg.fromId)?.name ?? msg.fromId);
+/**
+ * The agent's own engine, else its fallback while its own is out of quota, else why its mail waits.
+ * A block expires at the engine's reset time, so held mail resumes by itself.
+ */
+export function pickEngine(agent: Agent): Engine | { hold: string } {
+  const block = engineBlock(agent.engine);
+  if (!block) return agent.engine;
+  if (agent.fallbackEngine && !engineBlock(agent.fallbackEngine)) return agent.fallbackEngine;
+  return { hold: `${block.reason}; retrying at ${new Date(block.until).toLocaleString()}` };
+}
 
-  runTurn(agent.id, msg, fromName)
+/**
+ * Everything waiting for an agent goes into one turn: each turn re-reads the whole session, so three messages in
+ * one turn cost far less than three turns.
+ */
+function start(agent: Agent, batch: Message[], team: Agent[], engine: Engine) {
+  const msg = batch[0]!;
+  running.add(agent.id);
+  for (const m of batch) {
+    setMessageStatus(m.id, MESSAGE_STATUS.running);
+    emit({ type: 'message', workspaceId: agent.workspaceId, id: m.id });
+  }
+  const nameOf = (id: string) => (id === USER_ID || id === HUB_ID ? id : (team.find((a) => a.id === id)?.name ?? id));
+  // The outbox continues the longest agent chain in the batch, so batching never resets the loop guard.
+  const chainParent = batch.reduce((best, m) => (agentHops(m.id) > agentHops(best.id) ? m : best), msg);
+  const taskIds = new Set(batch.map((m) => m.taskId));
+
+  runTurn(
+    agent.id,
+    batch.map((message) => ({ message, fromName: nameOf(message.fromId) })),
+    engine,
+  )
     .then(({ run, result }) => {
-      setMessageStatus(msg.id, result.isError ? MESSAGE_STATUS.failed : MESSAGE_STATUS.delivered, {
-        runId: run.id,
-      });
+      // Out of quota is not the work failing: the mail waits for the reset (or the fallback) instead.
+      const retryAt = result.isError && FALLBACK_ENGINES.includes(engine) ? quotaRetryAt(result.text) : undefined;
+      if (retryAt !== undefined) {
+        blockEngine(engine, `${engine} quota reached`, retryAt);
+        for (const m of batch) {
+          setMessageStatus(m.id, MESSAGE_STATUS.queued, { runId: run.id });
+          emit({ type: 'message', workspaceId: agent.workspaceId, id: m.id });
+        }
+        return;
+      }
+      for (const m of batch)
+        setMessageStatus(m.id, result.isError ? MESSAGE_STATUS.failed : MESSAGE_STATUS.delivered, { runId: run.id });
+      const task = msg.taskId ? getTask(msg.taskId) : undefined;
+      const openRouterTaskReply =
+        !result.isError && agent.engine === ENGINE.openrouter && task?.status === TASK_STATUS.doing
+          ? parseTaskReply(result.text)
+          : undefined;
       // The plain reply is for the human only; it never goes to another agent.
       const reply = createMessage({
         workspaceId: agent.workspaceId,
@@ -362,23 +449,29 @@ function start(agent: Agent, msg: Message, team: Agent[]) {
         toId: USER_ID,
         act: ACT.reply,
         subject: result.isError ? 'error' : '',
-        body: result.text,
+        body: openRouterTaskReply?.act === 'needs_human' ? openRouterTaskReply.body : result.text,
         status: MESSAGE_STATUS.delivered,
         parentId: msg.id,
         runId: run.id,
-        taskId: msg.taskId,
+        taskId: taskIds.size === 1 ? msg.taskId : null,
       });
       emit({ type: 'message', workspaceId: agent.workspaceId, id: reply.id });
-      if (result.isError) blockTaskOnFailure(msg, agent.id, result.text);
+      if (task && openRouterTaskReply && task.assigneeId === agent.id) {
+        if (openRouterTaskReply.act === 'needs_human') agentAsks(task, openRouterTaskReply.body);
+        else agentDone(task, agent.id, openRouterTaskReply.body);
+      }
+      if (result.isError) for (const m of batch) blockTaskOnFailure(m, agent.id, result.text);
     })
     .catch((err) => {
       const reason = String(err?.message ?? err);
-      setMessageStatus(msg.id, MESSAGE_STATUS.failed, { holdReason: reason });
-      emit({ type: 'message', workspaceId: agent.workspaceId, id: msg.id });
-      blockTaskOnFailure(msg, agent.id, reason);
+      for (const m of batch) {
+        setMessageStatus(m.id, MESSAGE_STATUS.failed, { holdReason: reason });
+        emit({ type: 'message', workspaceId: agent.workspaceId, id: m.id });
+        blockTaskOnFailure(m, agent.id, reason);
+      }
     })
     .finally(() => {
-      collectOutbox(agent, msg.id);
+      collectOutbox(agent, chainParent.id);
       running.delete(agent.id);
       tick();
     });

@@ -27,6 +27,23 @@ npm run dev
 Mở <http://127.0.0.1:4310>. Lần đầu sẽ có màn tạo workspace (tên, đường dẫn repo, thư mục worktree), sau đó vào
 **Agents → Thêm agent** để tạo agent.
 
+## Chạy trực tiếp bằng npx
+
+Khi package được publish lên npm, cài và chạy bằng một lệnh:
+
+```bash
+npx agent-hub
+```
+
+Yêu cầu Node.js 24 trở lên. Lệnh chạy hub tại `http://127.0.0.1:4310`; dữ liệu được tạo trong `data/` ở thư mục
+đang mở terminal. Dùng `HUB_PORT` hoặc `HUB_DATA` để đổi port/thư mục dữ liệu, ví dụ:
+
+```bash
+npx agent-hub --data ./my-agent-hub-data
+```
+
+Để cập nhật package đã cache, thêm `@latest`: `npx agent-hub@latest`.
+
 | Lệnh | Việc |
 | --- | --- |
 | `npm run dev` | Server + Vite middleware (hot reload), dữ liệu ở `data/` |

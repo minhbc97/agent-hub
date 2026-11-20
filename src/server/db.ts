@@ -4,6 +4,7 @@ import { dirname, resolve } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import {
   AGENT_STATUS,
+  DEFAULT_CONTEXT_LIMIT,
   DEFAULT_SETTINGS,
   ENGINE,
   HUB_ID,
@@ -109,6 +110,20 @@ const MIGRATIONS: [table: string, column: string, ddl: string][] = [
   ['messages', 'taskId', 'ALTER TABLE messages ADD COLUMN taskId TEXT'],
   ['workspaces', 'taskSeq', 'ALTER TABLE workspaces ADD COLUMN taskSeq INTEGER NOT NULL DEFAULT 0'],
   ['agents', 'goal', "ALTER TABLE agents ADD COLUMN goal TEXT NOT NULL DEFAULT ''"],
+  ['messages', 'options', "ALTER TABLE messages ADD COLUMN options TEXT NOT NULL DEFAULT '[]'"],
+  ['runs', 'contextTokens', 'ALTER TABLE runs ADD COLUMN contextTokens INTEGER NOT NULL DEFAULT 0'],
+  ['agents', 'isLean', 'ALTER TABLE agents ADD COLUMN isLean INTEGER NOT NULL DEFAULT 0'],
+  ['agents', 'fallbackEngine', 'ALTER TABLE agents ADD COLUMN fallbackEngine TEXT'],
+  ['agents', 'activeEngine', 'ALTER TABLE agents ADD COLUMN activeEngine TEXT'],
+  ['agents', 'fallbackModel', "ALTER TABLE agents ADD COLUMN fallbackModel TEXT NOT NULL DEFAULT ''"],
+  ['agents', 'mcpServers', "ALTER TABLE agents ADD COLUMN mcpServers TEXT NOT NULL DEFAULT '[]'"],
+  // Agents saved before handoff notes existed never reset; move them to the context limit once.
+  [
+    'agents',
+    'handoff',
+    `ALTER TABLE agents ADD COLUMN handoff TEXT NOT NULL DEFAULT '';
+     UPDATE agents SET resetPolicy = 'context', resetValue = ${DEFAULT_CONTEXT_LIMIT} WHERE resetPolicy = 'never';`,
+  ],
 ];
 
 let db: DatabaseSync | null = null;
@@ -145,6 +160,8 @@ const toAgent = (r: Row): Agent => {
     ...(agent as unknown as Agent),
     briefFiles: JSON.parse(String(r.briefFiles || '[]')),
     isOrchestrator: !!r.isOrchestrator,
+    isLean: !!r.isLean,
+    mcpServers: JSON.parse(String(r.mcpServers || '[]')),
     paused: !!r.paused,
   };
 };
@@ -152,7 +169,18 @@ const toAgent = (r: Row): Agent => {
 const toMessage = (r: Row): Message => ({
   ...(r as unknown as Message),
   urgent: !!r.urgent,
+  options: parseOptions(r.options),
 });
+
+/** Stored as JSON; anything unreadable counts as no options rather than breaking the inbox. */
+function parseOptions(raw: unknown): string[] {
+  try {
+    const list: unknown = JSON.parse(String(raw ?? '[]'));
+    return Array.isArray(list) ? list.filter((o): o is string => typeof o === 'string') : [];
+  } catch {
+    return [];
+  }
+}
 
 // ---- workspaces ----
 
@@ -215,21 +243,27 @@ export function createAgent(a: Partial<Agent> & { workspaceId: string; name: str
     isOrchestrator: false,
     tint: '#f6bf1d',
     avatarSeed: a.name,
-    resetPolicy: RESET_POLICY.never,
-    resetValue: 0,
+    resetPolicy: RESET_POLICY.context,
+    resetValue: DEFAULT_CONTEXT_LIMIT,
+    handoff: '',
+    isLean: false,
+    mcpServers: [],
+    fallbackEngine: null,
+    fallbackModel: '',
+    activeEngine: null,
     sessionId: null,
     turnsInSession: 0,
     paused: false,
     status: AGENT_STATUS.idle,
     ...a,
-    name: a.name.trim().toLowerCase(),
+    name: a.name.trim(),
   };
   openDb()
     .prepare(
       `INSERT INTO agents (id, workspaceId, name, role, goal, briefFiles, engine, model, command, extraArgs,
-        isolation, cwd, isOrchestrator, tint, avatarSeed, resetPolicy, resetValue,
+        isolation, cwd, isOrchestrator, tint, avatarSeed, resetPolicy, resetValue, handoff, isLean, mcpServers, fallbackEngine, fallbackModel, activeEngine,
         sessionId, turnsInSession, paused, status)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       agent.id,
@@ -249,6 +283,12 @@ export function createAgent(a: Partial<Agent> & { workspaceId: string; name: str
       agent.avatarSeed,
       agent.resetPolicy,
       agent.resetValue,
+      agent.handoff,
+      agent.isLean ? 1 : 0,
+      JSON.stringify(agent.mcpServers),
+      agent.fallbackEngine,
+      agent.fallbackModel,
+      agent.activeEngine,
       agent.sessionId,
       agent.turnsInSession,
       agent.paused ? 1 : 0,
@@ -264,7 +304,7 @@ export function getAgent(id: string): Agent | undefined {
 }
 
 export function listAgents(workspaceId: string): Agent[] {
-  return (openDb().prepare('SELECT * FROM agents WHERE workspaceId = ? ORDER BY name').all(workspaceId) as Row[]).map(
+  return (openDb().prepare('SELECT * FROM agents WHERE workspaceId = ? ORDER BY rowid').all(workspaceId) as Row[]).map(
     toAgent,
   );
 }
@@ -285,6 +325,12 @@ const AGENT_COLUMNS = new Set([
   'avatarSeed',
   'resetPolicy',
   'resetValue',
+  'handoff',
+  'isLean',
+  'mcpServers',
+  'fallbackEngine',
+  'fallbackModel',
+  'activeEngine',
   'sessionId',
   'turnsInSession',
   'paused',
@@ -297,7 +343,13 @@ export function updateAgent(id: string, patch: Partial<Agent>): void {
   // Only identity changes touch other rows; status updates (every turn) skip this lookup.
   const before = patch.name !== undefined || patch.isOrchestrator ? getAgent(id) : undefined;
   const values = entries.map(([k, v]) =>
-    k === 'briefFiles' ? JSON.stringify(v) : typeof v === 'boolean' ? (v ? 1 : 0) : (v as string | number | null),
+    k === 'briefFiles' || k === 'mcpServers'
+      ? JSON.stringify(v)
+      : typeof v === 'boolean'
+        ? v
+          ? 1
+          : 0
+        : (v as string | number | null),
   );
   openDb()
     .prepare(`UPDATE agents SET ${entries.map(([k]) => `${k} = ?`).join(', ')} WHERE id = ?`)
@@ -368,13 +420,14 @@ export function createMessage(
     parentId: null,
     runId: null,
     taskId: null,
+    options: [],
     createdAt: now(),
     ...m,
   };
   openDb()
     .prepare(
       `INSERT INTO messages (id, workspaceId, fromId, toId, act, subject, body, status, holdReason, urgent,
-        decision, parentId, runId, taskId, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        decision, parentId, runId, taskId, options, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       msg.id,
@@ -391,6 +444,7 @@ export function createMessage(
       msg.parentId,
       msg.runId,
       msg.taskId,
+      JSON.stringify(msg.options),
       msg.createdAt,
     );
   return msg;
@@ -649,12 +703,22 @@ export function createRun(agentId: string, messageId: string | null): Run {
     cacheWriteTokens: 0,
     cacheReadTokens: 0,
     costUsd: 0,
+    contextTokens: 0,
     sessionId: null,
   };
   openDb()
     .prepare('INSERT INTO runs (id, agentId, messageId, startedAt, status) VALUES (?, ?, ?, ?, ?)')
     .run(run.id, agentId, messageId, run.startedAt, run.status);
   return run;
+}
+
+/** The agent's latest finished turn in this session, which tells the next turn whether to rotate it. */
+export function lastSessionRun(agentId: string, sessionId: string): Run | undefined {
+  return openDb()
+    .prepare(
+      `SELECT * FROM runs WHERE agentId = ? AND sessionId = ? AND status != 'running' ORDER BY endedAt DESC LIMIT 1`,
+    )
+    .get(agentId, sessionId) as Run | undefined;
 }
 
 /** Token totals already recorded for one session, used to turn a CLI's running total into per-turn usage. */
@@ -672,7 +736,7 @@ export function finishRun(run: Run): void {
   openDb()
     .prepare(
       `UPDATE runs SET endedAt = ?, status = ?, exitCode = ?, output = ?, inputTokens = ?, outputTokens = ?,
-        cacheWriteTokens = ?, cacheReadTokens = ?, costUsd = ?, sessionId = ? WHERE id = ?`,
+        cacheWriteTokens = ?, cacheReadTokens = ?, costUsd = ?, contextTokens = ?, sessionId = ? WHERE id = ?`,
     )
     .run(
       run.endedAt,
@@ -684,6 +748,7 @@ export function finishRun(run: Run): void {
       run.cacheWriteTokens,
       run.cacheReadTokens,
       run.costUsd,
+      run.contextTokens,
       run.sessionId,
       run.id,
     );
