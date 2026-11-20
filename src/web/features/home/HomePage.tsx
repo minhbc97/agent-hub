@@ -107,7 +107,8 @@ export function HomePage({ openAgent, openNeeds }: { openAgent: (id: string) => 
               </Button>
             </div>
           </Room>
-          <DoorwayArt className="pointer-events-none z-20 col-start-2 row-start-1 size-16 self-center justify-self-center" />
+          {/* Mirrored so the leaf opens into the lead office; the meeting room's task board sits against this wall. */}
+          <DoorwayArt className="pointer-events-none z-20 col-start-2 row-start-1 size-16 -scale-x-100 self-center justify-self-center" />
           <DoorwayArt className="pointer-events-none z-20 col-span-3 col-start-1 row-start-2 size-16 rotate-90 self-center justify-self-center" />
         </div>
       </div>
