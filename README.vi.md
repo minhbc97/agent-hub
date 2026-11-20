@@ -1,6 +1,8 @@
 # agent-hub
 
-[English](README.md) | **Tiếng Việt**
+[English](README.md) | **Tiếng Việt** · [Website](https://minhbc97.github.io/agent-hub/)
+
+![Trang chủ Agent Hub: mỗi agent ngồi một bàn trong văn phòng nhìn từ trên xuống](site/assets/home.png)
 
 Hub tự host để chạy các agent CLI bạn đã có (Claude Code, Codex, Antigravity hoặc lệnh bất kỳ) như một team, có giao
 diện web chạy local. Bạn giao mục tiêu cho Lead Agent; nó chia việc cho các agent khác, còn bạn duyệt kết quả hoặc

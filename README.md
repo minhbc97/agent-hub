@@ -4,7 +4,9 @@
 [![license](https://img.shields.io/npm/l/@minhbc/agent-hub)](LICENSE)
 [![node](https://img.shields.io/node/v/@minhbc/agent-hub)](https://nodejs.org)
 
-**English** | [Tiếng Việt](README.vi.md)
+**English** | [Tiếng Việt](README.vi.md) · [Website](https://minhbc97.github.io/agent-hub/)
+
+![Agent Hub home screen: each agent at a desk in a top-down office](site/assets/home.png)
 
 A self-hosted hub that runs the agent CLIs you already have (Claude Code, Codex, Antigravity, or any command) as one
 team, with a local web UI. You give the lead agent a goal; it hands parts of the work to other agents, and you review

@@ -13,6 +13,12 @@
       "runtimeArgs": ["tsx", "src/server/index.ts", "--data", "data/demo"],
       "env": { "HUB_PORT": "4311" },
       "port": 4311
+    },
+    {
+      "name": "site",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "4330", "--bind", "127.0.0.1", "-d", "site"],
+      "port": 4330
     }
   ]
 }
