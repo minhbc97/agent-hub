@@ -15,7 +15,7 @@
     "createLeadAgent": "Create your lead agent",
     "deleteAgentDescription": "Its run history is removed; old messages stay. Work still waiting for this agent is cancelled.",
     "deleteAgentTitle": "Delete agent “{{name}}”?",
-    "description": "Configure agents and monitor activity.",
+    "description": "Configure agents and see their runs.",
     "engine": "Engine",
     "extraArguments": "Extra arguments",
     "firstAgentDescription": "This agent receives and coordinates work across the other agents in this workspace.",
@@ -56,7 +56,7 @@
     "saveAgent": "Save agent",
     "sessionConnected": "Session connected",
     "settingsDescription": "Role, runner, and working environment for this agent.",
-    "starThroughTheOrchestrator": "Star · through the orchestrator",
+    "starThroughTheOrchestrator": "Star · through the lead agent",
     "testRun": "Test run",
     "testRunQueued": "Test run queued",
     "title": "Agents",
@@ -118,7 +118,7 @@
     "fallbackModel": "Fallback model"
   },
   "app": {
-    "avatarLicense": "Micah avatars — CC BY 4.0",
+    "avatarLicense": "Micah avatars (CC BY 4.0)",
     "brand": "Agent Hub"
   },
   "common": {
@@ -163,8 +163,8 @@
     "crossOriginBlocked": "Request blocked because it came from another website.",
     "customEngineCommandRequired": "A custom engine needs a command.",
     "customIsolationDirectoryRequired": "Custom isolation needs a working directory.",
-    "worktreeNeedsRepo": "This workspace has no working folder. \"Own git copy\" needs a git repository; set a folder in Settings or pick \"Shared folder\".",
-    "worktreeNeedsGit": "{{path}} is not a git repository with a commit, so \"Own git copy\" cannot be used. Pick \"Shared folder\", or run \"git init\" and make a first commit there.",
+    "worktreeNeedsRepo": "This workspace has no working folder. “Own git copy” needs a git repository; set a folder in Settings or pick “Shared folder”.",
+    "worktreeNeedsGit": "{{path}} is not a git repository with a commit, so “Own git copy” cannot be used. Pick “Shared folder”, or run “git init” and make a first commit there.",
     "directPairInvalid": "Invalid direct pair: {{pair}}",
     "directPairSize": "Each direct pair must contain two agent names.",
     "directPairsArray": "Direct pairs must be an array.",
@@ -354,7 +354,7 @@
     "title": "Tasks",
     "titlePlaceholder": "What needs to be done",
     "todo": "To do",
-    "trackWorkFromStartToFinish": "Track the team’s work from start to finish.",
+    "trackWorkFromStartToFinish": "Work for agents and for you, from to-do to done.",
     "unassigned": "Unassigned",
     "workflowProgress": "Workflow progress",
     "yourStep": "Step “{{name}}” is yours to do."
