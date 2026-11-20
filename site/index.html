@@ -1,0 +1,926 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Agent Hub</title>
+    <meta
+      name="description"
+      content="Run Claude Code, Codex, Antigravity and other agent CLIs as one team, from a local web UI. One command: npx @minhbc/agent-hub"
+    />
+    <meta property="og:title" content="Agent Hub" />
+    <meta property="og:description" content="Run the agent CLIs you already have as one team, from a local web UI." />
+    <meta property="og:image" content="assets/home.png" />
+    <link rel="icon" href="assets/agent-hub-mark.svg" type="image/svg+xml" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <style>
+      /* Same palette as the app (src/web/index.css): warm charcoal, one honey accent, comic ink shadows. */
+      :root {
+        --bg: oklch(0.985 0.003 75);
+        --fg: oklch(0.2 0.01 60);
+        --card: oklch(1 0 0);
+        --muted: oklch(0.5 0.01 60);
+        --subtle: oklch(0.955 0.005 75);
+        --border: oklch(0.88 0.008 75);
+        --honey: oklch(0.82 0.16 85);
+        --honey-fg: oklch(0.2 0.03 60);
+        --ink: oklch(0.2 0.01 60);
+        --mint: oklch(0.48 0.12 155);
+        --code-bg: oklch(0.2 0.01 60);
+        --code-fg: oklch(0.95 0.004 75);
+        color-scheme: light;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root:not([data-theme='light']) {
+          --bg: oklch(0.175 0.006 60);
+          --fg: oklch(0.95 0.004 75);
+          --card: oklch(0.205 0.007 60);
+          --muted: oklch(0.68 0.01 70);
+          --subtle: oklch(0.195 0.007 60);
+          --border: oklch(1 0 0 / 12%);
+          --honey: oklch(0.83 0.16 85);
+          --ink: oklch(0.08 0.01 60);
+          --mint: oklch(0.76 0.15 155);
+          --code-bg: oklch(0.13 0.006 60);
+          color-scheme: dark;
+        }
+      }
+      :root[data-theme='dark'] {
+        --bg: oklch(0.175 0.006 60);
+        --fg: oklch(0.95 0.004 75);
+        --card: oklch(0.205 0.007 60);
+        --muted: oklch(0.68 0.01 70);
+        --subtle: oklch(0.195 0.007 60);
+        --border: oklch(1 0 0 / 12%);
+        --honey: oklch(0.83 0.16 85);
+        --ink: oklch(0.08 0.01 60);
+        --mint: oklch(0.76 0.15 155);
+        --code-bg: oklch(0.13 0.006 60);
+        color-scheme: dark;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+      html {
+        scroll-behavior: smooth;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--fg);
+        font:
+          16px/1.6 'Geist',
+          ui-sans-serif,
+          system-ui,
+          sans-serif;
+        -webkit-font-smoothing: antialiased;
+      }
+      a {
+        color: inherit;
+      }
+      img {
+        display: block;
+        max-width: 100%;
+        height: auto;
+      }
+      .wrap {
+        width: min(1120px, 100% - 32px);
+        margin-inline: auto;
+      }
+      code,
+      .mono {
+        font-family: ui-monospace, 'Cascadia Code', 'JetBrains Mono', Consolas, monospace;
+      }
+
+      /* Header */
+      header {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        background: color-mix(in oklch, var(--bg) 88%, transparent);
+        backdrop-filter: blur(8px);
+        border-bottom: 1px solid var(--border);
+      }
+      .bar {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        height: 60px;
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-weight: 600;
+        text-decoration: none;
+        margin-right: auto;
+      }
+      .brand-mark {
+        display: grid;
+        place-items: center;
+        width: 32px;
+        height: 32px;
+        border-radius: 9px;
+        background: var(--honey);
+      }
+      .brand-mark img {
+        width: 22px;
+      }
+      .nav-link {
+        font-size: 14px;
+        color: var(--muted);
+        text-decoration: none;
+        padding: 6px 8px;
+        border-radius: 8px;
+      }
+      .nav-link:hover {
+        color: var(--fg);
+      }
+      .icon-btn {
+        display: inline-grid;
+        place-items: center;
+        min-width: 36px;
+        height: 36px;
+        padding: 0 10px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: var(--card);
+        color: var(--fg);
+        font: 600 13px/1 inherit;
+        cursor: pointer;
+      }
+      .icon-btn:hover {
+        border-color: var(--muted);
+      }
+      .icon-btn svg {
+        width: 18px;
+        height: 18px;
+      }
+      :focus-visible {
+        outline: 2px solid var(--honey);
+        outline-offset: 2px;
+      }
+
+      /* Hero */
+      .hero {
+        padding: 72px 0 40px;
+        text-align: center;
+      }
+      .tag {
+        display: inline-block;
+        padding: 4px 12px;
+        border: 2px solid var(--ink);
+        border-radius: 999px;
+        background: var(--honey);
+        color: var(--honey-fg);
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        box-shadow: 3px 3px 0 var(--ink);
+      }
+      h1 {
+        margin: 24px auto 16px;
+        max-width: 15ch;
+        font-size: clamp(36px, 6vw, 64px);
+        line-height: 1.05;
+        letter-spacing: -0.035em;
+        font-weight: 700;
+      }
+      .lede {
+        margin: 0 auto;
+        max-width: 60ch;
+        color: var(--muted);
+        font-size: clamp(16px, 2vw, 19px);
+      }
+      .install {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        width: fit-content;
+        max-width: 100%;
+        margin: 32px auto 12px;
+        padding: 10px 10px 10px 20px;
+        border: 2px solid var(--ink);
+        border-radius: 12px;
+        background: var(--code-bg);
+        color: var(--code-fg);
+        box-shadow: 4px 4px 0 var(--ink);
+      }
+      .install code {
+        font-size: clamp(14px, 2.4vw, 18px);
+        white-space: nowrap;
+        overflow-x: auto;
+      }
+      .install code::before {
+        content: '$ ';
+        color: var(--honey);
+      }
+      .copy {
+        flex: none;
+        border: 0;
+        border-radius: 8px;
+        padding: 8px 14px;
+        background: var(--honey);
+        color: var(--honey-fg);
+        font: 600 14px/1 inherit;
+        cursor: pointer;
+      }
+      .req {
+        margin: 0;
+        font-size: 14px;
+        color: var(--muted);
+      }
+      .cta {
+        display: flex;
+        justify-content: center;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-top: 24px;
+      }
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 18px;
+        border: 2px solid var(--ink);
+        border-radius: 10px;
+        background: var(--card);
+        font-weight: 600;
+        text-decoration: none;
+        box-shadow: 3px 3px 0 var(--ink);
+        transition: transform 0.12s;
+      }
+      .btn:hover {
+        transform: translate(-1px, -1px);
+        box-shadow: 4px 4px 0 var(--ink);
+      }
+      .btn svg {
+        width: 18px;
+        height: 18px;
+      }
+
+      .shot {
+        margin: 48px auto 0;
+        border: 3px solid var(--ink);
+        border-radius: 16px;
+        overflow: hidden;
+        background: var(--card);
+        box-shadow: 8px 8px 0 var(--ink);
+      }
+      .shot-light {
+        display: none;
+      }
+      @media (prefers-color-scheme: light) {
+        :root:not([data-theme='dark']) .shot-dark {
+          display: none;
+        }
+        :root:not([data-theme='dark']) .shot-light {
+          display: block;
+        }
+      }
+      :root[data-theme='light'] .shot-dark {
+        display: none;
+      }
+      :root[data-theme='light'] .shot-light {
+        display: block;
+      }
+
+      /* Sections */
+      section {
+        padding: 72px 0;
+      }
+      .alt {
+        background: var(--subtle);
+        border-block: 1px solid var(--border);
+      }
+      h2 {
+        margin: 0 0 12px;
+        font-size: clamp(28px, 4vw, 40px);
+        line-height: 1.15;
+        letter-spacing: -0.025em;
+      }
+      .section-lede {
+        margin: 0 0 40px;
+        max-width: 62ch;
+        color: var(--muted);
+      }
+      .steps {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 20px;
+        padding: 0;
+        margin: 0;
+        list-style: none;
+        counter-reset: step;
+      }
+      .steps li {
+        counter-increment: step;
+        padding: 24px;
+        border: 2px solid var(--ink);
+        border-radius: 14px;
+        background: var(--card);
+        box-shadow: 4px 4px 0 var(--ink);
+      }
+      .steps li::before {
+        content: counter(step);
+        display: grid;
+        place-items: center;
+        width: 32px;
+        height: 32px;
+        margin-bottom: 14px;
+        border: 2px solid var(--ink);
+        border-radius: 50%;
+        background: var(--honey);
+        color: var(--honey-fg);
+        font-weight: 700;
+      }
+      .steps h3,
+      .features h3 {
+        margin: 0 0 6px;
+        font-size: 18px;
+      }
+      .steps p,
+      .features p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 15px;
+      }
+      .features {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 16px;
+      }
+      .features article {
+        padding: 22px;
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        background: var(--card);
+      }
+      .features svg {
+        width: 22px;
+        height: 22px;
+        margin-bottom: 12px;
+        color: var(--honey);
+        stroke: currentColor;
+        filter: drop-shadow(1px 1px 0 var(--ink));
+      }
+      .gallery {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+        gap: 24px;
+      }
+      .gallery figure {
+        margin: 0;
+      }
+      .gallery .shot {
+        margin: 0;
+        border-width: 2px;
+        box-shadow: 5px 5px 0 var(--ink);
+      }
+      figcaption {
+        margin-top: 14px;
+        color: var(--muted);
+        font-size: 15px;
+      }
+      .safety {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        gap: 12px 32px;
+        padding: 0;
+        margin: 0;
+        list-style: none;
+      }
+      .safety li {
+        display: flex;
+        gap: 10px;
+        font-size: 15px;
+      }
+      .safety svg {
+        flex: none;
+        width: 20px;
+        height: 20px;
+        margin-top: 2px;
+        color: var(--mint);
+      }
+      .final {
+        text-align: center;
+      }
+      .final .install {
+        margin-top: 24px;
+      }
+      footer {
+        padding: 32px 0 48px;
+        border-top: 1px solid var(--border);
+        color: var(--muted);
+        font-size: 14px;
+      }
+      .foot {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px 24px;
+        justify-content: space-between;
+      }
+      .foot nav {
+        display: flex;
+        gap: 20px;
+      }
+
+      @media (max-width: 640px) {
+        .nav-link.hide-sm {
+          display: none;
+        }
+        .hero {
+          padding-top: 48px;
+        }
+        section {
+          padding: 56px 0;
+        }
+        .install {
+          padding-left: 14px;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        html {
+          scroll-behavior: auto;
+        }
+        .btn {
+          transition: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="wrap bar">
+        <a class="brand" href="#top">
+          <span class="brand-mark"><img src="assets/agent-hub-mark.svg" alt="" width="22" height="22" /></span>
+          Agent Hub
+        </a>
+        <a class="nav-link hide-sm" href="#features" data-i18n="navFeatures">Features</a>
+        <a class="nav-link hide-sm" href="https://github.com/minhbc97/agent-hub/tree/main/docs" data-i18n="navDocs"
+          >Docs</a
+        >
+        <a class="nav-link" href="https://github.com/minhbc97/agent-hub">GitHub</a>
+        <button class="icon-btn" id="lang" type="button" aria-label="Tiếng Việt">VI</button>
+        <button class="icon-btn" id="theme" type="button" aria-label="Toggle theme">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            aria-hidden="true"
+          >
+            <circle cx="12" cy="12" r="4" />
+            <path
+              d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"
+            />
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <main id="top">
+      <div class="wrap hero">
+        <span class="tag" data-i18n="tag">Open source · runs on your machine</span>
+        <h1 data-i18n="title">Run your agent CLIs as one team</h1>
+        <p class="lede" data-i18n="lede">
+          Agent Hub is a local web UI for Claude Code, Codex, Antigravity or any command. You brief the Lead Agent, it
+          hands parts of the work to the other agents, and you step in when one of them asks you something.
+        </p>
+        <div class="install">
+          <code id="cmd">npx @minhbc/agent-hub</code>
+          <button class="copy" type="button" data-copy="cmd" data-i18n="copy">Copy</button>
+        </div>
+        <p class="req" data-i18n="req">Needs Node.js 24+ and one agent CLI that is already signed in.</p>
+        <div class="cta">
+          <a class="btn" href="https://github.com/minhbc97/agent-hub">
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path
+                d="M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.04-.71.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.76 2.7 1.25 3.36.96.1-.75.4-1.25.73-1.54-2.56-.29-5.25-1.28-5.25-5.69 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.84 1.19 3.1 0 4.42-2.7 5.4-5.27 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .5Z"
+              />
+            </svg>
+            <span data-i18n="star">Star on GitHub</span>
+          </a>
+          <a class="btn" href="https://www.npmjs.com/package/@minhbc/agent-hub">npm</a>
+        </div>
+        <div class="shot">
+          <img
+            class="shot-dark"
+            src="assets/home.png"
+            width="1440"
+            height="900"
+            data-i18n-alt="altHome"
+            alt="The Agent Hub home screen: each agent at a desk in a top-down office, with a task board in the meeting room"
+          />
+          <img
+            class="shot-light"
+            src="assets/home-light.png"
+            width="1440"
+            height="900"
+            data-i18n-alt="altHome"
+            alt="The Agent Hub home screen: each agent at a desk in a top-down office, with a task board in the meeting room"
+          />
+        </div>
+      </div>
+
+      <section class="alt">
+        <div class="wrap">
+          <h2 data-i18n="howTitle">Up and running in a few minutes</h2>
+          <p class="section-lede" data-i18n="howLede">
+            The hub reuses the sign-in your CLIs already have, so there are no API keys to paste.
+          </p>
+          <ol class="steps">
+            <li>
+              <h3 data-i18n="step1Title">Start the hub</h3>
+              <p data-i18n="step1">
+                Run the npx command and open http://127.0.0.1:4310. Data stays in a SQLite file on your disk.
+              </p>
+            </li>
+            <li>
+              <h3 data-i18n="step2Title">Point it at a repo</h3>
+              <p data-i18n="step2">
+                Create a workspace for a project, then the Lead Agent. Add more agents with a role and an engine each.
+              </p>
+            </li>
+            <li>
+              <h3 data-i18n="step3Title">Brief the Lead Agent</h3>
+              <p data-i18n="step3">
+                It splits the goal into tasks and hands them out. Results that need a decision wait in "Needs you".
+              </p>
+            </li>
+          </ol>
+        </div>
+      </section>
+
+      <section id="features">
+        <div class="wrap">
+          <h2 data-i18n="featTitle">What it handles for you</h2>
+          <p class="section-lede" data-i18n="featLede">
+            Each message runs the CLI for one headless turn and resumes its session. Agents reach each other by writing
+            JSON files to their outbox, so plain replies never bounce between agents.
+          </p>
+          <div class="features">
+            <article>
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <rect x="3" y="4" width="18" height="16" rx="2" />
+                <path d="m7 9 3 3-3 3M13 15h4" />
+              </svg>
+              <h3 data-i18n="f1Title">The CLIs you already use</h3>
+              <p data-i18n="f1">
+                Claude Code, Codex and Antigravity with session resume and per-turn tokens. OpenRouter for text-only
+                agents, or any command that reads stdin.
+              </p>
+            </article>
+            <article>
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M12 2v4M12 18v4M4.9 4.9l2.9 2.9M16.2 16.2l2.9 2.9M2 12h4M18 12h4" />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
+              <h3 data-i18n="f2Title">Quota-aware queue</h3>
+              <p data-i18n="f2">
+                The hub reads each CLI's usage limits. When an engine runs out, work waits for the reset or moves to a
+                fallback engine you pick.
+              </p>
+            </article>
+            <article>
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z" />
+                <path d="M14 3v6h6M8 13h8M8 17h5" />
+              </svg>
+              <h3 data-i18n="f3Title">Handoff notes</h3>
+              <p data-i18n="f3">
+                Before a session grows too long or its cache expires, the agent writes a short note. The next session
+                starts from that note instead of the whole history.
+              </p>
+            </article>
+            <article>
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <circle cx="6" cy="6" r="2.5" />
+                <circle cx="6" cy="18" r="2.5" />
+                <circle cx="18" cy="8" r="2.5" />
+                <path d="M6 8.5v7M18 10.5c0 4-6 3-11 5.5" />
+              </svg>
+              <h3 data-i18n="f4Title">A git worktree per agent</h3>
+              <p data-i18n="f4">
+                By default each agent works on its own copy of the repo, so two agents never edit the same file at once.
+              </p>
+            </article>
+            <article>
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M17 2l4 4-4 4" />
+                <path d="M3 11v-1a4 4 0 0 1 4-4h14M7 22l-4-4 4-4" />
+                <path d="M21 13v1a4 4 0 0 1-4 4H3" />
+              </svg>
+              <h3 data-i18n="f5Title">Loop guard</h3>
+              <p data-i18n="f5">
+                After a set number of agent-to-agent messages with no human in between, the chain stops and waits for
+                you to retry.
+              </p>
+            </article>
+            <article>
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <rect x="3" y="3" width="7" height="18" rx="1.5" />
+                <rect x="14" y="3" width="7" height="11" rx="1.5" />
+              </svg>
+              <h3 data-i18n="f6Title">Tasks and workflows</h3>
+              <p data-i18n="f6">
+                A board from TODO to DONE, and workflows with review steps, "send back" to an earlier step, and cron
+                schedules.
+              </p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="alt">
+        <div class="wrap">
+          <h2 data-i18n="seeTitle">See who is doing what</h2>
+          <p class="section-lede" data-i18n="seeLede">English and Vietnamese UI, light and dark themes.</p>
+          <div class="gallery">
+            <figure>
+              <div class="shot">
+                <img
+                  src="assets/tasks.png"
+                  width="1440"
+                  height="900"
+                  loading="lazy"
+                  data-i18n-alt="altTasks"
+                  alt="Task board with TODO, DOING, REVIEW, BLOCKED and DONE columns"
+                />
+              </div>
+              <figcaption data-i18n="capTasks">
+                The task board: every task, who has it, and what waits on your review.
+              </figcaption>
+            </figure>
+            <figure>
+              <div class="shot">
+                <img
+                  src="assets/agents.png"
+                  width="1440"
+                  height="900"
+                  loading="lazy"
+                  data-i18n-alt="altAgents"
+                  alt="Map of which agents may message each other, with agent cards below"
+                />
+              </div>
+              <figcaption data-i18n="capAgents">
+                The agent map: who may message whom, and the traffic between them.
+              </figcaption>
+            </figure>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <div class="wrap">
+          <h2 data-i18n="safeTitle">Built to run on your own machine</h2>
+          <p class="section-lede" data-i18n="safeLede">
+            The hub starts commands on your computer, so the defaults are strict.
+          </p>
+          <ul class="safety">
+            <li>
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M20 6 9 17l-5-5" /></svg
+              ><span data-i18n="s1">Listens on 127.0.0.1 only, rejects cross-origin writes and DNS rebinding.</span>
+            </li>
+            <li>
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M20 6 9 17l-5-5" /></svg
+              ><span data-i18n="s2">Never reads your CLI credentials; each CLI keeps its own sign-in.</span>
+            </li>
+            <li>
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M20 6 9 17l-5-5" /></svg
+              ><span data-i18n="s3">Claude agents cannot run git push, merge or rebase.</span>
+            </li>
+            <li>
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M20 6 9 17l-5-5" /></svg
+              ><span data-i18n="s4">Codex runs in its workspace-write sandbox, with flags passed per turn.</span>
+            </li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="alt final">
+        <div class="wrap">
+          <h2 data-i18n="finalTitle">Try it on your next task</h2>
+          <div class="install">
+            <code id="cmd2">npx @minhbc/agent-hub</code>
+            <button class="copy" type="button" data-copy="cmd2" data-i18n="copy">Copy</button>
+          </div>
+          <p class="req" data-i18n="finalReq">
+            MIT licensed. Tested on Windows 11; macOS and Linux reports are welcome.
+          </p>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <div class="wrap foot">
+        <span data-i18n="foot">MIT License · Avatars: DiceBear Micah (CC BY 4.0)</span>
+        <nav>
+          <a href="https://github.com/minhbc97/agent-hub">GitHub</a>
+          <a href="https://www.npmjs.com/package/@minhbc/agent-hub">npm</a>
+          <a href="https://github.com/minhbc97/agent-hub/blob/main/CHANGELOG.md">Changelog</a>
+        </nav>
+      </div>
+    </footer>
+
+    <script>
+      const VI = {
+        navFeatures: 'Tính năng',
+        navDocs: 'Tài liệu',
+        tag: 'Mã nguồn mở · chạy trên máy bạn',
+        title: 'Chạy các agent CLI như một team',
+        lede: 'Agent Hub là giao diện web chạy local cho Claude Code, Codex, Antigravity hoặc lệnh bất kỳ. Bạn giao việc cho Lead Agent, nó chia cho các agent khác, còn bạn chỉ vào cuộc khi có agent hỏi.',
+        copy: 'Sao chép',
+        copied: 'Đã chép',
+        req: 'Cần Node.js 24 trở lên và một agent CLI đã đăng nhập sẵn.',
+        star: 'Star trên GitHub',
+        altHome:
+          'Trang chủ Agent Hub: mỗi agent ngồi một bàn trong văn phòng nhìn từ trên xuống, bảng công việc ở phòng họp',
+        howTitle: 'Chạy được sau vài phút',
+        howLede: 'Hub dùng lại đăng nhập sẵn có của các CLI, không cần dán API key.',
+        step1Title: 'Khởi động hub',
+        step1: 'Chạy lệnh npx rồi mở http://127.0.0.1:4310. Dữ liệu nằm trong một file SQLite trên máy bạn.',
+        step2Title: 'Chọn repo',
+        step2: 'Tạo workspace cho dự án, rồi tạo Lead Agent. Thêm các agent khác, mỗi agent một vai trò và một engine.',
+        step3Title: 'Giao việc cho Lead Agent',
+        step3: 'Lead Agent chia mục tiêu thành task và giao đi. Kết quả cần bạn quyết sẽ nằm ở mục "Cần bạn".',
+        featTitle: 'Hub lo giúp bạn những gì',
+        featLede:
+          'Mỗi tin nhắn chạy CLI một lượt headless và nối tiếp session. Agent nhắn cho nhau bằng file JSON trong outbox, nên câu trả lời thường không bị chuyền qua lại giữa các agent.',
+        f1Title: 'Dùng các CLI bạn đang có',
+        f1: 'Claude Code, Codex và Antigravity, có resume session và token từng lượt. OpenRouter cho agent chỉ trả lời text, hoặc lệnh bất kỳ đọc prompt từ stdin.',
+        f2Title: 'Hàng đợi biết hạn mức',
+        f2: 'Hub đọc hạn mức của từng CLI. Engine nào hết quota thì việc chờ đến giờ reset, hoặc chuyển sang engine dự phòng bạn chọn.',
+        f3Title: 'Sổ bàn giao',
+        f3: 'Trước khi session quá dài hoặc cache hết hạn, agent viết một ghi chú ngắn. Session sau bắt đầu từ ghi chú đó thay vì đọc lại toàn bộ lịch sử.',
+        f4Title: 'Mỗi agent một git worktree',
+        f4: 'Mặc định mỗi agent làm trên bản sao repo riêng, nên hai agent không bao giờ sửa cùng một file một lúc.',
+        f5Title: 'Loop guard',
+        f5: 'Sau một số tin agent→agent liên tiếp mà không có người chen vào, chuỗi tin dừng lại và chờ bạn bấm thử lại.',
+        f6Title: 'Công việc và quy trình',
+        f6: 'Board từ TODO đến DONE, và quy trình có bước duyệt, "trả lại" về bước trước, chạy theo lịch cron.',
+        seeTitle: 'Biết ngay ai đang làm gì',
+        seeLede: 'Giao diện tiếng Việt và tiếng Anh, sáng và tối.',
+        altTasks: 'Board công việc với các cột TODO, DOING, REVIEW, BLOCKED, DONE',
+        capTasks: 'Board công việc: mọi task, ai đang làm, việc nào chờ bạn duyệt.',
+        altAgents: 'Sơ đồ agent nào được nhắn cho agent nào, bên dưới là thẻ agent',
+        capAgents: 'Sơ đồ agent: ai được nhắn cho ai, và lượng tin giữa họ.',
+        safeTitle: 'Thiết kế để chạy trên máy của bạn',
+        safeLede: 'Hub chạy lệnh trên máy bạn, nên mặc định được siết chặt.',
+        s1: 'Chỉ nghe 127.0.0.1, chặn request ghi khác origin và DNS rebinding.',
+        s2: 'Không đọc credential của CLI; mỗi CLI giữ đăng nhập riêng.',
+        s3: 'Agent Claude không chạy được git push, merge hay rebase.',
+        s4: 'Codex chạy trong sandbox workspace-write, cờ chỉ truyền cho từng lượt.',
+        finalTitle: 'Thử ngay với việc tiếp theo của bạn',
+        finalReq: 'Giấy phép MIT. Đã chạy trên Windows 11; rất mong được báo lỗi trên macOS và Linux.',
+        foot: 'Giấy phép MIT · Avatar: DiceBear Micah (CC BY 4.0)',
+      };
+
+      const store = {
+        get: (key) => {
+          try {
+            return localStorage.getItem(key);
+          } catch {
+            return null;
+          }
+        },
+        set: (key, value) => {
+          try {
+            localStorage.setItem(key, value);
+          } catch {}
+        },
+      };
+
+      // English is the markup itself; keep it so switching back needs no second dictionary.
+      const EN = {};
+      document.querySelectorAll('[data-i18n]').forEach((el) => (EN[el.dataset.i18n] = el.textContent.trim()));
+      document.querySelectorAll('[data-i18n-alt]').forEach((el) => (EN[el.dataset.i18nAlt] = el.alt));
+      EN.copied = 'Copied';
+
+      let lang = store.get('lang') ?? (navigator.language.startsWith('vi') ? 'vi' : 'en');
+      const langButton = document.getElementById('lang');
+      function applyLang() {
+        const dict = lang === 'vi' ? VI : EN;
+        document.documentElement.lang = lang;
+        document.querySelectorAll('[data-i18n]').forEach((el) => (el.textContent = dict[el.dataset.i18n]));
+        document.querySelectorAll('[data-i18n-alt]').forEach((el) => (el.alt = dict[el.dataset.i18nAlt]));
+        langButton.textContent = lang === 'vi' ? 'EN' : 'VI';
+        langButton.setAttribute('aria-label', lang === 'vi' ? 'English' : 'Tiếng Việt');
+      }
+      langButton.addEventListener('click', () => {
+        lang = lang === 'vi' ? 'en' : 'vi';
+        store.set('lang', lang);
+        applyLang();
+      });
+      applyLang();
+
+      const root = document.documentElement;
+      const savedTheme = store.get('theme');
+      if (savedTheme) root.dataset.theme = savedTheme;
+      document.getElementById('theme').addEventListener('click', () => {
+        const isDark = root.dataset.theme
+          ? root.dataset.theme === 'dark'
+          : matchMedia('(prefers-color-scheme: dark)').matches;
+        root.dataset.theme = isDark ? 'light' : 'dark';
+        store.set('theme', root.dataset.theme);
+      });
+
+      document.querySelectorAll('[data-copy]').forEach((button) =>
+        button.addEventListener('click', async () => {
+          const text = document.getElementById(button.dataset.copy).textContent;
+          try {
+            await navigator.clipboard.writeText(text);
+          } catch {
+            return;
+          }
+          const dict = lang === 'vi' ? VI : EN;
+          button.textContent = dict.copied;
+          setTimeout(() => (button.textContent = dict.copy), 1500);
+        }),
+      );
+    </script>
+  </body>
+</html>
