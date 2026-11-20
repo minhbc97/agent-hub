@@ -9,11 +9,11 @@ void i18n
   .use(initReactI18next)
   .init({
     resources: { en: { translation: en }, vi: { translation: vi } },
-    fallbackLng: 'vi',
-    supportedLngs: ['vi', 'en'],
+    fallbackLng: 'en',
+    supportedLngs: ['en', 'vi'],
     interpolation: { escapeValue: false },
     detection: {
-      order: ['localStorage', 'navigator'],
+      order: ['localStorage'],
       lookupLocalStorage: 'agent-hub.language',
       caches: ['localStorage'],
     },

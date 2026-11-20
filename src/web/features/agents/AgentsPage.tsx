@@ -865,7 +865,7 @@ export function AgentDetail({ id }: { id: string }) {
             <details key={r.id} className="border-t">
               <summary className="grid cursor-pointer grid-cols-[1.5fr_repeat(6,100px)] gap-2 p-3 text-sm">
                 <span>
-                  {new Date(r.startedAt).toLocaleString(i18n.resolvedLanguage || 'vi')} · {r.status}
+                  {new Date(r.startedAt).toLocaleString(i18n.resolvedLanguage || 'en')} · {r.status}
                 </span>
                 <span>{r.inputTokens}</span>
                 <span>{r.outputTokens}</span>
