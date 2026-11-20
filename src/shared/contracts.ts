@@ -98,6 +98,7 @@ export interface Agent {
   workspaceId: string;
   name: string;
   role: string;
+  goal: string;
   briefFiles: string[];
   engine: Engine;
   model: string;
@@ -108,7 +109,6 @@ export interface Agent {
   isOrchestrator: boolean;
   tint: string;
   avatarSeed: string;
-  dailyTokenBudget: number;
   resetPolicy: ResetPolicy;
   resetValue: number;
   sessionId: string | null;

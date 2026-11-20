@@ -24,6 +24,7 @@ export function preamble(agent: Agent, team: Agent[], ws: Workspace, outbox: str
   return [
     `You are "${agent.name}", an AI agent on a team run by agent-hub (workspace "${ws.name}").`,
     agent.role ? `Your role:\n${agent.role}` : '',
+    agent.goal ? `Your goal:\n${agent.goal}` : '',
     agent.briefFiles.length ? `Read these brief files before working: ${agent.briefFiles.join(', ')}` : '',
     teamLines.length ? `Team:\n${teamLines.join('\n')}` : 'You are the only agent on this team.',
     '',

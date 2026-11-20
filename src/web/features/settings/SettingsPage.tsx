@@ -1,14 +1,28 @@
 import { useEffect, useState } from 'react';
-import { Trash2 } from 'lucide-react';
+import {
+  ArrowLeftRight,
+  CircleCheck,
+  CircleHelp,
+  CircleX,
+  FolderGit2,
+  Gauge,
+  Route,
+  Save,
+  TerminalSquare,
+  Trash2,
+  TriangleAlert,
+} from 'lucide-react';
 import { PAGE, useHub } from '@/lib/hub';
 import { api, ROUTING, type Routing } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { t } from '@/lib/i18n';
-import { ConfirmButton, Field, PageHeading } from '@/components/shared';
+import { cn } from '@/lib/utils';
+import { ConfirmButton, Field, FolderField, PageHeading } from '@/components/shared';
 
 export function SettingsPage() {
   const h = useHub();
@@ -47,21 +61,32 @@ export function SettingsPage() {
   }, [ws]);
   if (!ws) return null;
   const directPairs = ws.settings.directPairs;
+  const movesFolders = form.repoPath !== ws.repoPath || form.worktreesDir !== ws.worktreesDir;
   return (
     <>
       <PageHeading title={t('settings.title')} subtitle={t('settings.description')} />
-      <div className="grid max-w-3xl gap-4">
-        <Card className="grid gap-4 p-5">
-          <h2 className="font-medium">{t('workspace.workspace')}</h2>
+      <div className="grid items-start gap-4 xl:grid-cols-2">
+        <SettingsCard icon={<FolderGit2 />} title={t('workspace.workspace')} description={t('settings.workspaceHint')}>
           <Field label={t('workspace.name')}>
             <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
           </Field>
-          <Field label={t('workspace.repositoryPath')}>
-            <Input value={form.repoPath} onChange={(e) => setForm({ ...form, repoPath: e.target.value })} />
-          </Field>
-          <Field label={t('workspace.worktreeDirectory')}>
-            <Input value={form.worktreesDir} onChange={(e) => setForm({ ...form, worktreesDir: e.target.value })} />
-          </Field>
+          <FolderField
+            label={t('workspace.repositoryPath')}
+            value={form.repoPath}
+            onChange={(repoPath) => setForm((current) => ({ ...current, repoPath }))}
+          />
+          <FolderField
+            label={t('workspace.worktreeDirectory')}
+            value={form.worktreesDir}
+            onChange={(worktreesDir) => setForm((current) => ({ ...current, worktreesDir }))}
+            placeholder={t('workspace.worktreePlaceholder')}
+          />
+          {movesFolders && (
+            <p className="flex gap-2 rounded-md bg-warning/10 p-3 text-xs/5 text-warning">
+              <TriangleAlert className="mt-0.5 size-4 shrink-0" />
+              {t('settings.folderChangeWarning')}
+            </p>
+          )}
           <Button
             className="w-fit"
             onClick={() =>
@@ -76,11 +101,11 @@ export function SettingsPage() {
               )
             }
           >
+            <Save />
             {t('workspace.saveWorkspace')}
           </Button>
-        </Card>
-        <Card className="grid gap-4 p-5">
-          <h2 className="font-medium">{t('settings.queue')}</h2>
+        </SettingsCard>
+        <SettingsCard icon={<Gauge />} title={t('settings.queue')} description={t('settings.queueHint')}>
           <div className="grid gap-3 sm:grid-cols-4">
             <Field label={t('settings.concurrentAgents')}>
               <Input
@@ -132,11 +157,11 @@ export function SettingsPage() {
               )
             }
           >
+            <Save />
             {t('settings.saveLimits')}
           </Button>
-        </Card>
-        <Card className="grid gap-4 p-5">
-          <h2 className="font-medium">{t('settings.routing')}</h2>
+        </SettingsCard>
+        <SettingsCard icon={<Route />} title={t('settings.routing')} description={t('settings.routingHint')}>
           <Field label={t('settings.communicationMode')}>
             <Select
               value={form.routing}
@@ -178,7 +203,7 @@ export function SettingsPage() {
                             );
                           }}
                         />
-                        {a.name} ↔ {b.name}
+                        {a.name} <ArrowLeftRight size={14} aria-hidden="true" /> {b.name}
                       </label>
                     );
                   }),
@@ -201,14 +226,19 @@ export function SettingsPage() {
               )
             }
           >
+            <Save />
             {t('settings.saveRouting')}
           </Button>
-        </Card>
-        <Card className="p-5">
-          <h2 className="font-medium text-destructive">{t('settings.dangerZone')}</h2>
-          <p className="mt-1 text-sm text-muted-foreground">{t('workspace.deleteConfirmation')}</p>
+        </SettingsCard>
+        <EnginesCard />
+        <SettingsCard
+          icon={<TriangleAlert />}
+          title={t('settings.dangerZone')}
+          description={t('workspace.deleteConfirmation')}
+          className="ring-destructive/40 [&_h2]:text-destructive"
+        >
           <ConfirmButton
-            className="mt-4"
+            className="w-fit"
             title={t('workspace.deleteWorkspaceTitle', { name: ws.name })}
             description={t('workspace.deleteConfirmation')}
             onConfirm={async () => {
@@ -219,8 +249,69 @@ export function SettingsPage() {
             <Trash2 />
             {t('workspace.deleteWorkspace')}
           </ConfirmButton>
-        </Card>
+        </SettingsCard>
       </div>
     </>
+  );
+}
+
+function SettingsCard({
+  icon,
+  title,
+  description,
+  className,
+  children,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  description: string;
+  className?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <Card className={cn('grid gap-4 p-5', className)}>
+      <header className="flex gap-3">
+        <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-muted text-muted-foreground [&_svg]:size-4.5">
+          {icon}
+        </span>
+        <div>
+          <h2 className="font-medium">{title}</h2>
+          <p className="text-sm text-muted-foreground">{description}</p>
+        </div>
+      </header>
+      {children}
+    </Card>
+  );
+}
+
+/** Which agent CLIs this computer can run; the same PATH check the agent form warns with. */
+function EnginesCard() {
+  const h = useHub();
+  return (
+    <SettingsCard icon={<TerminalSquare />} title={t('settings.engines')} description={t('settings.enginesHint')}>
+      <ul className="grid gap-2">
+        {(h.meta?.engines ?? []).map((engine) => (
+          <li key={engine.id} className="flex items-center gap-3 rounded-md border px-3 py-2 text-sm">
+            {engine.installed === true ? (
+              <CircleCheck className="size-4 text-success" />
+            ) : engine.installed === false ? (
+              <CircleX className="size-4 text-destructive" />
+            ) : (
+              <CircleHelp className="size-4 text-muted-foreground" />
+            )}
+            <span className="font-medium">{engine.label}</span>
+            {!engine.supported && <Badge variant="outline">{t('settings.notSupportedYet')}</Badge>}
+            <code className="ml-auto text-xs text-muted-foreground">{engine.defaultCommand || '-'}</code>
+            <span className="w-32 text-right text-xs text-muted-foreground">
+              {engine.installed === true
+                ? t('settings.installed')
+                : engine.installed === false
+                  ? t('settings.notOnPath')
+                  : t('settings.unknown')}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </SettingsCard>
   );
 }

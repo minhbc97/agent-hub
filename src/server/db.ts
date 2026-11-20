@@ -108,6 +108,7 @@ CREATE INDEX IF NOT EXISTS tasks_ws ON tasks (workspaceId, status);
 const MIGRATIONS: [table: string, column: string, ddl: string][] = [
   ['messages', 'taskId', 'ALTER TABLE messages ADD COLUMN taskId TEXT'],
   ['workspaces', 'taskSeq', 'ALTER TABLE workspaces ADD COLUMN taskSeq INTEGER NOT NULL DEFAULT 0'],
+  ['agents', 'goal', "ALTER TABLE agents ADD COLUMN goal TEXT NOT NULL DEFAULT ''"],
 ];
 
 let db: DatabaseSync | null = null;
@@ -137,12 +138,16 @@ const toWorkspace = (r: Row): Workspace => ({
   settings: { ...DEFAULT_SETTINGS, ...JSON.parse(String(r.settings || '{}')) },
 });
 
-const toAgent = (r: Row): Agent => ({
-  ...(r as unknown as Agent),
-  briefFiles: JSON.parse(String(r.briefFiles || '[]')),
-  isOrchestrator: !!r.isOrchestrator,
-  paused: !!r.paused,
-});
+const toAgent = (r: Row): Agent => {
+  const agent = { ...r };
+  delete agent.dailyTokenBudget;
+  return {
+    ...(agent as unknown as Agent),
+    briefFiles: JSON.parse(String(r.briefFiles || '[]')),
+    isOrchestrator: !!r.isOrchestrator,
+    paused: !!r.paused,
+  };
+};
 
 const toMessage = (r: Row): Message => ({
   ...(r as unknown as Message),
@@ -199,17 +204,17 @@ export function createAgent(a: Partial<Agent> & { workspaceId: string; name: str
   const agent: Agent = {
     id: newId(),
     role: '',
+    goal: '',
     briefFiles: [],
     engine: ENGINE.claude,
     model: '',
     command: '',
     extraArgs: '',
-    isolation: ISOLATION.shared,
+    isolation: ISOLATION.worktree,
     cwd: '',
     isOrchestrator: false,
     tint: '#f6bf1d',
     avatarSeed: a.name,
-    dailyTokenBudget: 0,
     resetPolicy: RESET_POLICY.never,
     resetValue: 0,
     sessionId: null,
@@ -221,8 +226,8 @@ export function createAgent(a: Partial<Agent> & { workspaceId: string; name: str
   };
   openDb()
     .prepare(
-      `INSERT INTO agents (id, workspaceId, name, role, briefFiles, engine, model, command, extraArgs,
-        isolation, cwd, isOrchestrator, tint, avatarSeed, dailyTokenBudget, resetPolicy, resetValue,
+      `INSERT INTO agents (id, workspaceId, name, role, goal, briefFiles, engine, model, command, extraArgs,
+        isolation, cwd, isOrchestrator, tint, avatarSeed, resetPolicy, resetValue,
         sessionId, turnsInSession, paused, status)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
@@ -231,6 +236,7 @@ export function createAgent(a: Partial<Agent> & { workspaceId: string; name: str
       agent.workspaceId,
       agent.name,
       agent.role,
+      agent.goal,
       JSON.stringify(agent.briefFiles),
       agent.engine,
       agent.model,
@@ -241,7 +247,6 @@ export function createAgent(a: Partial<Agent> & { workspaceId: string; name: str
       agent.isOrchestrator ? 1 : 0,
       agent.tint,
       agent.avatarSeed,
-      agent.dailyTokenBudget,
       agent.resetPolicy,
       agent.resetValue,
       agent.sessionId,
@@ -267,6 +272,7 @@ export function listAgents(workspaceId: string): Agent[] {
 const AGENT_COLUMNS = new Set([
   'name',
   'role',
+  'goal',
   'briefFiles',
   'engine',
   'model',
@@ -277,7 +283,6 @@ const AGENT_COLUMNS = new Set([
   'isOrchestrator',
   'tint',
   'avatarSeed',
-  'dailyTokenBudget',
   'resetPolicy',
   'resetValue',
   'sessionId',

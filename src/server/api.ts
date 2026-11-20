@@ -1,4 +1,5 @@
 import './routes/meta.ts';
+import './routes/folders.ts';
 import './routes/workspaces.ts';
 import './routes/agents.ts';
 import './routes/tasks.ts';

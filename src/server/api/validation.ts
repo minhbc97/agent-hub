@@ -184,10 +184,11 @@ export function agentFields(b: Record<string, unknown>, workspaceId: string, cur
     if (clash) throw new HttpError(400, 'errors.agentNameExists', { name: name });
     out.name = name;
   }
-  const text = (k: 'role' | 'model' | 'command' | 'extraArgs' | 'cwd' | 'avatarSeed', max: number) => {
+  const text = (k: 'role' | 'goal' | 'model' | 'command' | 'extraArgs' | 'cwd' | 'avatarSeed', max: number) => {
     if (b[k] !== undefined) out[k] = str(b[k]).slice(0, max);
   };
   text('role', 20_000);
+  text('goal', 5_000);
   text('model', 100);
   text('command', 500);
   text('extraArgs', 1000);
@@ -212,19 +213,18 @@ export function agentFields(b: Record<string, unknown>, workspaceId: string, cur
     if (!/^#[0-9a-f]{6}$/i.test(str(b.tint))) throw new HttpError(400, 'errors.tintInvalid');
     out.tint = str(b.tint);
   }
-  const int = (k: 'dailyTokenBudget' | 'resetValue') => {
+  const int = (k: 'resetValue') => {
     if (b[k] === undefined) return;
     const n = Number(b[k]);
     if (!Number.isInteger(n) || n < 0) throw new HttpError(400, 'errors.integerNonnegative', { field: k });
     out[k] = n;
   };
-  int('dailyTokenBudget');
   int('resetValue');
   if (b.isOrchestrator !== undefined) out.isOrchestrator = !!b.isOrchestrator;
   if (b.paused !== undefined) out.paused = !!b.paused;
 
   const engine = out.engine ?? cur?.engine ?? ENGINE.claude;
-  const isolation = out.isolation ?? cur?.isolation ?? ISOLATION.shared;
+  const isolation = out.isolation ?? cur?.isolation ?? ISOLATION.worktree;
   if (engine === ENGINE.custom && !(out.command ?? cur?.command)?.trim())
     throw new HttpError(400, 'errors.customEngineCommandRequired');
   if (isolation === ISOLATION.custom && !(out.cwd ?? cur?.cwd)?.trim())

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ArrowDown, ArrowUp, Plus, Trash2, X } from 'lucide-react';
+import { ArrowDown, ArrowLeft, ArrowUp, CalendarSearch, Plus, Save, Trash2, X } from 'lucide-react';
 import { useHub } from '@/lib/hub';
 import { api, TRIGGER_KIND, USER_ID, type WorkflowInput } from '@/lib/api';
 import { Button } from '@/components/ui/button';
@@ -48,8 +48,9 @@ export function WorkflowEditor({
   };
 
   return (
-    <div className="max-w-5xl">
+    <div>
       <Button variant="ghost" size="sm" onClick={close}>
+        <ArrowLeft />
         {t('common.backToList')}
       </Button>
       <div className="mt-4 grid gap-4 lg:grid-cols-[1fr_300px]">
@@ -217,6 +218,7 @@ export function WorkflowEditor({
                     setPreview((await h.attempt(() => api.cronPreview(form.trigger.cron)))?.next ?? [])
                   }
                 >
+                  <CalendarSearch />
                   {t('workflows.previewNextRuns')}
                 </Button>
                 {preview.map((v) => (
@@ -238,6 +240,7 @@ export function WorkflowEditor({
             </label>
           </Card>
           <Button disabled={!form.name.trim() || !form.steps.length} onClick={save}>
+            <Save />
             {t('workflows.saveWorkflow')}
           </Button>
           {id && (
