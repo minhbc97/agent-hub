@@ -235,7 +235,7 @@ export function WorkflowEditor({
                   </Button>
                   {preview.map((v) => (
                     <div className="text-xs text-muted-foreground" key={v}>
-                      {new Date(v).toLocaleString(i18n.resolvedLanguage || 'vi')}
+                      {new Date(v).toLocaleString(i18n.resolvedLanguage || 'en')}
                     </div>
                   ))}
                 </>

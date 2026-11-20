@@ -63,7 +63,7 @@ const GROUP_WINDOW_MS = 5 * 60_000;
 /** Only follow new messages when the reader is already near the bottom. */
 const STICK_TO_BOTTOM_PX = 120;
 
-const locale = () => i18n.resolvedLanguage || 'vi';
+const locale = () => i18n.resolvedLanguage || 'en';
 const timeOf = (iso: string) => new Date(iso).toLocaleTimeString(locale(), { hour: '2-digit', minute: '2-digit' });
 const dayKey = (iso: string) => new Date(iso).toDateString();
 

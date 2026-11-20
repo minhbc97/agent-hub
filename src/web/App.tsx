@@ -241,7 +241,7 @@ function AppHeader() {
       <div className="flex shrink-0 items-center gap-2 pr-6">
         <UsageMeters />
         <Select
-          value={activeI18n.resolvedLanguage?.startsWith('en') ? 'en' : 'vi'}
+          value={activeI18n.resolvedLanguage?.startsWith('vi') ? 'vi' : 'en'}
           onValueChange={(language) => void activeI18n.changeLanguage(language)}
         >
           <SelectTrigger size="sm" aria-label={t('common.language')}>

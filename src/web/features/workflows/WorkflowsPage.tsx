@@ -192,7 +192,7 @@ export function WorkflowsPage() {
                             w.id,
                             w.trigger.title.replace(
                               '{date}',
-                              new Date().toLocaleDateString(i18n.resolvedLanguage || 'vi'),
+                              new Date().toLocaleDateString(i18n.resolvedLanguage || 'en'),
                             ),
                             w.trigger.body,
                           ),

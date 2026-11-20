@@ -177,7 +177,7 @@ function formatReset(iso: string): string {
     const minutes = String(Math.floor((left % HOUR_MS) / MINUTE_MS)).padStart(2, '0');
     return t('usage.resetsIn', { hours, minutes });
   }
-  const time = at.toLocaleString(i18n.resolvedLanguage || 'vi', {
+  const time = at.toLocaleString(i18n.resolvedLanguage || 'en', {
     weekday: 'short',
     hour: 'numeric',
     minute: '2-digit',
