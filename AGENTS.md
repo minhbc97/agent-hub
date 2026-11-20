@@ -44,7 +44,8 @@ Thứ tự ưu tiên khi cần UI:
    `DropdownMenu`, `Tabs`, `Badge`, `Card`, `Switch`, `Tooltip`, `ScrollArea`, `Separator`, `Popover`,
    `Command`, `AlertDialog`, `Collapsible`, `ToggleGroup`, `InputGroup`, `Label`, toast qua `sonner`).
    Thiếu component shadcn thì thêm bằng CLI: `npx shadcn@latest add <name>`, không tự viết lại.
-3. **Icon**: `lucide-react`.
+3. **Icon UI**: dùng `lucide-react`. Không dùng emoji, ký tự Unicode, icon từ bộ khác hoặc SVG tự vẽ để thay icon.
+   Nếu Lucide không có icon phù hợp, dùng nhãn chữ rõ ràng.
 4. Chỉ khi 1–3 không có: viết component mới, dựng từ primitive shadcn/Radix + Tailwind. Nếu dùng ở ≥2 chỗ thì đưa vào
    `components/` thay vì để trong feature.
 

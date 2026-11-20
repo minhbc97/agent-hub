@@ -1,5 +1,15 @@
-import { useState } from 'react';
-import { Clock3, Plus, Workflow as WorkflowIcon, Sparkles } from 'lucide-react';
+import { Fragment, useState } from 'react';
+import {
+  ArrowRight,
+  CalendarClock,
+  Clock3,
+  Code,
+  PenLine,
+  Pencil,
+  Play,
+  Plus,
+  Workflow as WorkflowIcon,
+} from 'lucide-react';
 import { useHub } from '@/lib/hub';
 import { api, TRIGGER_KIND, type Workflow, type WorkflowInput } from '@/lib/api';
 import { Button } from '@/components/ui/button';
@@ -16,6 +26,7 @@ function createWorkflowTemplates() {
       description: t('workflows.articleDescription'),
       steps: [t('workflows.research'), t('workflows.writeDraft'), t('common.edit'), t('workflows.publish')],
       approval: 2,
+      icon: PenLine,
     },
     {
       name: t('workflows.recurringReport'),
@@ -23,6 +34,7 @@ function createWorkflowTemplates() {
       steps: [t('workflows.collectData'), t('workflows.writeReport'), t('workflows.reviewReport')],
       approval: 2,
       cron: '0 9 * * 1',
+      icon: CalendarClock,
     },
     {
       name: t('workflows.ticketDev'),
@@ -34,6 +46,7 @@ function createWorkflowTemplates() {
         t('workflows.pmApproval'),
       ],
       approval: 3,
+      icon: Code,
     },
   ];
 }
@@ -123,7 +136,7 @@ export function WorkflowsPage() {
         {createWorkflowTemplates().map((x) => (
           <Card key={x.name} className="p-4">
             <div className="mb-3 grid size-9 place-items-center rounded-lg bg-primary/10 text-primary">
-              <Sparkles size={17} />
+              <x.icon size={17} />
             </div>
             <div className="font-medium">{x.name}</div>
             <p className="mt-1 min-h-10 text-sm text-muted-foreground">{x.description}</p>
@@ -151,7 +164,14 @@ export function WorkflowsPage() {
                   {w.enabled ? t('workflows.enabled') : t('workflows.disabled')}
                 </Badge>
               </div>
-              <div className="mt-4 text-xs text-muted-foreground">{w.steps.map((s) => s.name).join(' → ')}</div>
+              <div className="mt-4 flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
+                {w.steps.map((step, index) => (
+                  <Fragment key={step.id}>
+                    {index > 0 && <ArrowRight size={12} aria-hidden="true" />}
+                    <span>{step.name}</span>
+                  </Fragment>
+                ))}
+              </div>
               <div className="mt-4 flex items-center justify-between border-t pt-3">
                 <span className="text-xs text-muted-foreground">
                   <Clock3 size={13} className="mr-1 inline" />
@@ -159,6 +179,7 @@ export function WorkflowsPage() {
                 </span>
                 <div className="flex gap-1">
                   <Button variant="ghost" size="sm" onClick={() => init(w)}>
+                    <Pencil />
                     {t('common.edit')}
                   </Button>
                   <Button
@@ -179,6 +200,7 @@ export function WorkflowsPage() {
                       )
                     }
                   >
+                    <Play />
                     {t('workflows.runNow')}
                   </Button>
                 </div>

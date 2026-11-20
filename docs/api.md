@@ -8,13 +8,14 @@ REST JSON tại `http://127.0.0.1:4310/api/...`. Kiểu dữ liệu chi tiết n
 - Request ghi (khác `GET`) có header `Origin` thì origin phải trùng host (chống CSRF). Script / curl không gửi
   `Origin` vẫn dùng được.
 - Body là JSON. Lỗi trả về `{ "error": "...", "errorKey": "errors.xxx", "errorParams": {...} }` với mã 400 / 403 /
-  404 / 409 / 500. `errorKey` là key i18n trong `src/web/locales/*.json`.
+  404 / 409 / 500 / 501. `errorKey` là key i18n trong `src/web/locales/*.json`.
 - Agent có thể chỉ định bằng id hoặc tên (ở các trường `to`, `assigneeId`).
 
 ## Meta
 
 | Method | Đường dẫn | Mô tả |
 | --- | --- | --- |
+| POST | `/api/folders/pick` | Mở hộp chọn thư mục của hệ điều hành trên máy chạy hub. Trả `{ path }` (`null` nếu huỷ); 501 nếu máy không có hộp chọn (Linux thiếu `zenity`/`kdialog`). |
 | GET | `/api/meta` | Danh sách engine (`id`, `label`, `supported`, `defaultCommand`, `defaultExtraArgs`, `installed`, `models`), isolation, reset policy, settings mặc định. |
 
 `installed` là `true` / `false` khi kiểm tra được lệnh trên PATH (`where` / `which`), `null` khi không biết.
@@ -26,7 +27,7 @@ REST JSON tại `http://127.0.0.1:4310/api/...`. Kiểu dữ liệu chi tiết n
 | --- | --- | --- |
 | GET | `/api/workspaces` | |
 | POST | `/api/workspaces` | `name` (bắt buộc), `repoPath` (phải là thư mục có thật), `worktreesDir` |
-| PATCH | `/api/workspaces/:ws` | Các trường trên và `settings` (một phần): `routing` (`star`/`mesh`), `directPairs` (`[["a","b"]]`), `maxConcurrent` (1–20), `maxTurnsPerHour` (1–1000), `turnTimeoutMin` (1–240), `maxHops` (1–100) |
+| PATCH | `/api/workspaces/:ws` | Các trường trên và `settings` (một phần): `routing` (`star`/`mesh`), `directPairs` (`[["a","b"]]`), `maxConcurrent` (1–20), `maxTurnsPerHour` (1–1000), `turnTimeoutMin` (1–240), `maxHops` (1–100). Đổi `repoPath` / `worktreesDir`: 409 khi có agent đang chạy; lưu xong thì xoá session của các agent không dùng isolation `custom` |
 | DELETE | `/api/workspaces/:ws` | 409 nếu có agent đang chạy |
 
 ## Agent
@@ -34,9 +35,9 @@ REST JSON tại `http://127.0.0.1:4310/api/...`. Kiểu dữ liệu chi tiết n
 | Method | Đường dẫn | Body / ghi chú |
 | --- | --- | --- |
 | GET | `/api/workspaces/:ws/agents` | |
-| POST | `/api/workspaces/:ws/agents` | `name` (bắt buộc), `role`, `engine`, `model`, `command`, `extraArgs`, `isolation`, `cwd`, `isOrchestrator`, `dailyTokenBudget`, `resetPolicy`, `resetValue`, `briefFiles`, `tint`, `avatarSeed` |
+| POST | `/api/workspaces/:ws/agents` | `name` (bắt buộc), `role`, `goal`, `engine`, `model`, `command`, `extraArgs`, `isolation` (mặc định `worktree`), `cwd`, `isOrchestrator`, `resetPolicy`, `resetValue`, `briefFiles`, `tint`, `avatarSeed` |
 | PATCH | `/api/agents/:id` | Các trường trên và `paused`. Đổi `engine` thì session bị xoá; 409 nếu agent đang chạy |
-| DELETE | `/api/agents/:id` | 409 nếu agent đang chạy |
+| DELETE | `/api/agents/:id` | 409 nếu agent đang chạy hoặc là agent điều phối |
 | POST | `/api/agents/:id/new-session` | Bỏ session hiện tại |
 | POST | `/api/agents/:id/test` | Gửi tin kiểm tra; trả về tin vừa tạo |
 | GET | `/api/agents/:id/runs` | 50 lượt gần nhất, mới trước |

@@ -11,12 +11,30 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { t } from '@/lib/i18n';
-import { Avatar, Field, PageHeading, label } from '@/components/shared';
+import { cn } from '@/lib/utils';
+import { Avatar, Field, PageHeading, TASK_TONE, label, type Tone } from '@/components/shared';
 
 /** Select value meaning "no filter" / "no choice" (Radix Select cannot use an empty string). */
 const ANY = 'all';
 const NONE = 'none';
 const VIEW = { board: 'board', list: 'list' } as const;
+
+const BOARD_STATUSES = [
+  TASK_STATUS.todo,
+  TASK_STATUS.doing,
+  TASK_STATUS.review,
+  TASK_STATUS.blocked,
+  TASK_STATUS.done,
+] as const;
+
+/** Workflow steps have no fixed meaning, so they cycle through the chart palette. */
+const STEP_TONES: Tone[] = [
+  { column: 'border-chart-1 bg-chart-1/5', dot: 'bg-chart-1' },
+  { column: 'border-chart-3 bg-chart-3/5', dot: 'bg-chart-3' },
+  { column: 'border-chart-4 bg-chart-4/5', dot: 'bg-chart-4' },
+  { column: 'border-chart-5 bg-chart-5/5', dot: 'bg-chart-5' },
+  { column: 'border-chart-2 bg-chart-2/5', dot: 'bg-chart-2' },
+];
 
 export function TasksPage() {
   const h = useHub();
@@ -36,19 +54,27 @@ export function TasksPage() {
   // Read the task from live hub state so the sheet follows server updates (approve, step changes).
   const selected = h.tasks.find((x) => x.id === selectedId) ?? null;
   const workflow = wf !== ANY ? h.workflows.find((w) => w.id === wf) : undefined;
-  const cols: { key: string; title: string; statuses: TaskStatus[] }[] = workflow
+  const statusColumn = (status: TaskStatus) => ({
+    key: status,
+    title: t(`tasks.code.${status}`),
+    hint: t(label[status]),
+    tone: TASK_TONE[status],
+    statuses: [status],
+  });
+  const cols: { key: string; title: string; hint: string; tone: Tone; statuses: TaskStatus[] }[] = workflow
     ? [
-        ...workflow.steps.map((s) => ({ key: s.id, title: s.name, statuses: [] })),
-        { key: TASK_STATUS.done, title: t(label.done), statuses: [TASK_STATUS.done] },
+        ...workflow.steps.map((s, i) => ({
+          key: s.id,
+          title: s.name.toUpperCase(),
+          hint: h.agentById(s.agentId)?.name ?? t('common.you'),
+          tone: STEP_TONES[i % STEP_TONES.length]!,
+          statuses: [],
+        })),
+        statusColumn(TASK_STATUS.done),
       ]
-    : [
-        { key: TASK_STATUS.todo, title: t(label.todo), statuses: [TASK_STATUS.todo] },
-        { key: TASK_STATUS.doing, title: t(label.doing), statuses: [TASK_STATUS.doing] },
-        { key: TASK_STATUS.review, title: t('inbox.needsYou'), statuses: [TASK_STATUS.review, TASK_STATUS.blocked] },
-        { key: TASK_STATUS.done, title: t(label.done), statuses: [TASK_STATUS.done] },
-      ];
+    : BOARD_STATUSES.map(statusColumn);
   return (
-    <>
+    <div className="flex flex-1 flex-col">
       <PageHeading
         title={t('tasks.title')}
         subtitle={t('tasks.trackWorkFromStartToFinish')}
@@ -66,11 +92,11 @@ export function TasksPage() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder={t('tasks.searchTasks')}
-            className="h-9 w-56 pl-8"
+            className="w-56 pl-8"
           />
         </div>
         <Select value={wf} onValueChange={setWf}>
-          <SelectTrigger className="h-9 w-48">
+          <SelectTrigger className="w-48">
             <SelectValue placeholder={t('workflows.allWorkflows')} />
           </SelectTrigger>
           <SelectContent>
@@ -83,7 +109,7 @@ export function TasksPage() {
           </SelectContent>
         </Select>
         <Select value={agent} onValueChange={setAgent}>
-          <SelectTrigger className="h-9 w-40">
+          <SelectTrigger className="w-40">
             <SelectValue placeholder={t('tasks.everyone')} />
           </SelectTrigger>
           <SelectContent>
@@ -110,25 +136,25 @@ export function TasksPage() {
         </Tabs>
       </div>
       {mode === VIEW.board ? (
-        <div className="flex gap-3 overflow-x-auto pb-4">
-          {cols.map(({ key, title, statuses }) => {
+        // Columns share the full width; only a long workflow falls back to scrolling sideways.
+        <div className="grid flex-1 auto-cols-[minmax(15rem,1fr)] grid-flow-col gap-3 overflow-x-auto pb-1">
+          {cols.map(({ key, title, hint, tone, statuses }) => {
             const group = tasks.filter((x) =>
               statuses.length ? statuses.includes(x.status) : x.stepId === key && x.status !== TASK_STATUS.done,
             );
             return (
-              <div key={key} className="w-76 shrink-0 rounded-lg bg-muted/35 p-2.5">
-                <div className="flex items-center gap-2 px-1 pb-2.5 text-sm font-medium">
-                  {title}
-                  <Badge variant="secondary" className="h-5 px-1.5">
-                    {group.length}
-                  </Badge>
-                </div>
-                <div className="grid gap-2">
+              <section key={key} className={cn('flex min-h-96 flex-col rounded-lg border-t-2 p-2.5', tone.column)}>
+                <header className="flex items-center gap-2 px-1 pb-3" title={hint}>
+                  <span className={cn('size-2 rounded-full', tone.dot)} />
+                  <h2 className="truncate text-xs font-semibold tracking-wider">{title}</h2>
+                  <span className="ml-auto text-xs text-muted-foreground tabular-nums">{group.length}</span>
+                </header>
+                <div className="grid content-start gap-2">
                   {group.map((task) => (
                     <TaskCard key={task.id} task={task} open={() => setSelectedId(task.id)} />
                   ))}
                 </div>
-              </div>
+              </section>
             );
           })}
         </div>
@@ -150,7 +176,10 @@ export function TasksPage() {
             >
               <span className="font-mono text-muted-foreground">{task.key}</span>
               <span className="truncate">{task.title}</span>
-              <span>{t(label[task.status])}</span>
+              <span className="flex items-center gap-2 text-xs font-semibold tracking-wider">
+                <span className={cn('size-2 rounded-full', TASK_TONE[task.status].dot)} />
+                {t(`tasks.code.${task.status}`)}
+              </span>
               <span className="truncate">{h.workflows.find((w) => w.id === task.workflowId)?.name || '—'}</span>
               <span>
                 {h.agentById(task.assigneeId)?.name ||
@@ -162,7 +191,7 @@ export function TasksPage() {
       )}
       <TaskSheet task={selected} close={() => setSelectedId(null)} />
       <CreateTask open={create} close={() => setCreate(false)} />
-    </>
+    </div>
   );
 }
 
@@ -257,14 +286,13 @@ function TaskSheet({ task, close }: { task: Task | null; close: () => void }) {
               {task.status === TASK_STATUS.review && (
                 <>
                   <Input
-                    className="h-8 w-48"
+                    className="w-48"
                     value={note}
                     onChange={(e) => setNote(e.target.value)}
                     aria-label={t('common.note')}
                     placeholder={t('common.note')}
                   />
                   <Button
-                    size="sm"
                     onClick={async () =>
                       (await h.attempt(() => api.decide(task.id, true, note), t('inbox.approved'))) && setNote('')
                     }
@@ -272,7 +300,6 @@ function TaskSheet({ task, close }: { task: Task | null; close: () => void }) {
                     {t('common.approve')}
                   </Button>
                   <Button
-                    size="sm"
                     variant="outline"
                     onClick={async () =>
                       (await h.attempt(() => api.decide(task.id, false, note), t('inbox.returned'))) && setNote('')
@@ -285,14 +312,13 @@ function TaskSheet({ task, close }: { task: Task | null; close: () => void }) {
               {task.status === TASK_STATUS.blocked && (
                 <>
                   <Input
-                    className="h-8 w-56"
+                    className="w-56"
                     value={answer}
                     onChange={(e) => setAnswer(e.target.value)}
                     aria-label={t('tasks.replyToAgent')}
                     placeholder={t('tasks.replyToAgent')}
                   />
                   <Button
-                    size="sm"
                     onClick={async () =>
                       (await h.attempt(() => api.answer(task.id, answer), t('tasks.replySent'))) && setAnswer('')
                     }
