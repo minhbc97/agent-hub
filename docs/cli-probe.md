@@ -24,7 +24,7 @@ printf '%s\n' '{"type":"control_request","request_id":"u1","request":{"subtype":
 
 The `control_response` line has `response.response.rate_limits.five_hour` and `.seven_day`, each with
 `utilization` (percent used) and `resets_at` (ISO time), plus `subscription_type` and a `limits[]` list.
-No model call is made. This replaces both options in PLAN.md §7 (statusline and the private endpoint).
+No model call is made, so reading limits costs no tokens.
 
 The statusline input also carries `rate_limits.five_hour.used_percentage` / `.resets_at` (epoch seconds)
 and `seven_day`, but only in interactive sessions, so it is not needed.
@@ -57,5 +57,5 @@ and `seven_day`, but only in interactive sessions, so it is not needed.
   quota is hit; there is still no usage percentage before that.
 - Other useful flags: `--model`, `--effort`, `--mode accept-edits|auto|plan`, `--dangerously-skip-permissions`,
   `--print-timeout`, `--input-format stream-json` (needs `--output-format stream-json`).
-- Prompt via `-p=` is limited by the Windows command-line length (about 8 KB through cmd.exe). Test
-  `--input-format stream-json` on stdin in step 3 to avoid that.
+- Prompt via `-p=` is limited by the Windows command-line length (about 8 KB through cmd.exe), so the
+  adapter sends the prompt with `--input-format stream-json` on stdin instead.

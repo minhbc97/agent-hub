@@ -43,7 +43,8 @@ Phụ thuộc một chiều: `routes` → logic (`bus`, `workflow`, `runner`) �
 2. `tick()` chạy mỗi 3 giây và ngay sau mỗi thay đổi:
    1. Chạy workflow theo lịch đến hạn (`tickSchedules`).
    2. Quét outbox của các agent không chạy.
-   3. Với mỗi agent rảnh có tin chờ: tính **lý do giữ** (tạm dừng → hết lượt/giờ).
+   3. Với mỗi agent rảnh có tin chờ: tính **lý do giữ** (tạm dừng → hết lượt/giờ → engine chính và dự phòng đều hết
+      hạn mức, xem [engines.md](engines.md#engine-dự-phòng)).
       Có lý do thì tin thành `held` kèm lý do; lý do hết thì tin tự chạy ở tick sau.
    4. Còn chỗ (`maxConcurrent`) thì bắt đầu lượt cho tin đầu hàng (tin gấp trước, rồi theo thời gian).
 3. `runTurn()` chạy CLI. Lượt đầu session thì ghép preamble trước tin. Kết quả:
@@ -90,11 +91,22 @@ Mỗi tin từ outbox có `parentId` là tin đã kích hoạt lượt ghi ra n�
 làm chuỗi dài hơn `settings.maxHops` thì tin được tạo ở trạng thái `failed` với lý do "loop guard" và task liên quan
 bị block. **Thử lại** xoá `parentId` của tin đó nên chuỗi được đếm lại.
 
-## Session và reset context
+## Session và sổ bàn giao
 
 - Agent lưu `sessionId` từ output của CLI; lượt sau truyền lại để nối session.
-- Reset (xoá `sessionId`) khi: đạt số lượt hoặc ngưỡng context theo `resetPolicy`, agent gửi `done`,
-  người dùng bấm **Session mới**, hoặc **đổi engine** (id session của CLI này không dùng được cho CLI khác).
+- Trước mỗi lượt, runner xem lượt cuối của session. Nếu đã nghỉ hơn 60 phút (cache của provider đã hết hạn) hoặc
+  vượt `resetPolicy` (số lượt, hoặc context mặc định 100k token), hub chạy thêm một lượt trên session cũ để agent viết
+  **sổ bàn giao**, lưu vào `agents.handoff`, rồi xoá `sessionId`. Session mới nhận preamble, sổ bàn giao và các task
+  đang mở. Lượt bàn giao hiện trong lịch sử lượt như lượt thường.
+- Context của lượt lấy từ `usage.iterations` (Claude) hoặc `last_token_usage` trong rollout (Codex). Antigravity chưa
+  báo nên chỉ xoay theo lượt hoặc khi nghỉ lâu.
+- Agent gửi `done` cũng reset session. **Session mới** xoá cả sổ bàn giao. Đổi engine xoá `sessionId` nhưng giữ sổ,
+  vì sổ là text dùng được cho CLI khác.
+- File trong `briefFiles` được chèn vào preamble (tổng tối đa 60k ký tự); file thiếu hoặc quá cỡ thì agent được dặn tự
+  đọc.
+
+Một lượt có thể gom tối đa 10 tin đang chờ của cùng agent (OpenRouter chỉ một tin). Tin outbox của lượt đó nối vào
+chuỗi dài nhất trong lô để loop guard không bị đếm lại.
 
 ## Khôi phục và độ bền
 
@@ -116,7 +128,7 @@ Giới hạn đã biết: hub bị kill đột ngột thì tiến trình CLI con
 | `runs` | Mỗi lượt: thời gian, `status`, `exitCode`, `output`, token từng loại, `costUsd`, `sessionId`. |
 | `tasks` | `key` (`T-n`, không tái dùng), `status`, `assigneeId`, `workflowId`, `stepId`, `result`, `waitingReason`. |
 | `workflows` | `steps` (JSON), `trigger` (JSON), `enabled`, `lastRunKey` (chống chạy trùng trong cùng phút). |
-| `missions`, `limits_snapshots` | Có trong schema nhưng chưa dùng (lịch đã chuyển sang workflow; trang Usage chưa làm). |
+| `missions`, `limits_snapshots` | Có trong schema nhưng chưa dùng. Hạn mức đọc trực tiếp từ CLI qua `GET /api/usage`, không lưu DB. |
 
 Đổi schema: thêm cột qua mảng `MIGRATIONS` trong `db.ts` (chạy `ALTER TABLE` nếu cột chưa có).
 `settings` của workspace là JSON nên thêm trường mới chỉ cần thêm vào `DEFAULT_SETTINGS`.

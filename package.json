@@ -1,8 +1,27 @@
 {
-  "name": "agent-hub",
+  "name": "@minhbc97/agent-hub",
   "version": "0.1.0",
   "type": "module",
-  "description": "Self-hosted hub that runs several agent CLIs as a team",
+  "description": "Self-hosted hub that runs Claude Code, Codex and other agent CLIs as one team, with a local web UI",
+  "keywords": [
+    "ai-agents",
+    "multi-agent",
+    "claude-code",
+    "codex",
+    "orchestration",
+    "self-hosted",
+    "cli"
+  ],
+  "license": "MIT",
+  "author": "minhbc97",
+  "homepage": "https://github.com/minhbc97/agent-hub#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/minhbc97/agent-hub.git"
+  },
+  "bugs": {
+    "url": "https://github.com/minhbc97/agent-hub/issues"
+  },
   "bin": {
     "agent-hub": "bin/agent-hub.js"
   },
@@ -11,8 +30,14 @@
     "dist/",
     "src/shared/",
     "src/server/",
-    "README.md"
+    "scripts/pick-folder.ps1",
+    "README.md",
+    "README.vi.md",
+    "CHANGELOG.md"
   ],
+  "publishConfig": {
+    "access": "public"
+  },
   "engines": {
     "node": ">=24"
   },
@@ -25,7 +50,8 @@
     "demo:pm-be": "tsx scripts/demo-pm-be.ts",
     "test": "tsx scripts/test-provider-engines.ts && tsx scripts/test-workflow.ts && tsx scripts/test-usage.ts",
     "lint": "eslint --max-warnings 0",
-    "check": "npm run format && npm run lint && npm run typecheck"
+    "check": "npm run format && npm run lint && npm run typecheck",
+    "prepublishOnly": "npm run lint && npm run typecheck && npm test && npm run build"
   },
   "devDependencies": {
     "@types/node": "^24.19.2",

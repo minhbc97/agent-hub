@@ -30,6 +30,14 @@ claude -p --output-format json [--model <m>] [--resume <session>] --add-dir <out
   Cần chặn chắc hơn thì dùng hook `PreToolUse`.
 - Claude Code dùng đăng nhập của chính nó; hub không đọc credential.
 
+**Chế độ gọn** (công tắc trong form agent, chỉ Claude): thêm `--strict-mcp-config --setting-sources project,local
+--tools Read,Write,Edit,Bash,Glob,Grep`. Mặc định `claude -p` nạp plugin, skill, hook và MCP cấp user, khoảng 49k token
+nền mỗi lần gọi API; chế độ gọn còn khoảng 10k. Đổi lại agent mất MCP cấp user, trừ server được chọn riêng ở dưới.
+
+**MCP theo agent**: form liệt kê server MCP đọc từ `~/.claude.json` và plugin đã cài. Ở chế độ gọn, server được chọn
+ghi vào `data/mcp/<agentId>.json` rồi truyền qua `--mcp-config`. Tên server giữ dạng `plugin:<plugin>:<server>` giống
+Claude nên dùng lại được đăng nhập OAuth đã có. Connector của claude.ai không truyền qua file được.
+
 ## Codex
 
 ```
@@ -79,9 +87,36 @@ không đếm token. Exit code khác 0 là lỗi. Dùng cho script riêng hoặc
 
 ## Antigravity
 
-Chưa có adapter. Đã dò: `agy -p='<prompt>' --output-format json`, resume `--conversation <id>`. Prompt phải gắn
-vào cờ `-p=` nên bị giới hạn độ dài dòng lệnh trên Windows; cần thử `--input-format stream-json` qua stdin trước khi
-viết adapter. Chi tiết ở [cli-probe.md](cli-probe.md).
+```
+agy --input-format stream-json --output-format stream-json [--model <m>] [--conversation <id>] --add-dir <outbox>
+    <tham số thêm>
+```
+
+- Prompt đi qua stdin dạng stream-json, nên không bị giới hạn độ dài dòng lệnh như `-p=`.
+- Tham số mặc định: `--mode accept-edits`. Lần chạy đầu `agy` mở đăng nhập Google; không có lệnh login riêng.
+- Hạn mức: hub đọc 5 log mới nhất ở `~/.gemini/antigravity-cli/log/`. CLI chỉ báo khi đã hết quota
+  (`RESOURCE_EXHAUSTED ... Resets in ...`), nên hub biết giờ reset nhưng không biết phần trăm đã dùng.
+- Chưa đọc được context của lượt, nên session chỉ xoay theo số lượt hoặc khi nghỉ lâu.
+
+Kết quả dò CLI ở [cli-probe.md](cli-probe.md).
+
+## OpenRouter
+
+Không chạy CLI: hub gọi thẳng Chat Completions API của OpenRouter với model id tự nhập. Key lấy từ biến môi trường
+`OPENROUTER_API_KEY` của tiến trình hub, không lưu trong DB và bị xoá khỏi môi trường của các CLI con.
+
+Agent OpenRouter chỉ trả lời text: không đọc hay sửa file trong workspace, không ghi outbox nên không nhắn được agent
+khác. Mỗi lượt nhận đúng một tin. Kết quả bước workflow vẫn được lưu và chuyển bước như engine khác.
+
+## Engine dự phòng
+
+Mỗi agent chọn được `fallbackEngine` (Claude, Codex hoặc Antigravity) và `fallbackModel`. Khi engine chính hết hạn
+mức (đọc từ trang hạn mức hoặc từ lỗi của lượt), hub chạy tin bằng engine dự phòng; cả hai đều bị chặn thì tin chờ ở
+trạng thái `held` kèm giờ thử lại và tự chạy khi hết chặn. Lỗi hạn mức không làm tin thất bại.
+
+Khi chuyển engine giữa chừng, engine cũ viết sổ bàn giao cho session mới (xem
+[architecture.md](architecture.md#session-và-sổ-bàn-giao)); nếu engine cũ đã hết hạn mức thì hub tự ghép sổ từ 8 tin gần
+nhất. Lượt dự phòng dùng lệnh và tham số mặc định của engine đó, với Claude thì luôn ở chế độ gọn.
 
 ## Thêm engine mới
 
