@@ -15,22 +15,25 @@ const BOOK_WIDTHS = [7, 5, 9, 6, 8, 5, 7, 10, 6, 8, 5, 7];
 
 const inked = (fill: string) => `${fill} stroke-office-ink`;
 
-/** Top-down doorway: an opening through the wall with a wood threshold. */
+/**
+ * Top-down doorway in a vertical wall, drawn like a floor-plan door: the opening cuts both rooms' borders,
+ * ink jambs cap it, and the wood leaf stands open into the room on the right with a dashed swing arc.
+ * Rotate the svg to put the door in a horizontal wall, mirror it to open the other way.
+ */
 export function DoorwayArt({ className }: ArtProps) {
   return (
-    <svg viewBox="0 0 80 80" className={className} aria-hidden>
-      <rect x="29" y="24" width="22" height="32" rx="2" className="fill-office-wall" />
-      <path d="M40 0v24M40 56v24" className="stroke-office-ink" strokeWidth="6" />
-      <rect
-        x="22"
-        y="35"
-        width="36"
-        height="10"
-        rx="2"
-        className="fill-office-wood stroke-office-ink"
-        strokeWidth="3"
+    <svg viewBox="0 0 80 80" className={className} strokeLinejoin="round" strokeLinecap="round" aria-hidden>
+      <rect x="29" y="25" width="22" height="30" className="fill-office-wall" />
+      <rect x="29" y="21" width="22" height="5" rx="1.5" className="fill-office-ink" />
+      <rect x="29" y="54" width="22" height="5" rx="1.5" className="fill-office-ink" />
+      <path
+        d="M75 28A27 27 0 0 1 48 55"
+        className="fill-none stroke-office-ink/60"
+        strokeWidth="1.5"
+        strokeDasharray="3 3"
       />
-      <path d="M28 38h24M28 42h24" className="stroke-office-highlight" strokeWidth="1.5" />
+      <rect x="47" y="24" width="29" height="5" rx="1.5" className={inked('fill-office-wood')} strokeWidth={INK} />
+      <circle cx="48" cy="26.5" r="2" className="fill-office-ink" />
     </svg>
   );
 }
