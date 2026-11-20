@@ -16,4 +16,4 @@ First public release.
 - JSON outbox messaging, star / mesh routing, loop guard, queue limits.
 - Tasks board and list, workflows with review steps and cron schedules.
 - Web UI in English and Vietnamese, light and dark themes.
-- `npx @minhbc97/agent-hub` entry point.
+- `npx @minhbc/agent-hub` entry point.

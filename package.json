@@ -1,5 +1,5 @@
 {
-  "name": "@minhbc97/agent-hub",
+  "name": "@minhbc/agent-hub",
   "version": "0.1.0",
   "type": "module",
   "description": "Self-hosted hub that runs Claude Code, Codex and other agent CLIs as one team, with a local web UI",

@@ -1,8 +1,8 @@
 # agent-hub
 
-[![npm](https://img.shields.io/npm/v/@minhbc97/agent-hub)](https://www.npmjs.com/package/@minhbc97/agent-hub)
-[![license](https://img.shields.io/npm/l/@minhbc97/agent-hub)](LICENSE)
-[![node](https://img.shields.io/node/v/@minhbc97/agent-hub)](https://nodejs.org)
+[![npm](https://img.shields.io/npm/v/@minhbc/agent-hub)](https://www.npmjs.com/package/@minhbc/agent-hub)
+[![license](https://img.shields.io/npm/l/@minhbc/agent-hub)](LICENSE)
+[![node](https://img.shields.io/node/v/@minhbc/agent-hub)](https://nodejs.org)
 
 **English** | [Tiếng Việt](README.vi.md)
 
@@ -22,7 +22,7 @@ Requires Node.js 24+ and at least one agent CLI installed and signed in:
 [Antigravity](https://antigravity.google/docs/cli/install). An OpenRouter API key also works, for text-only agents.
 
 ```bash
-npx @minhbc97/agent-hub
+npx @minhbc/agent-hub
 ```
 
 Open <http://127.0.0.1:4310>. Create a workspace (name, repo path, optional worktree folder), then create the lead
@@ -31,10 +31,10 @@ agent when prompted. Click **Test run** on an agent to check that it answers in 
 Data is stored in `./data` under the folder you run the command from. To always use the same place:
 
 ```bash
-npx @minhbc97/agent-hub --data "$HOME/.agent-hub"
+npx @minhbc/agent-hub --data "$HOME/.agent-hub"
 ```
 
-Use `npx @minhbc97/agent-hub@latest` to pick up a new version.
+Use `npx @minhbc/agent-hub@latest` to pick up a new version.
 
 ## Features
 

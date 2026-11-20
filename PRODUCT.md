@@ -20,7 +20,7 @@ A self-hosted hub connects installed agent CLIs through turn-based runs and file
 
 ## Operating Context
 
-Users start the hub with `npx @minhbc97/agent-hub` (or clone the repository to develop), create a workspace for a repository, and configure agents. A workspace contains its own agents, tasks, workflows, messages, and settings. Supported engines are Claude Code, Codex, Antigravity, OpenRouter (API, text only), and a custom command, with an optional fallback engine per agent. Runs can use separate Git worktrees, a shared repository, or a custom working directory.
+Users start the hub with `npx @minhbc/agent-hub` (or clone the repository to develop), create a workspace for a repository, and configure agents. A workspace contains its own agents, tasks, workflows, messages, and settings. Supported engines are Claude Code, Codex, Antigravity, OpenRouter (API, text only), and a custom command, with an optional fallback engine per agent. Runs can use separate Git worktrees, a shared repository, or a custom working directory.
 
 ## Capabilities and Constraints
 
