@@ -30,7 +30,7 @@ on('PATCH', '/api/agents/:id', async (req, _r, p) => {
   // A finishing turn would store the old engine's session id after the switch.
   if (engineChanged && isAgentRunning(agent.id)) throw new HttpError(409, 'errors.agentRunningCannotSwitchEngine');
   // Session ids belong to one CLI; resuming another engine with it fails at start.
-  updateAgent(agent.id, engineChanged ? { ...fields, sessionId: null, turnsInSession: 0 } : fields);
+  updateAgent(agent.id, engineChanged ? { ...fields, sessionId: null, turnsInSession: 0, activeEngine: null } : fields);
   if (fields.paused !== undefined && !isAgentRunning(agent.id)) {
     updateAgent(agent.id, { status: fields.paused ? AGENT_STATUS.paused : AGENT_STATUS.idle });
   }

@@ -79,7 +79,7 @@ Chưa commit gì (người dùng muốn để sau).
    theo tên nếu khớp.
 7. **Agents**: lưới thẻ (avatar, tên, orchestrator, trạng thái, engine·model, session, token hôm nay, task đang làm)
    + form trong `Sheet` (các trường cũ: tên, vai, file brief, orchestrator, màu + seed avatar, engine
-   claude/codex/antigravity/custom (codex/agy hiện "chưa hỗ trợ"), model, lệnh, flag thêm (Claude mặc định
+   claude/codex/antigravity/openrouter/custom (Codex hiện "chưa hỗ trợ"), model, lệnh, flag thêm (Claude mặc định
    `--permission-mode acceptEdits`), isolation worktree/shared/custom + cwd, ngân sách token/ngày, reset context).
    Nút Chạy thử / Tạm dừng / Session mới / Xoá (AlertDialog). Trang chi tiết `#/agents/:id`: bảng lượt chạy (token
    vào/ra/ghi cache/đọc cache, chi phí, thời gian, output mở rộng).
@@ -114,9 +114,60 @@ Chưa commit gì (người dùng muốn để sau).
 - **Ngân sách token/ngày** của agent giờ được áp dụng: hết thì tin `held` đến hôm sau. Tính bằng `workTokens`
   (input + output + ghi cache, không tính đọc cache); thẻ agent hiển thị cùng con số này.
 
+## Giảm token + sơ đồ quan hệ (2026-11-20)
+
+- Đo thực tế: `claude -p` mặc định mang ~49k token nền mỗi lần gọi API (plugin/skill/hook/MCP cấp user); một lượt PM
+  gọi API ~9–12 lần và mỗi lần đọc lại toàn bộ context.
+- **Sổ bàn giao / xoay session** (`runner.ts`, mọi engine có session): trước mỗi lượt, `shouldRotate` xem lượt cuối
+  của session (`lastSessionRun`). Nghỉ > 60 phút (cache hết hạn), hoặc vượt `resetPolicy` (`turns` / `context`) thì
+  hub chạy một lượt `HANDOFF_PROMPT` trên session cũ, lưu reply vào `agents.handoff`, xoá `sessionId`. Session mới
+  nhận preamble + sổ bàn giao + task đang mở (từ DB). Lượt bàn giao hiện trong lịch sử lượt như một run thường.
+  Mặc định `context` 100k (`DEFAULT_CONTEXT_LIMIT`), chỉnh trong form agent. Migration chuyển agent `never` cũ sang
+  `context` 100k. "Session mới" xoá cả sổ bàn giao; đổi engine thì giữ (sổ là text, dùng được cho provider khác).
+- `runs.contextTokens`: context của lần gọi cuối. Claude đọc từ `usage.iterations` (cuối); Codex/Antigravity chưa
+  có nên chỉ xoay theo lượt hoặc khi nghỉ lâu (shortcut ghi trong code).
+- **Brief nạp sẵn**: file trong `briefFiles` được chèn vào preamble (tổng ≤ 60k ký tự), file thiếu/quá cỡ thì vẫn
+  dặn agent tự đọc.
+- **Chế độ gọn** (`agents.isLean`, chỉ Claude): `--strict-mcp-config --setting-sources project,local --tools
+  Read,Write,Edit,Bash,Glob,Grep`. Đo: nền ~49k → ~9–11k. Mất MCP cấp user (Jira) nên PM để tắt.
+- Đã chạy thật trên demo (`pm`, Haiku): lượt gọn ctx ~10.7k; xoay sau 1 lượt sinh sổ bàn giao và mở session mới đúng.
+- **Sơ đồ quan hệ** (`features/agents/AgentMap.tsx`): trên trang Agents; đường được phép (theo routing), tin đã gửi
+  (200 tin gần nhất), bàn giao giữa các bước workflow.
+- **Giai đoạn 2 (xong)**:
+  - **MCP theo agent** (`agents.mcpServers`, `engines/claude-mcp.ts`): dò server từ `~/.claude.json` và plugin
+    (`plugins/installed_plugins.json` + `plugins/synced/*/*`, `.mcp.json` dạng bọc `mcpServers` hoặc phẳng), tên
+    `plugin:<plugin>:<server>` giống Claude nên **giữ được đăng nhập OAuth** (Claude lưu token theo tên đó). Ở chế độ
+    gọn, server đã chọn ghi vào `data/mcp/<agentId>.json` → `--mcp-config` + `--allowedTools mcp__<tên>`.
+    `/api/meta.claudeMcpServers` cho form. Connector của claude.ai (Canva, Claude Docs) không truyền qua file được.
+    Chạy thật: demo `pm` gọn + Atlassian gọi `atlassianUserInfo` OK, ctx ~31.8k.
+  - **Gộp tin**: `bus.start` nhận tối đa `MAX_BATCH` (10) tin đang chờ của agent vào một lượt (OpenRouter vẫn 1 tin);
+    outbox nối vào chuỗi dài nhất trong lô để loop guard không bị reset; reply chỉ gắn task khi cả lô cùng task.
+  - **Context Codex**: `rolloutContext` đọc `last_token_usage.input_tokens` trong rollout
+    `~/.codex/sessions/**/…<threadId>.jsonl` (`CODEX_HOME` nếu có). Antigravity vẫn chưa có.
+- **Antigravity: hạn mức + hướng dẫn cài/đăng nhập (2026-11-20)**:
+  - `usage.ts` `parseAntigravityLogs`: đọc 5 log mới nhất `~/.gemini/antigravity-cli/log/cli-*.log`.
+    `applyAuthResult` = đã đăng nhập, `(not logged in)` = chưa (status mới `notSignedIn`);
+    `RESOURCE_EXHAUSTED … Resets in XhYmZs` + giờ dòng log (năm lấy từ tên file) → cửa sổ `quota` 100% kèm giờ reset.
+    Không có % đã dùng (CLI không báo). Dòng log có email: chỉ lấy sự kiện, không lấy nội dung.
+  - Catalog engine có `installUrl` + `loginCommand`; component `components/EngineSetup.tsx` hiện link cài đặt khi
+    chưa có lệnh trên PATH, hoặc hướng dẫn đăng nhập lần đầu; dùng ở form agent, bảng hạn mức, Cài đặt.
+- **Giai đoạn 3: hàng đợi biết hạn mức + engine dự phòng (2026-11-20)**:
+  - `availability.ts`: engine bị chặn (trong bộ nhớ) kèm giờ hết chặn. Nguồn: lượt thất bại mà `quotaRetryAt`
+    nhận ra là lỗi hạn mức (giờ reset nếu CLI nói, không thì thử lại sau 15 phút), và mỗi lần đọc hạn mức
+    (`noteUsage`: cửa sổ 100% → chặn đến reset; chưa đăng nhập → chặn 15 phút; đọc bình thường → gỡ chặn).
+  - `bus.pickEngine`: engine chính, không thì `fallbackEngine` (claude/codex/antigravity), không thì giữ tin
+    (`held`, lý do + giờ thử lại); hết chặn thì tự chạy. Lỗi hạn mức không làm tin `failed`, không block task:
+    tin quay về `queued`.
+  - Runner: `activeEngine` = engine của session hiện tại khi đang ở dự phòng. Đổi engine: engine cũ còn dùng được thì
+    nó viết sổ bàn giao (`rotateSession`), hết hạn mức thì hub tự viết sổ từ 8 tin gần nhất. Lượt dự phòng chạy bằng
+    lệnh/flag mặc định của engine đó, `fallbackModel`, và luôn ở chế độ gọn (Claude).
+  - Đã chạy thật trên demo: Antigravity hết hạn mức thật → tin chạy luôn bằng Claude dự phòng.
+    Lưu ý: đổi model giữa một session làm cache ghi lại từ đầu.
+
 ## Ghi chú kỹ thuật
 
 - API server chặn request ghi có header `Origin` khác host (CSRF); fetch cùng origin thì không sao.
 - Kiểu dữ liệu import từ `../../server/db.ts` (type-only) qua `lib/api.ts`.
 - `data/demo` có workspace demo (pm, be, fe) và hội thoại cũ; `data/test-workflow` do test tạo.
-- Codex/Antigravity runner chưa làm (bước 3 trong PLAN). Kết quả dò CLI ở `docs/cli-probe.md`.
+- Antigravity CLI runner dùng `--input-format stream-json`/`--output-format stream-json`, `--conversation` để nối phiên; CLI cần đăng nhập sẵn. OpenRouter gọi Chat Completions API qua Node fetch, dùng model ID tự nhập và `OPENROUTER_API_KEY` từ môi trường server; key không lưu trong DB và bị loại khỏi môi trường process CLI con. OpenRouter hiện là text-only, không đọc/sửa workspace hoặc gửi agent-to-agent; phản hồi task được lưu và chuyển workflow tự động.
+- Codex/custom runner chưa làm (bước 3 trong PLAN). Kết quả dò CLI ở `docs/cli-probe.md`.

@@ -12,12 +12,18 @@ export interface TurnResult {
   text: string;
   sessionId: string | null;
   usage: TurnUsage;
+  /** Prompt size of the turn's last model call, i.e. the session's current context. Unset when the CLI does not say. */
+  contextTokens?: number;
   isError: boolean;
 }
 
 export interface EngineAdapter {
   /** Shell command line for one turn. The prompt itself goes to stdin. */
   command(agent: Agent, opts: { resumeId: string | null; extraDirs: string[] }): string;
+  /** Execute providers that communicate over an API instead of spawning a CLI. */
+  run?: (agent: Agent, prompt: string, timeoutMs: number) => Promise<TurnResult>;
+  /** Convert the hub prompt to the CLI's stdin protocol when it is not plain text. */
+  formatInput?: (prompt: string) => string;
   parse(stdout: string, stderr: string, exitCode: number | null): TurnResult;
   /** Usage reported for a resumed session is the running total of the whole session, not this turn. */
   cumulativeUsage?: boolean;

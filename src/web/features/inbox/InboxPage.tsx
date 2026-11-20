@@ -6,6 +6,7 @@ import {
   Check,
   CircleHelp,
   List,
+  Loader2,
   MessageSquareText,
   MessagesSquare,
   RotateCcw,
@@ -13,7 +14,7 @@ import {
   Send,
   Zap,
 } from 'lucide-react';
-import { PAGE, useHashRoute, useHub, waitingOnUser, waitingText } from '@/lib/hub';
+import { PAGE, useHashRoute, useHub, waitingOnUser, waitingText, type OutgoingMessage } from '@/lib/hub';
 import {
   ACT,
   AGENT_STATUS,
@@ -34,7 +35,7 @@ import { Input } from '@/components/ui/input';
 import { InputGroup, InputGroupAddon, InputGroupInput } from '@/components/ui/input-group';
 import { i18n, t } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
-import { AgentAvatar, Avatar, label } from '@/components/shared';
+import { AgentAvatar, Avatar, UserAvatar, label } from '@/components/shared';
 import { Composer } from '@/components/Composer';
 
 /** Only acts that change what the reader should do get a badge; plain chat stays unlabeled. */
@@ -98,12 +99,30 @@ export function InboxPage({ filter, setFilter }: { filter: string; setFilter: (s
       (!needle || `${m.subject} ${m.body}`.toLowerCase().includes(needle)),
   );
 
+  const outgoing = h.outgoing.filter((o) =>
+    filter === INBOX_CHANNEL.team
+      ? true
+      : selectedAgent
+        ? o.toId === selectedAgent.id
+        : selectedTask
+          ? o.taskId === selectedTask.id
+          : false,
+  );
+
   const scroller = useRef<HTMLDivElement>(null);
   const atBottom = useRef(true);
   useEffect(() => {
     const el = scroller.current;
     if (el && atBottom.current) el.scrollTop = el.scrollHeight;
   }, [items.length, filter]);
+  // Your own send always scrolls to it, wherever you were reading.
+  useEffect(() => {
+    const el = scroller.current;
+    if (el && outgoing.length) {
+      atBottom.current = true;
+      el.scrollTop = el.scrollHeight;
+    }
+  }, [outgoing.length]);
   // Switching channel always starts at the newest message.
   useEffect(() => {
     atBottom.current = true;
@@ -134,7 +153,7 @@ export function InboxPage({ filter, setFilter }: { filter: string; setFilter: (s
               <NeedsList tasks={pending.tasks} questions={pending.messages} />
             ) : (
               <>
-                {items.length === 0 && (
+                {items.length === 0 && outgoing.length === 0 && (
                   <EmptyThread
                     kind={h.agents.length === 0 ? 'noAgents' : 'conversation'}
                     onAddAgent={() => navigate(`${PAGE.agents}/new`)}
@@ -154,6 +173,9 @@ export function InboxPage({ filter, setFilter }: { filter: string; setFilter: (s
                       onAnswer={() => setFilter(INBOX_CHANNEL.needs)}
                     />
                   </div>
+                ))}
+                {outgoing.map((o) => (
+                  <OutgoingRow key={o.key} message={o} showRecipient={!selectedAgent} />
                 ))}
                 <WorkingLine agentId={selectedAgent?.id} />
               </>
@@ -413,29 +435,29 @@ function MessageRow({
   // A task question is answered through the task (blocked), a loose one stays held until answered.
   const isWaitingOnUser =
     m.act === ACT.needsHuman && (m.status === MESSAGE_STATUS.held || task?.status === TASK_STATUS.blocked);
+  const isMine = m.fromId === USER_ID;
   return (
-    <div className={cn('group flex gap-3 rounded-lg px-2 py-0.5 hover:bg-muted/40', !grouped && 'mt-3')}>
+    <div className={cn('group flex gap-3 px-2 py-0.5', isMine && 'flex-row-reverse', !grouped && 'mt-3')}>
       {grouped ? (
-        <span className="w-8 shrink-0 pt-0.5 text-right text-[0.65rem] text-muted-foreground opacity-0 group-hover:opacity-100">
+        <span
+          className={cn(
+            'w-8 shrink-0 pt-2 text-[0.65rem] text-muted-foreground opacity-0 group-hover:opacity-100',
+            isMine ? 'text-left' : 'text-right',
+          )}
+        >
           {timeOf(m.createdAt)}
         </span>
       ) : (
-        <span className="pt-0.5">
-          <Avatar agent={sender} size={32} />
-        </span>
+        <span className="pt-0.5">{isMine ? <UserAvatar size={32} /> : <Avatar agent={sender} size={32} />}</span>
       )}
-      <div className="min-w-0 flex-1">
+      <div className={cn('flex min-w-0 flex-1 flex-col', isMine ? 'items-end' : 'items-start')}>
         {!grouped && (
-          <div className="flex flex-wrap items-center gap-x-1.5 text-sm">
-            <span className="font-medium">{nameOf(m.fromId)}</span>
-            {showRecipient && (
-              <span className="flex items-center gap-1.5 text-muted-foreground">
-                <ArrowRight size={12} />
-                {nameOf(m.toId)}
-              </span>
-            )}
-            <span className="ml-1 text-xs text-muted-foreground">{timeOf(m.createdAt)}</span>
-          </div>
+          <MessageHeader
+            from={nameOf(m.fromId)}
+            to={showRecipient ? nameOf(m.toId) : null}
+            time={timeOf(m.createdAt)}
+            isMine={isMine}
+          />
         )}
         {(act || m.decision || m.urgent || m.status !== MESSAGE_STATUS.delivered) && (
           <div className="mt-1 flex flex-wrap items-center gap-1.5">
@@ -458,8 +480,12 @@ function MessageRow({
             )}
           </div>
         )}
-        {m.subject && <div className="mt-1 text-sm font-medium">{m.subject}</div>}
-        {m.body && <p className="mt-0.5 text-sm/6 whitespace-pre-wrap text-foreground/90">{m.body}</p>}
+        {(m.subject || m.body) && (
+          <Bubble isMine={isMine}>
+            {m.subject && <div className="font-medium">{m.subject}</div>}
+            {m.body && <p className="whitespace-pre-wrap">{m.body}</p>}
+          </Bubble>
+        )}
         {m.status === MESSAGE_STATUS.failed && h.agentById(m.toId) && (
           <div className="mt-1.5 flex flex-wrap items-center gap-2 text-xs text-destructive">
             {m.holdReason && <span>{m.holdReason}</span>}
@@ -489,6 +515,71 @@ function MessageRow({
             )}
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+function MessageHeader({ from, to, time, isMine }: { from: string; to: string | null; time: string; isMine: boolean }) {
+  return (
+    <div className={cn('flex flex-wrap items-center gap-x-1.5 text-sm', isMine && 'justify-end')}>
+      <span className="font-medium">{from}</span>
+      {to && (
+        <span className="flex items-center gap-1.5 text-muted-foreground">
+          <ArrowRight size={12} />
+          {to}
+        </span>
+      )}
+      <span className="mx-1 text-xs text-muted-foreground">{time}</span>
+    </div>
+  );
+}
+
+/** Your messages sit right on the accent tint, everyone else's left on muted, like any chat. */
+function Bubble({
+  isMine,
+  isPending = false,
+  children,
+}: {
+  isMine: boolean;
+  isPending?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <div
+      className={cn(
+        'mt-1 max-w-2xl rounded-2xl px-3.5 py-2 text-sm/6 text-foreground/90',
+        isMine ? 'rounded-tr-sm bg-primary/15' : 'rounded-tl-sm bg-muted/60',
+        isPending && 'opacity-70',
+      )}
+    >
+      {children}
+    </div>
+  );
+}
+
+/** Your message right after Enter, before the server has it: same bubble, plus a spinner. */
+function OutgoingRow({ message: o, showRecipient }: { message: OutgoingMessage; showRecipient: boolean }) {
+  const nameOf = useNameOf();
+  return (
+    <div className="mt-3 flex flex-row-reverse gap-3 px-2 py-0.5">
+      <span className="pt-0.5">
+        <UserAvatar size={32} />
+      </span>
+      <div className="flex min-w-0 flex-1 flex-col items-end">
+        <MessageHeader
+          from={nameOf(USER_ID)}
+          to={showRecipient ? nameOf(o.toId) : null}
+          time={timeOf(o.createdAt)}
+          isMine
+        />
+        <Bubble isMine isPending>
+          <p className="whitespace-pre-wrap">{o.body}</p>
+        </Bubble>
+        <span className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground" role="status">
+          <Loader2 className="size-3.5 animate-spin" />
+          {t('inbox.sending')}
+        </span>
       </div>
     </div>
   );
@@ -583,6 +674,8 @@ function NeedTask({ task }: { task: Task }) {
   const h = useHub();
   const [note, setNote] = useState('');
   const assignee = h.agentById(task.assigneeId ?? '');
+  // The task's question carries the agent's offered choices, if any.
+  const question = h.messages.findLast((m) => m.taskId === task.id && m.act === ACT.needsHuman);
   const isReview = task.status === TASK_STATUS.review;
   const reason = waitingText(task, h.workflows) || t(label[task.status]);
   const act = async (fn: () => Promise<unknown>, ok: string) => {
@@ -601,6 +694,12 @@ function NeedTask({ task }: { task: Task }) {
           {task.result && (
             <p className="mt-3 line-clamp-6 rounded-lg bg-muted/60 p-3 text-sm/6 whitespace-pre-wrap">{task.result}</p>
           )}
+          {!isReview && !!question?.options.length && (
+            <AnswerOptions
+              options={question.options}
+              onPick={(option) => act(() => api.answer(task.id, option), t('inbox.replySent'))}
+            />
+          )}
           <form
             className="mt-3 flex gap-2"
             onSubmit={(e) => {
@@ -612,7 +711,13 @@ function NeedTask({ task }: { task: Task }) {
               value={note}
               onChange={(e) => setNote(e.target.value)}
               aria-label={isReview ? t('inbox.noteOptional') : t('inbox.answerPlaceholder')}
-              placeholder={isReview ? t('inbox.noteOptional') : t('inbox.answerPlaceholder')}
+              placeholder={
+                isReview
+                  ? t('inbox.noteOptional')
+                  : question?.options.length
+                    ? t('inbox.otherAnswer')
+                    : t('inbox.answerPlaceholder')
+              }
             />
             {isReview ? (
               <>
@@ -646,14 +751,14 @@ function NeedQuestion({ message: m }: { message: Message }) {
   const h = useHub();
   const [answer, setAnswer] = useState('');
   const asker = h.agentById(m.fromId);
+  const send = (body: string) =>
+    h.ws && asker
+      ? h.attempt(() => api.send(h.ws!.id, { to: asker.id, body, subject: m.subject }), t('inbox.replySent'))
+      : Promise.resolve(undefined);
   const reply = async (e: FormEvent) => {
     e.preventDefault();
-    if (!h.ws || !asker || !answer.trim()) return;
-    const sent = await h.attempt(
-      () => api.send(h.ws!.id, { to: asker.id, body: answer, subject: m.subject }),
-      t('inbox.replySent'),
-    );
-    if (sent) setAnswer('');
+    if (!answer.trim()) return;
+    if (await send(answer)) setAnswer('');
   };
   return (
     <Card className="gap-0 p-4">
@@ -666,12 +771,13 @@ function NeedQuestion({ message: m }: { message: Message }) {
           </div>
           {m.subject && <div className="mt-1 font-medium">{m.subject}</div>}
           <p className="mt-1 text-sm/6 whitespace-pre-wrap text-foreground/90">{m.body}</p>
+          {m.options.length > 0 && <AnswerOptions options={m.options} onPick={send} />}
           <form className="mt-3 flex gap-2" onSubmit={reply}>
             <Input
               value={answer}
               onChange={(e) => setAnswer(e.target.value)}
               aria-label={t('inbox.answerPlaceholder')}
-              placeholder={t('inbox.answerPlaceholder')}
+              placeholder={m.options.length ? t('inbox.otherAnswer') : t('inbox.answerPlaceholder')}
             />
             <Button type="submit" disabled={!answer.trim() || !asker}>
               <Send />
@@ -681,5 +787,34 @@ function NeedQuestion({ message: m }: { message: Message }) {
         </div>
       </div>
     </Card>
+  );
+}
+
+const OPTION_KEYS = ['A', 'B', 'C', 'D', 'E', 'F'];
+
+/** The agent's offered choices as big lettered buttons: one click answers; the free-text box stays below. */
+function AnswerOptions({ options, onPick }: { options: string[]; onPick: (option: string) => Promise<unknown> }) {
+  const [picked, setPicked] = useState<string | null>(null);
+  return (
+    <div className="mt-3 grid gap-2" role="group" aria-label={t('inbox.pickOption')}>
+      {options.map((option, i) => (
+        <Button
+          key={option}
+          variant="outline"
+          disabled={picked !== null}
+          onClick={async () => {
+            setPicked(option);
+            await onPick(option);
+            setPicked(null);
+          }}
+          className="h-auto justify-start gap-3 py-2.5 text-left font-normal whitespace-normal hover:border-primary/60 hover:bg-primary/10"
+        >
+          <span className="grid size-6 shrink-0 place-items-center rounded-md bg-muted text-xs font-semibold">
+            {picked === option ? <Loader2 className="size-3.5 animate-spin" /> : OPTION_KEYS[i]}
+          </span>
+          {option}
+        </Button>
+      ))}
+    </div>
   );
 }

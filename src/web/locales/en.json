@@ -20,7 +20,7 @@
     "extraArguments": "Extra arguments",
     "firstAgentDescription": "This agent receives and coordinates work across the other agents in this workspace.",
     "input": "Input",
-    "isolation": "Isolation",
+    "isolation": "Where the agent works",
     "meshAgentsCanTalkDirectly": "Mesh · agents can talk directly",
     "model": "Model",
     "newSession": "New session",
@@ -33,15 +33,21 @@
     "output": "Output",
     "rolePrompt": "Role / prompt",
     "avatar": "Avatar",
+    "avatarBackground": "Background",
     "avatarColor": "Background {{color}}",
+    "avatarFace": "Face",
     "chooseAvatar": "Choose this avatar",
-    "shuffleAvatars": "Show other avatars",
     "goal": "Goal",
     "noGoal": "No goal set",
     "recentCost": "Cost of recent runs",
     "role": "Role",
     "session": "Session",
-    "state": { "held": "Mail on hold", "idle": "Idle", "paused": "Paused", "working": "Working" },
+    "state": {
+      "held": "Mail on hold",
+      "idle": "Idle",
+      "paused": "Paused",
+      "working": "Working"
+    },
     "tokensTodayLabel": "Tokens today",
     "goalPlaceholder": "What this agent should achieve, e.g. every ticket shipped with tests",
     "recommended": "(recommended)",
@@ -62,7 +68,54 @@
     "searchOrTypeModel": "Search or type a model…",
     "noModelMatch": "No matching model.",
     "useModel": "Use “{{model}}”",
-    "engineNotInstalled": "Command “{{command}}” was not found on PATH. Install this CLI first, or change the Command field."
+    "needsGit": "(needs git)",
+    "isolationMode": {
+      "worktree": "Own git copy",
+      "shared": "Shared folder",
+      "custom": "Folder of your choice"
+    },
+    "isolationHint": {
+      "worktree": "Each agent works on its own git copy of the working folder, so nobody overwrites anyone else. Best for teams writing code.",
+      "shared": "Every agent uses the workspace's working folder together, like the office's shared drive. No git needed.",
+      "custom": "The agent works in the folder you pick below."
+    },
+    "openRouterSetupHint": "Set OPENROUTER_API_KEY in the environment used to run agent-hub, then restart the server. Model IDs use provider/model, for example openai/gpt-5.2. The API key is not stored in the workspace.",
+    "openRouterModelPlaceholder": "Enter a model ID, e.g. openai/gpt-5.2",
+    "map": {
+      "title": "How agents connect",
+      "routingStar": "Star routing: agents message only the lead agent or you",
+      "routingMesh": "Mesh routing: plus the direct pairs",
+      "linkLabel": "Traffic between {{a}} and {{b}}",
+      "workflowShort": "WF",
+      "sent": "{{from}} → {{to}}: {{count}} messages",
+      "handoff": "Hand-off in workflow “{{workflow}}”",
+      "rerouted": "This pair may not talk directly; messages go through the lead agent",
+      "legendMessages": "Messages sent (recent)",
+      "legendWorkflow": "Workflow hand-off",
+      "legendAllowed": "Allowed to message"
+    },
+    "resetPolicy": "Start a new session when",
+    "resetPolicyMode": {
+      "never": "Never",
+      "turns": "After a number of turns",
+      "context": "Context passes a limit"
+    },
+    "resetValueLabel": {
+      "turns": "Turns",
+      "context": "Context limit (tokens)"
+    },
+    "resetPolicyHint": "Before a new session starts, the agent writes a handoff note that the next session reads. A session idle for over an hour is also renewed, since its cache has expired.",
+    "leanMode": "Lean mode",
+    "leanModeHint": "Run Claude without your user-level plugins, skills, hooks and MCP servers, with only the file and shell tools. If the agent needs an MCP server (for example Jira), pick it below.",
+    "context": "Context",
+    "handoffNote": "Handoff note",
+    "leanMcpServers": "MCP servers kept in lean mode",
+    "noMcpServers": "No MCP servers found in your Claude Code config or plugins.",
+    "fallbackEngine": "Fallback engine when out of quota",
+    "noFallback": "None, wait for the reset",
+    "fallbackEngineHint": "When the main engine runs out of quota, its messages are held and run again at the reset. With a fallback, the agent switches to it right away, carrying its handoff note, and returns to the main engine once that works again.",
+    "onFallback": "{{own}} · running on {{fallback}} for now",
+    "fallbackModel": "Fallback model"
   },
   "app": {
     "avatarLicense": "Micah avatars — CC BY 4.0",
@@ -99,7 +152,7 @@
   },
   "errors": {
     "agentNameExists": "An agent named “{{name}}” already exists.",
-    "agentNameFormat": "Agent names must be lowercase and contain up to 32 letters, numbers, hyphens, or underscores.",
+    "agentNameFormat": "Agent names can contain up to 32 letters, numbers, hyphens, or underscores.",
     "agentNameRequired": "Agent name is required.",
     "agentNotFound": "Agent not found.",
     "agentRunningCannotDelete": "This agent is running. Wait for its turn to finish before deleting it.",
@@ -110,10 +163,13 @@
     "crossOriginBlocked": "Request blocked because it came from another website.",
     "customEngineCommandRequired": "A custom engine needs a command.",
     "customIsolationDirectoryRequired": "Custom isolation needs a working directory.",
+    "worktreeNeedsRepo": "This workspace has no working folder. \"Own git copy\" needs a git repository; set a folder in Settings or pick \"Shared folder\".",
+    "worktreeNeedsGit": "{{path}} is not a git repository with a commit, so \"Own git copy\" cannot be used. Pick \"Shared folder\", or run \"git init\" and make a first commit there.",
     "directPairInvalid": "Invalid direct pair: {{pair}}",
     "directPairSize": "Each direct pair must contain two agent names.",
     "directPairsArray": "Direct pairs must be an array.",
     "engineUnsupported": "Engine {{engine}} is not supported.",
+    "openRouterModelRequired": "Choose an OpenRouter model.",
     "fieldInvalid": "{{field}} is invalid.",
     "folderPickerFailed": "Could not open the folder picker.",
     "hostNotAllowed": "The hub only accepts requests from this computer (localhost).",
@@ -125,7 +181,7 @@
     "invalidPath": "Invalid request path.",
     "recipientAndBodyRequired": "Recipient and message are required.",
     "recipientNotFound": "No agent “{{name}}”.",
-    "repositoryNotFound": "Repository directory not found: {{path}}",
+    "repositoryNotFound": "Working folder not found: {{path}}",
     "reservedAgentName": "The name “user” is reserved.",
     "routeNotFound": "API route not found.",
     "routingInvalid": "Routing must be star or mesh.",
@@ -147,7 +203,7 @@
     "workflowStepNameRequired": "Step {{number}} needs a name.",
     "workflowStepsArray": "Workflow steps must be an array.",
     "workspaceHasRunningAgents": "This workspace has running agents. Wait for them to finish before deleting it.",
-    "workspaceFoldersBusy": "An agent is running. Wait for its turn to finish before moving the repo or worktree folder.",
+    "workspaceFoldersBusy": "An agent is running. Wait for its turn to finish before moving the working folder or the git copies folder.",
     "workspaceNameRequired": "Workspace name is required.",
     "workspaceNotFound": "Workspace not found.",
     "agentRunningCannotSwitchEngine": "This agent is running. Wait for its turn to finish before switching engine.",
@@ -158,14 +214,25 @@
     "held": "Mail on hold",
     "idle": "Free, waiting for work",
     "leadIdle": "Ready for your brief",
+    "leadRoom": "Lead office",
+    "meetingRoom": "Meeting room",
+    "teamFloor": "Team floor",
+    "taskBoard": "Open the task board",
     "needsHint": "Click to answer or review",
     "office": "Office",
     "openChat": "Open chat with {{name}}",
+    "sfxWorking": "Tap tap!",
+    "sfxWaiting": "Hey!",
+    "sfxReceived": "Got it!",
+    "sfxPaused": "Zzz",
     "paused": "Taking a break",
     "waitingOnYou": "Waiting on your answer!",
     "working": "Working…"
   },
   "inbox": {
+    "sending": "Sending…",
+    "otherAnswer": "Or answer another way…",
+    "pickOption": "Pick an option",
     "answerInNeeds": "Answer",
     "composerTo": "Message {{name}}…",
     "allMessages": "All messages",
@@ -220,9 +287,11 @@
     "workflows": "Workflows"
   },
   "settings": {
+    "apiKeyConfigured": "API key configured",
+    "apiKeyMissing": "API key missing",
     "engines": "Agent CLIs on this computer",
     "enginesHint": "The hub runs CLIs you already installed and reuses their own sign-in.",
-    "folderChangeWarning": "Moving folders: each agent (except those with a custom folder) starts a new session in the new place on its next turn. Old worktrees stay in the old folder; remove them yourself if unused. Saving is blocked while an agent is running.",
+    "folderChangeWarning": "Moving folders: each agent (except those with a folder of their own) starts a new session in the new place on its next turn. Old git copies stay in the old folder; remove them yourself if unused. Saving is blocked while an agent is running.",
     "installed": "Installed",
     "notOnPath": "Not found on PATH",
     "notSupportedYet": "not supported yet",
@@ -248,6 +317,8 @@
     "maxHops": "Max agent messages in a row"
   },
   "tasks": {
+    "allStatuses": "All statuses",
+    "taskMoved": "Task moved",
     "approveStep": "Review the result of step “{{name}}”.",
     "archived": "Archived",
     "code": {
@@ -289,6 +360,7 @@
     "yourStep": "Step “{{name}}” is yours to do."
   },
   "workflows": {
+    "editorDescription": "Arrange steps in the center; set owners and scheduling beside them.",
     "addStep": "Add step",
     "allWorkflows": "All workflows",
     "articleDescription": "Research, write, edit, and approve before publishing.",
@@ -357,12 +429,50 @@
     "deleteWorkspaceTitle": "Delete workspace “{{name}}”?",
     "exampleTeam": "For example: Product team",
     "name": "Workspace name",
-    "repositoryPath": "Repository path",
+    "repositoryPath": "Working folder",
     "saveWorkspace": "Save workspace",
     "setUpYourWorkspace": "Set up your workspace",
     "welcomeDescription": "Create a workspace for your agents, conversations, and workflows.",
     "workspace": "Workspace",
-    "worktreeDirectory": "Worktree directory",
+    "worktreeDirectory": "Folder for git copies (git only)",
     "worktreePlaceholder": "Leave blank to use the default"
+  },
+  "usage": {
+    "title": "Usage limits",
+    "freshness": "Figures up to 1 min old",
+    "refresh": "Refresh usage limits",
+    "loading": "Reading usage limits…",
+    "nearLimit": "Near the limit",
+    "limitReached": "Limit reached",
+    "used": "{{percent}}% used",
+    "left": "{{percent}}% left",
+    "resetsIn": "Resets in {{hours}} h {{minutes}} min",
+    "resetsAt": "Resets {{time}}",
+    "resetSoon": "Resetting soon",
+    "noReset": "Reset time unknown",
+    "window": {
+      "session": "5h limit",
+      "week": "Weekly limit",
+      "quota": "Account quota"
+    },
+    "status": {
+      "notInstalled": "Not installed",
+      "noSource": "No source",
+      "noReading": "No reading yet",
+      "error": "Read failed",
+      "notSignedIn": "Not signed in"
+    },
+    "hint": {
+      "notInstalled": "{{name}} is not installed on this computer.",
+      "noSource": "{{name}} does not report how much is used. The hub only knows once the quota runs out (read from the CLI log).",
+      "noReading": "No reading from {{name}} yet. The meters fill after its next run.",
+      "error": "Could not read {{name}} limits. Refresh to try again.",
+      "notSignedIn": "{{name}} is not signed in on this machine."
+    }
+  },
+  "engines": {
+    "notInstalled": "{{name}} command “{{command}}” was not found on this machine.",
+    "installGuide": "Install guide",
+    "loginHint": "First time using {{name}}: open a terminal, run “{{command}}” and sign in. Every agent reuses that sign-in."
   }
 }

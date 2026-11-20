@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type DragEvent } from 'react';
 import { List, MoreHorizontal, Plus, Search, Columns3, Trash2, Zap } from 'lucide-react';
 import { useHub, waitingText } from '@/lib/hub';
 import { api, TASK_STATUS, USER_ID, type Task, type TaskStatus } from '@/lib/api';
@@ -42,6 +42,8 @@ export function TasksPage() {
     [query, setQuery] = useState(''),
     [wf, setWf] = useState<string>(ANY),
     [agent, setAgent] = useState<string>(ANY),
+    [status, setStatus] = useState<string>(ANY),
+    [draggedId, setDraggedId] = useState<string | null>(null),
     [selectedId, setSelectedId] = useState<string | null>(null),
     [create, setCreate] = useState(false);
   const tasks = h.tasks.filter(
@@ -49,7 +51,8 @@ export function TasksPage() {
       t.status !== TASK_STATUS.archived &&
       `${t.key} ${t.title} ${t.body}`.toLowerCase().includes(query.toLowerCase()) &&
       (wf === ANY || t.workflowId === wf) &&
-      (agent === ANY || t.assigneeId === agent),
+      (agent === ANY || t.assigneeId === agent) &&
+      (status === ANY || t.status === status),
   );
   // Read the task from live hub state so the sheet follows server updates (approve, step changes).
   const selected = h.tasks.find((x) => x.id === selectedId) ?? null;
@@ -73,8 +76,13 @@ export function TasksPage() {
         statusColumn(TASK_STATUS.done),
       ]
     : BOARD_STATUSES.map(statusColumn);
+  const moveTask = async (taskId: string, nextStatus: TaskStatus) => {
+    const task = h.tasks.find((item) => item.id === taskId);
+    if (!task || task.status === nextStatus) return;
+    await h.attempt(() => api.updateTask(taskId, { status: nextStatus }), t('tasks.taskMoved'));
+  };
   return (
-    <div className="flex flex-1 flex-col">
+    <div className="flex min-h-0 flex-1 flex-col">
       <PageHeading
         title={t('tasks.title')}
         subtitle={t('tasks.trackWorkFromStartToFinish')}
@@ -122,6 +130,21 @@ export function TasksPage() {
             ))}
           </SelectContent>
         </Select>
+        {mode === VIEW.list && (
+          <Select value={status} onValueChange={setStatus}>
+            <SelectTrigger className="w-40" aria-label={t('common.status')}>
+              <SelectValue placeholder={t('tasks.allStatuses')} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={ANY}>{t('tasks.allStatuses')}</SelectItem>
+              {BOARD_STATUSES.map((taskStatus) => (
+                <SelectItem key={taskStatus} value={taskStatus}>
+                  {t(label[taskStatus])}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
         <Tabs value={mode} onValueChange={setMode} className="ml-auto">
           <TabsList>
             <TabsTrigger value={VIEW.board}>
@@ -137,29 +160,51 @@ export function TasksPage() {
       </div>
       {mode === VIEW.board ? (
         // Columns share the full width; only a long workflow falls back to scrolling sideways.
-        <div className="grid flex-1 auto-cols-[minmax(15rem,1fr)] grid-flow-col gap-3 overflow-x-auto pb-1">
+        <div className="grid min-h-0 flex-1 auto-cols-[minmax(15rem,1fr)] grid-flow-col gap-3 overflow-x-auto pb-1">
           {cols.map(({ key, title, hint, tone, statuses }) => {
             const group = tasks.filter((x) =>
               statuses.length ? statuses.includes(x.status) : x.stepId === key && x.status !== TASK_STATUS.done,
             );
             return (
-              <section key={key} className={cn('flex min-h-96 flex-col rounded-lg border-t-2 p-2.5', tone.column)}>
+              <section
+                key={key}
+                onDragOver={(event) => event.preventDefault()}
+                onDrop={(event) => {
+                  event.preventDefault();
+                  const taskId = event.dataTransfer.getData('text/task-id') || draggedId;
+                  if (taskId && statuses.length === 1) void moveTask(taskId, statuses[0]!);
+                  setDraggedId(null);
+                }}
+                className={cn('flex min-h-0 flex-col rounded-lg border-t-2 p-2.5', tone.column)}
+              >
                 <header className="flex items-center gap-2 px-1 pb-3" title={hint}>
                   <span className={cn('size-2 rounded-full', tone.dot)} />
                   <h2 className="truncate text-xs font-semibold tracking-wider">{title}</h2>
                   <span className="ml-auto text-xs text-muted-foreground tabular-nums">{group.length}</span>
                 </header>
-                <div className="grid content-start gap-2">
-                  {group.map((task) => (
-                    <TaskCard key={task.id} task={task} open={() => setSelectedId(task.id)} />
-                  ))}
+                <div className="min-h-0 flex-1 scrollbar-thin overflow-y-auto overscroll-contain pr-1">
+                  <div className="grid content-start gap-2">
+                    {group.map((task) => (
+                      <TaskCard
+                        key={task.id}
+                        task={task}
+                        open={() => setSelectedId(task.id)}
+                        onDragStart={(event) => {
+                          event.dataTransfer.setData('text/task-id', task.id);
+                          event.dataTransfer.effectAllowed = 'move';
+                          setDraggedId(task.id);
+                        }}
+                        onDragEnd={() => setDraggedId(null)}
+                      />
+                    ))}
+                  </div>
                 </div>
               </section>
             );
           })}
         </div>
       ) : (
-        <div className="overflow-hidden rounded-lg border">
+        <div className="min-h-0 flex-1 overflow-auto rounded-lg border">
           <div className="grid grid-cols-[100px_1fr_150px_160px_130px] gap-3 bg-muted/40 px-4 py-2.5 text-xs text-muted-foreground">
             <span>{t('common.id')}</span>
             <span>{t('common.title')}</span>
@@ -195,13 +240,26 @@ export function TasksPage() {
   );
 }
 
-function TaskCard({ task, open }: { task: Task; open: () => void }) {
+function TaskCard({
+  task,
+  open,
+  onDragStart,
+  onDragEnd,
+}: {
+  task: Task;
+  open: () => void;
+  onDragStart: (event: DragEvent<HTMLButtonElement>) => void;
+  onDragEnd: () => void;
+}) {
   const h = useHub();
   return (
     <Button
       variant="outline"
+      draggable
+      onDragStart={onDragStart}
+      onDragEnd={onDragEnd}
       onClick={open}
-      className="h-auto w-full flex-col items-stretch gap-0 bg-card p-3 text-left font-normal whitespace-normal hover:border-primary/40"
+      className="h-auto w-full cursor-grab flex-col items-stretch gap-0 bg-card p-3 text-left font-normal whitespace-normal hover:border-primary/40 active:cursor-grabbing"
     >
       <div className="flex items-center justify-between text-xs text-muted-foreground">
         <span className="font-mono">{task.key}</span>
@@ -229,8 +287,8 @@ function TaskSheet({ task, close }: { task: Task | null; close: () => void }) {
   const messages = h.messages.filter((m) => m.taskId === task?.id);
   return (
     <Sheet open={!!task} onOpenChange={(o) => !o && close()}>
-      <SheetContent className="overflow-y-auto sm:max-w-xl">
-        <SheetHeader className="pr-10">
+      <SheetContent className="gap-0 data-[side=right]:sm:max-w-xl">
+        <SheetHeader className="shrink-0 border-b pr-10">
           <Badge variant="outline" className="w-fit font-mono">
             {task?.key}
           </Badge>
@@ -240,133 +298,139 @@ function TaskSheet({ task, close }: { task: Task | null; close: () => void }) {
           </SheetDescription>
         </SheetHeader>
         {task && (
-          <div className="grid gap-5 px-4 pb-5">
-            <div>
-              <h3 className="mb-2 text-xs font-medium text-muted-foreground">{t('common.description')}</h3>
-              <p className="leading-6 whitespace-pre-wrap">{task.body || t('tasks.noDescription')}</p>
-            </div>
-            {wf && (
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            <div className="grid gap-5 px-4 py-5">
               <div>
-                <h3 className="mb-2 text-xs font-medium text-muted-foreground">{t('tasks.workflowProgress')}</h3>
-                <div className="space-y-2">
-                  {wf.steps.map((s, i) => (
-                    <div key={s.id} className="flex items-center gap-2 text-sm">
-                      <span
-                        className={`grid size-5 place-items-center rounded-full text-xs ${task.stepId === s.id ? 'bg-primary text-primary-foreground' : i < wf.steps.findIndex((x) => x.id === task.stepId) ? 'bg-success/20 text-success' : 'bg-muted text-muted-foreground'}`}
-                      >
-                        {i + 1}
-                      </span>
-                      {s.name}
-                      <span className="text-xs text-muted-foreground">
-                        · {h.agentById(s.agentId)?.name || t('common.you')}
-                      </span>
-                      {s.approval && <Badge variant="secondary">{t('common.approve')}</Badge>}
-                    </div>
-                  ))}
-                </div>
+                <h3 className="mb-2 text-xs font-medium text-muted-foreground">{t('common.description')}</h3>
+                <p className="leading-6 whitespace-pre-wrap">{task.body || t('tasks.noDescription')}</p>
               </div>
-            )}
-            {task.result && (
-              <div>
-                <h3 className="mb-2 text-xs font-medium text-muted-foreground">{t('tasks.latestResult')}</h3>
-                <Card className="p-3 leading-6 whitespace-pre-wrap">{task.result}</Card>
-              </div>
-            )}
-            {(task.status === TASK_STATUS.review || task.status === TASK_STATUS.blocked) &&
-              waitingText(task, h.workflows) && (
-                <p className="text-sm text-warning">{waitingText(task, h.workflows)}</p>
-              )}
-            <div className="flex flex-wrap gap-2">
-              {task.status === TASK_STATUS.todo && (
-                <Button size="sm" onClick={() => h.attempt(() => api.startTask(task.id), t('tasks.taskStarted'))}>
-                  <Zap size={14} />
-                  {t('common.start')}
-                </Button>
-              )}
-              {task.status === TASK_STATUS.review && (
-                <>
-                  <Input
-                    className="w-48"
-                    value={note}
-                    onChange={(e) => setNote(e.target.value)}
-                    aria-label={t('common.note')}
-                    placeholder={t('common.note')}
-                  />
-                  <Button
-                    onClick={async () =>
-                      (await h.attempt(() => api.decide(task.id, true, note), t('inbox.approved'))) && setNote('')
-                    }
-                  >
-                    {t('common.approve')}
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={async () =>
-                      (await h.attempt(() => api.decide(task.id, false, note), t('inbox.returned'))) && setNote('')
-                    }
-                  >
-                    {t('common.sendBack')}
-                  </Button>
-                </>
-              )}
-              {task.status === TASK_STATUS.blocked && (
-                <>
-                  <Input
-                    className="w-56"
-                    value={answer}
-                    onChange={(e) => setAnswer(e.target.value)}
-                    aria-label={t('tasks.replyToAgent')}
-                    placeholder={t('tasks.replyToAgent')}
-                  />
-                  <Button
-                    onClick={async () =>
-                      (await h.attempt(() => api.answer(task.id, answer), t('tasks.replySent'))) && setAnswer('')
-                    }
-                    disabled={!answer.trim()}
-                  >
-                    {t('common.send')}
-                  </Button>
-                </>
-              )}
-            </div>
-            <div>
-              <h3 className="mb-2 text-xs font-medium text-muted-foreground">{t('inbox.relatedConversation')}</h3>
-              {messages.length ? (
-                messages.map((m) => (
-                  <div key={m.id} className="border-t py-2 text-sm">
-                    <span className="font-medium">
-                      {h.agentById(m.fromId)?.name || (m.fromId === USER_ID ? t('common.you') : t('common.hub'))}
-                    </span>
-                    <p className="mt-1 whitespace-pre-wrap">{m.body}</p>
+              {wf && (
+                <div>
+                  <h3 className="mb-2 text-xs font-medium text-muted-foreground">{t('tasks.workflowProgress')}</h3>
+                  <div className="space-y-2">
+                    {wf.steps.map((s, i) => (
+                      <div key={s.id} className="flex items-center gap-2 text-sm">
+                        <span
+                          className={`grid size-5 place-items-center rounded-full text-xs ${task.stepId === s.id ? 'bg-primary text-primary-foreground' : i < wf.steps.findIndex((x) => x.id === task.stepId) ? 'bg-success/20 text-success' : 'bg-muted text-muted-foreground'}`}
+                        >
+                          {i + 1}
+                        </span>
+                        {s.name}
+                        <span className="text-xs text-muted-foreground">
+                          · {h.agentById(s.agentId)?.name || t('common.you')}
+                        </span>
+                        {s.approval && <Badge variant="secondary">{t('common.approve')}</Badge>}
+                      </div>
+                    ))}
                   </div>
-                ))
-              ) : (
-                <p className="text-sm text-muted-foreground">{t('inbox.noMessagesYet')}</p>
+                </div>
               )}
+              {task.result && (
+                <div>
+                  <h3 className="mb-2 text-xs font-medium text-muted-foreground">{t('tasks.latestResult')}</h3>
+                  <Card className="p-3 leading-6 whitespace-pre-wrap">{task.result}</Card>
+                </div>
+              )}
+              {(task.status === TASK_STATUS.review || task.status === TASK_STATUS.blocked) &&
+                waitingText(task, h.workflows) && (
+                  <p className="text-sm text-warning">{waitingText(task, h.workflows)}</p>
+                )}
+              <div>
+                <h3 className="mb-2 text-xs font-medium text-muted-foreground">{t('inbox.relatedConversation')}</h3>
+                {messages.length ? (
+                  messages.map((m) => (
+                    <div key={m.id} className="border-t py-2 text-sm">
+                      <span className="font-medium">
+                        {h.agentById(m.fromId)?.name || (m.fromId === USER_ID ? t('common.you') : t('common.hub'))}
+                      </span>
+                      <p className="mt-1 whitespace-pre-wrap">{m.body}</p>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-sm text-muted-foreground">{t('inbox.noMessagesYet')}</p>
+                )}
+              </div>
             </div>
-            <div className="flex gap-2 border-t pt-2">
-              {task.status === TASK_STATUS.done && (
+          </div>
+        )}
+        {task && (
+          <div className="flex shrink-0 flex-wrap items-center gap-2 border-t bg-popover p-4">
+            {task.status === TASK_STATUS.todo && (
+              <Button size="sm" onClick={() => h.attempt(() => api.startTask(task.id), t('tasks.taskStarted'))}>
+                <Zap size={14} />
+                {t('common.start')}
+              </Button>
+            )}
+            {task.status === TASK_STATUS.review && (
+              <>
+                <Input
+                  className="min-w-28 flex-1"
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  aria-label={t('common.note')}
+                  placeholder={t('common.note')}
+                />
+                <Button
+                  size="sm"
+                  onClick={async () =>
+                    (await h.attempt(() => api.decide(task.id, true, note), t('inbox.approved'))) && setNote('')
+                  }
+                >
+                  {t('common.approve')}
+                </Button>
                 <Button
                   size="sm"
                   variant="outline"
-                  onClick={() =>
-                    h.attempt(() => api.updateTask(task.id, { status: TASK_STATUS.archived }), t('tasks.archived'))
+                  onClick={async () =>
+                    (await h.attempt(() => api.decide(task.id, false, note), t('inbox.returned'))) && setNote('')
                   }
                 >
-                  {t('common.archive')}
+                  {t('common.sendBack')}
                 </Button>
-              )}
+              </>
+            )}
+            {task.status === TASK_STATUS.blocked && (
+              <>
+                <Input
+                  className="min-w-28 flex-1"
+                  value={answer}
+                  onChange={(e) => setAnswer(e.target.value)}
+                  aria-label={t('tasks.replyToAgent')}
+                  placeholder={t('tasks.replyToAgent')}
+                />
+                <Button
+                  size="sm"
+                  onClick={async () =>
+                    (await h.attempt(() => api.answer(task.id, answer), t('tasks.replySent'))) && setAnswer('')
+                  }
+                  disabled={!answer.trim()}
+                >
+                  {t('common.send')}
+                </Button>
+              </>
+            )}
+            {task.status === TASK_STATUS.done && (
               <Button
                 size="sm"
-                variant="destructive"
-                onClick={async () => {
-                  if (await h.attempt(() => api.deleteTask(task.id), t('tasks.taskDeleted'))) close();
-                }}
+                variant="outline"
+                onClick={() =>
+                  h.attempt(() => api.updateTask(task.id, { status: TASK_STATUS.archived }), t('tasks.archived'))
+                }
               >
-                <Trash2 size={14} />
-                {t('common.delete')}
+                {t('common.archive')}
               </Button>
-            </div>
+            )}
+            <Button
+              size="sm"
+              variant="destructive"
+              className="ml-auto"
+              onClick={async () => {
+                if (await h.attempt(() => api.deleteTask(task.id), t('tasks.taskDeleted'))) close();
+              }}
+            >
+              <Trash2 size={14} />
+              {t('common.delete')}
+            </Button>
           </div>
         )}
       </SheetContent>
@@ -382,51 +446,60 @@ function CreateTask({ open, close }: { open: boolean; close: () => void }) {
     [assignee, setAssignee] = useState<string>(NONE);
   return (
     <Sheet open={open} onOpenChange={(o) => !o && close()}>
-      <SheetContent>
-        <SheetHeader>
+      <SheetContent className="gap-0">
+        <SheetHeader className="shrink-0 border-b">
           <SheetTitle>{t('tasks.newTask')}</SheetTitle>
           <SheetDescription>{t('tasks.createDescription')}</SheetDescription>
         </SheetHeader>
-        <div className="grid gap-4 px-4">
-          <Field label={t('common.title')}>
-            <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t('tasks.titlePlaceholder')} />
-          </Field>
-          <Field label={t('common.description')}>
-            <Textarea value={body} onChange={(e) => setBody(e.target.value)} rows={4} />
-          </Field>
-          <Field label={t('workflows.workflow')}>
-            <Select value={wf} onValueChange={setWf}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={NONE}>{t('workflows.noWorkflow')}</SelectItem>
-                {h.workflows.map((w) => (
-                  <SelectItem key={w.id} value={w.id}>
-                    {w.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </Field>
-          {wf === NONE && (
-            <Field label={t('tasks.assignee')}>
-              <Select value={assignee} onValueChange={setAssignee}>
+        <div className="min-h-0 flex-1 overflow-y-auto p-4">
+          <div className="grid gap-4">
+            <Field label={t('common.title')} isRequired>
+              <Input
+                required
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder={t('tasks.titlePlaceholder')}
+              />
+            </Field>
+            <Field label={t('common.description')}>
+              <Textarea value={body} onChange={(e) => setBody(e.target.value)} rows={4} />
+            </Field>
+            <Field label={t('workflows.workflow')}>
+              <Select value={wf} onValueChange={setWf}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value={NONE}>{t('tasks.unassigned')}</SelectItem>
-                  <SelectItem value="user">{t('common.you')}</SelectItem>
-                  {h.agents.map((a) => (
-                    <SelectItem key={a.id} value={a.id}>
-                      {a.name}
+                  <SelectItem value={NONE}>{t('workflows.noWorkflow')}</SelectItem>
+                  {h.workflows.map((w) => (
+                    <SelectItem key={w.id} value={w.id}>
+                      {w.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </Field>
-          )}
+            {wf === NONE && (
+              <Field label={t('tasks.assignee')}>
+                <Select value={assignee} onValueChange={setAssignee}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={NONE}>{t('tasks.unassigned')}</SelectItem>
+                    <SelectItem value="user">{t('common.you')}</SelectItem>
+                    {h.agents.map((a) => (
+                      <SelectItem key={a.id} value={a.id}>
+                        {a.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+            )}
+          </div>
+        </div>
+        <div className="shrink-0 border-t bg-popover p-4">
           <Button
             disabled={!title.trim()}
             onClick={async () => {

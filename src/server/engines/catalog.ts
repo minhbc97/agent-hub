@@ -3,6 +3,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { ENGINE, ENGINES, type Engine, type EngineInfo, type EngineModel } from '../../shared/contracts.ts';
 import { DATA_DIR } from '../db.ts';
+import { OPENROUTER_API_KEY_ENV } from './openrouter.ts';
 
 /** Edit this file to add or replace models per engine without a code change: {"claude":[{"id":"...","label":"..."}]} */
 const MODELS_OVERRIDE_FILE = join(DATA_DIR, 'models.json');
@@ -12,10 +13,12 @@ const WHICH_TIMEOUT_MS = 3000;
  * Built-in lists are a floor so the picker is never empty; the model field stays free text, so an outdated
  * list only costs a typed id. Empty model id = the CLI's own default (not listed here, the UI adds it).
  */
-const BUILT_IN: Record<Engine, Omit<EngineInfo, 'id' | 'supported' | 'installed'>> = {
+const BUILT_IN: Record<Engine, Omit<EngineInfo, 'id' | 'supported' | 'installed' | 'configured'>> = {
   [ENGINE.claude]: {
     label: 'Claude Code',
     defaultCommand: 'claude',
+    installUrl: 'https://docs.claude.com/en/docs/claude-code/setup',
+    loginCommand: 'claude',
     // Headless turns cannot answer permission prompts.
     defaultExtraArgs: '--permission-mode acceptEdits',
     models: [
@@ -28,6 +31,8 @@ const BUILT_IN: Record<Engine, Omit<EngineInfo, 'id' | 'supported' | 'installed'
   [ENGINE.codex]: {
     label: 'Codex',
     defaultCommand: 'codex',
+    installUrl: 'https://developers.openai.com/codex/cli',
+    loginCommand: 'codex login',
     // codex exec is read-only by default; agents must edit files and write to their outbox.
     // On Windows the "elevated" sandbox hangs every shell command when its admin setup is missing; the unelevated
     // one works without setup. Set per agent so the user's global ~/.codex/config.toml stays untouched.
@@ -43,14 +48,32 @@ const BUILT_IN: Record<Engine, Omit<EngineInfo, 'id' | 'supported' | 'installed'
   [ENGINE.antigravity]: {
     label: 'Antigravity',
     defaultCommand: 'agy',
-    defaultExtraArgs: '',
+    installUrl: 'https://antigravity.google/docs/cli/install',
+    // The first run asks for a Google sign-in; there is no separate login command.
+    loginCommand: 'agy',
+    defaultExtraArgs: '--mode accept-edits',
     models: [
-      { id: 'Gemini 4 Argon (High)', label: 'Gemini 4 Argon · High' },
-      { id: 'Gemini 3.1 Pro (High)', label: 'Gemini 3.1 Pro · High' },
-      { id: 'Gemini 3.8 Flash (Medium)', label: 'Gemini 3.8 Flash · Medium' },
+      { id: 'gemini-3.8-flash-medium', label: 'Gemini 3.8 Flash · Medium' },
+      { id: 'gemini-3.8-flash-high', label: 'Gemini 3.8 Flash · High' },
+      { id: 'gemini-3.1-pro-high', label: 'Gemini 3.1 Pro · High' },
     ],
   },
-  [ENGINE.custom]: { label: 'Custom', defaultCommand: '', defaultExtraArgs: '', models: [] },
+  [ENGINE.openrouter]: {
+    label: 'OpenRouter',
+    defaultCommand: '',
+    defaultExtraArgs: '',
+    installUrl: null,
+    loginCommand: null,
+    models: [],
+  },
+  [ENGINE.custom]: {
+    label: 'Custom',
+    defaultCommand: '',
+    defaultExtraArgs: '',
+    installUrl: null,
+    loginCommand: null,
+    models: [],
+  },
 };
 
 export function engineCatalog(supported: readonly Engine[]): EngineInfo[] {
@@ -63,7 +86,10 @@ export function engineCatalog(supported: readonly Engine[]): EngineInfo[] {
       supported: supported.includes(id),
       defaultCommand: base.defaultCommand,
       defaultExtraArgs: base.defaultExtraArgs,
-      installed: base.defaultCommand ? isOnPath(base.defaultCommand) : null,
+      installUrl: base.installUrl,
+      loginCommand: base.loginCommand,
+      installed: id === ENGINE.openrouter ? null : base.defaultCommand ? isOnPath(base.defaultCommand) : null,
+      configured: id === ENGINE.openrouter ? Boolean(process.env[OPENROUTER_API_KEY_ENV]?.trim()) : null,
       models: overrides[id] ?? base.models,
     };
   });
@@ -112,4 +138,10 @@ function isOnPath(binary: string): boolean | null {
     // where/which exit 1 when the binary is missing; anything else (timeout, no `which`) is unknown.
     return (err as { status?: number }).status === 1 ? false : null;
   }
+}
+
+/** Command and flags an agent borrows when it runs on another engine than its own (its fallback). */
+export function engineDefaults(engine: Engine): Pick<EngineInfo, 'defaultCommand' | 'defaultExtraArgs'> {
+  const { defaultCommand, defaultExtraArgs } = BUILT_IN[engine];
+  return { defaultCommand, defaultExtraArgs };
 }

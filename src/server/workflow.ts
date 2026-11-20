@@ -1,6 +1,7 @@
 import {
   USER_ID,
   HUB_ID,
+  ENGINE,
   ACT,
   MESSAGE_STATUS,
   TASK_STATUS,
@@ -14,11 +15,13 @@ import {
   createMessage,
   createTask,
   getTask,
+  getAgent,
   getWorkflow,
   listMessages,
   setMessageStatus,
   setWorkflowRunKey,
   updateTask,
+  type Agent,
   type Task,
   type Workflow,
   type WorkflowStep,
@@ -47,7 +50,7 @@ export function startTask(task: Task, note = ''): Task {
   if (wf && wf.steps.length) return enterStep(task, wf, wf.steps[0]!, note);
   if (task.assigneeId && task.assigneeId !== USER_ID) {
     const t = updateTask(task.id, { status: TASK_STATUS.doing })!;
-    dispatch(t, task.assigneeId, briefing(t, null, null, note));
+    dispatch(t, task.assigneeId, briefing(t, null, null, note, getAgent(task.assigneeId)));
     touch(t);
     return t;
   }
@@ -72,7 +75,7 @@ function enterStep(task: Task, wf: Workflow, step: WorkflowStep, note: string): 
     assigneeId: step.agentId,
     waitingReason: '',
   })!;
-  dispatch(t, step.agentId, briefing(t, wf, step, note));
+  dispatch(t, step.agentId, briefing(t, wf, step, note, getAgent(step.agentId)));
   touch(t);
   return t;
 }
@@ -90,7 +93,13 @@ function dispatch(task: Task, agentId: string, body: string) {
   emit({ type: 'message', workspaceId: task.workspaceId, id: msg.id });
 }
 
-function briefing(task: Task, wf: Workflow | null, step: WorkflowStep | null, note: string): string {
+function briefing(
+  task: Task,
+  wf: Workflow | null,
+  step: WorkflowStep | null,
+  note: string,
+  agent: Agent | undefined,
+): string {
   const lines = [`Task ${task.key}: ${task.title}`];
   if (task.body.trim()) lines.push('', task.body.trim());
   if (wf && step) {
@@ -101,11 +110,18 @@ function briefing(task: Task, wf: Workflow | null, step: WorkflowStep | null, no
       lines.push('', `Result of the previous step (${wf.steps[i - 1]!.name}):`, task.result.trim());
   }
   if (note.trim()) lines.push('', `Note from the human: ${note.trim()}`);
-  lines.push(
-    '',
-    `When this is finished, write to your outbox: {"to":"user","act":"done","task":"${task.key}","body":"<your result>"}`,
-    `If you need a human decision first: {"to":"user","act":"needs_human","task":"${task.key}","body":"<question>"}`,
-  );
+  lines.push('');
+  if (agent?.engine === ENGINE.openrouter) {
+    lines.push(
+      'Return your completed result directly in your response; the hub will save it and advance this task automatically.',
+      `If you need a human decision before continuing, return exactly: {"act":"needs_human","body":"<question>"}`,
+    );
+  } else {
+    lines.push(
+      `When this is finished, write to your outbox: {"to":"user","act":"done","task":"${task.key}","body":"<your result>"}`,
+      `If you need a human decision first: {"to":"user","act":"needs_human","task":"${task.key}","body":"<question>"}`,
+    );
+  }
   return lines.join('\n');
 }
 

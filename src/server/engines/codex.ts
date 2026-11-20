@@ -1,4 +1,9 @@
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { homedir } from 'node:os';
+import { join } from 'node:path';
 import { EMPTY_USAGE, q, type EngineAdapter } from './types.ts';
+
+const CODEX_SESSIONS = join(process.env.CODEX_HOME ?? join(homedir(), '.codex'), 'sessions');
 
 /**
  * Codex headless: `codex exec --json ... -`, prompt on stdin, JSONL events on stdout (verified on 0.164.0).
@@ -40,6 +45,7 @@ export const codex: EngineAdapter = {
       text: text || error || stderr.trim() || (isError ? `codex exited with code ${exitCode}` : ''),
       sessionId,
       usage,
+      contextTokens: sessionId ? rolloutContext(sessionId) : undefined,
       isError,
     };
   },
@@ -72,4 +78,26 @@ function toUsage(raw: unknown) {
 function errorText(event: Record<string, unknown>): string {
   const err = event.error as Record<string, unknown> | undefined;
   return String(err?.message ?? event.message ?? '');
+}
+
+/**
+ * `exec --json` only reports usage summed over the turn, but Codex's own rollout log records each model call;
+ * the last call's input (cached part included) is the context the thread now carries.
+ * shortcut: scans the whole sessions tree each turn; index rollouts by thread id if that ever gets slow.
+ */
+export function rolloutContext(threadId: string, sessionsDir = CODEX_SESSIONS): number | undefined {
+  if (!existsSync(sessionsDir)) return undefined;
+  const file = readdirSync(sessionsDir, { recursive: true, encoding: 'utf8' }).find((f) =>
+    f.endsWith(`${threadId}.jsonl`),
+  );
+  if (!file) return undefined;
+  const lines = readFileSync(join(sessionsDir, file), 'utf8').split(/\r?\n/).reverse();
+  for (const line of lines) {
+    if (!line.includes('"token_count"')) continue;
+    // {"type":"event_msg","payload":{"type":"token_count","info":{"last_token_usage":{...}}}} (verified on 0.164.0)
+    const payload = parseLine(line)?.payload as { info?: { last_token_usage?: { input_tokens?: number } } } | undefined;
+    const last = payload?.info?.last_token_usage;
+    if (typeof last?.input_tokens === 'number') return last.input_tokens;
+  }
+  return undefined;
 }

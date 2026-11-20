@@ -20,7 +20,7 @@
     "extraArguments": "Tham số thêm",
     "firstAgentDescription": "Agent này sẽ nhận và điều phối công việc giữa các agent khác trong workspace.",
     "input": "Input",
-    "isolation": "Isolation",
+    "isolation": "Nơi agent làm việc",
     "meshAgentsCanTalkDirectly": "Mesh · agent nói trực tiếp",
     "model": "Model",
     "newSession": "Session mới",
@@ -33,15 +33,21 @@
     "output": "Output",
     "rolePrompt": "Vai trò / prompt",
     "avatar": "Avatar",
+    "avatarBackground": "Màu nền",
     "avatarColor": "Màu nền {{color}}",
+    "avatarFace": "Khuôn mặt",
     "chooseAvatar": "Chọn avatar này",
-    "shuffleAvatars": "Đổi bộ avatar khác",
     "goal": "Mục tiêu",
     "noGoal": "Chưa đặt mục tiêu",
     "recentCost": "Chi phí các lượt gần đây",
     "role": "Vai trò",
     "session": "Session",
-    "state": { "held": "Đang giữ tin", "idle": "Rảnh", "paused": "Tạm dừng", "working": "Đang làm" },
+    "state": {
+      "held": "Đang giữ tin",
+      "idle": "Rảnh",
+      "paused": "Tạm dừng",
+      "working": "Đang làm"
+    },
     "tokensTodayLabel": "Token hôm nay",
     "goalPlaceholder": "Kết quả agent cần đạt, ví dụ: mọi ticket được làm xong và có test",
     "recommended": "(khuyến nghị)",
@@ -62,11 +68,58 @@
     "searchOrTypeModel": "Tìm hoặc nhập model…",
     "noModelMatch": "Không có model khớp.",
     "useModel": "Dùng “{{model}}”",
-    "engineNotInstalled": "Không tìm thấy lệnh “{{command}}” trên PATH. Cài CLI này trước, hoặc sửa ô Lệnh."
+    "needsGit": "(cần git)",
+    "isolationMode": {
+      "worktree": "Bản sao git riêng",
+      "shared": "Thư mục chung",
+      "custom": "Thư mục tự chọn"
+    },
+    "isolationHint": {
+      "worktree": "Mỗi agent làm trên bản sao git riêng của thư mục làm việc nên không ghi đè file của nhau. Hợp với đội làm code.",
+      "shared": "Mọi agent dùng chung thư mục làm việc của workspace, như một ổ đĩa chung của văn phòng. Không cần git.",
+      "custom": "Agent làm trong thư mục riêng bạn chọn bên dưới."
+    },
+    "openRouterSetupHint": "Đặt OPENROUTER_API_KEY trong môi trường chạy agent-hub rồi khởi động lại server. ID model có dạng nhà-cung-cấp/tên-model, ví dụ openai/gpt-5.2. API key không được lưu vào workspace.",
+    "openRouterModelPlaceholder": "Nhập ID model, ví dụ openai/gpt-5.2",
+    "map": {
+      "title": "Quan hệ giữa các agent",
+      "routingStar": "Định tuyến hình sao: agent chỉ nhắn agent điều phối hoặc bạn",
+      "routingMesh": "Định tuyến lưới: thêm các cặp được nhắn thẳng",
+      "linkLabel": "Liên lạc giữa {{a}} và {{b}}",
+      "workflowShort": "WF",
+      "sent": "{{from}} → {{to}}: {{count}} tin",
+      "handoff": "Bàn giao trong workflow “{{workflow}}”",
+      "rerouted": "Cặp này không được nhắn thẳng, tin bị chuyển qua agent điều phối",
+      "legendMessages": "Tin đã gửi (gần đây)",
+      "legendWorkflow": "Bàn giao trong workflow",
+      "legendAllowed": "Được phép nhắn"
+    },
+    "resetPolicy": "Mở session mới khi",
+    "resetPolicyMode": {
+      "never": "Không bao giờ",
+      "turns": "Đủ số lượt",
+      "context": "Context vượt ngưỡng"
+    },
+    "resetValueLabel": {
+      "turns": "Số lượt",
+      "context": "Ngưỡng context (token)"
+    },
+    "resetPolicyHint": "Trước khi mở session mới, agent viết sổ bàn giao để session sau đọc lại. Session nghỉ quá 1 giờ cũng được làm mới, vì cache đã hết hạn.",
+    "leanMode": "Chế độ gọn",
+    "leanModeHint": "Chạy Claude không kèm plugin, skill, hook, MCP server ở cấp user và chỉ dùng tool đọc/ghi file và shell. Cần MCP (ví dụ Jira) thì chọn riêng server đó bên dưới.",
+    "context": "Context",
+    "handoffNote": "Sổ bàn giao",
+    "leanMcpServers": "MCP vẫn bật ở chế độ gọn",
+    "noMcpServers": "Không tìm thấy MCP server nào trong cấu hình Claude Code và plugin của bạn.",
+    "fallbackEngine": "Engine dự phòng khi hết hạn mức",
+    "noFallback": "Không có, chờ đến giờ reset",
+    "fallbackEngineHint": "Khi engine chính hết hạn mức, tin được giữ lại và tự chạy tiếp lúc reset. Có engine dự phòng thì agent chuyển sang đó ngay, kèm sổ bàn giao, rồi tự quay về engine chính khi dùng lại được.",
+    "onFallback": "{{own}} · đang chạy tạm bằng {{fallback}}",
+    "fallbackModel": "Model dự phòng"
   },
   "app": {
     "avatarLicense": "Micah avatars — CC BY 4.0",
-    "brand": "agent-hub"
+    "brand": "Agent Hub"
   },
   "common": {
     "approve": "Duyệt",
@@ -99,7 +152,7 @@
   },
   "errors": {
     "agentNameExists": "Đã có agent tên “{{name}}”.",
-    "agentNameFormat": "Tên agent phải viết thường, tối đa 32 ký tự, chỉ gồm chữ cái, số, dấu gạch ngang hoặc gạch dưới.",
+    "agentNameFormat": "Tên agent tối đa 32 ký tự, chỉ gồm chữ cái không dấu, số, dấu gạch ngang hoặc gạch dưới.",
     "agentNameRequired": "Cần tên agent.",
     "agentNotFound": "Không tìm thấy agent.",
     "agentRunningCannotDelete": "Agent đang chạy. Hãy đợi lượt chạy kết thúc rồi xoá.",
@@ -110,10 +163,13 @@
     "crossOriginBlocked": "Yêu cầu bị chặn vì được gửi từ website khác.",
     "customEngineCommandRequired": "Engine custom cần lệnh chạy.",
     "customIsolationDirectoryRequired": "Isolation custom cần thư mục làm việc.",
+    "worktreeNeedsRepo": "Workspace chưa có thư mục làm việc. \"Bản sao git riêng\" cần một thư mục là git repo; hãy đặt thư mục trong Cài đặt hoặc chọn \"Thư mục chung\".",
+    "worktreeNeedsGit": "Thư mục {{path}} chưa phải git repo có commit nên không dùng được \"Bản sao git riêng\". Chọn \"Thư mục chung\", hoặc chạy \"git init\" và tạo commit đầu tiên ở đó.",
     "directPairInvalid": "Cặp agent không hợp lệ: {{pair}}",
     "directPairSize": "Mỗi cặp cần có hai tên agent.",
     "directPairsArray": "Các cặp agent phải là một mảng.",
     "engineUnsupported": "Engine {{engine}} chưa được hỗ trợ.",
+    "openRouterModelRequired": "Cần chọn model OpenRouter.",
     "fieldInvalid": "{{field}} không hợp lệ.",
     "folderPickerFailed": "Không thể mở hộp chọn thư mục.",
     "hostNotAllowed": "Hub chỉ nhận yêu cầu từ máy này (localhost).",
@@ -125,7 +181,7 @@
     "invalidPath": "Đường dẫn yêu cầu không hợp lệ.",
     "recipientAndBodyRequired": "Cần người nhận và nội dung.",
     "recipientNotFound": "Không tìm thấy agent “{{name}}”.",
-    "repositoryNotFound": "Không tìm thấy thư mục repo: {{path}}",
+    "repositoryNotFound": "Không tìm thấy thư mục làm việc: {{path}}",
     "reservedAgentName": "Tên “user” đã được dành riêng.",
     "routeNotFound": "Không tìm thấy API route.",
     "routingInvalid": "Routing phải là star hoặc mesh.",
@@ -147,7 +203,7 @@
     "workflowStepNameRequired": "Bước {{number}} cần tên.",
     "workflowStepsArray": "Danh sách bước workflow phải là mảng.",
     "workspaceHasRunningAgents": "Workspace có agent đang chạy. Hãy đợi các lượt chạy kết thúc rồi xoá.",
-    "workspaceFoldersBusy": "Có agent đang chạy. Đợi lượt chạy xong rồi mới đổi thư mục repo hoặc worktree.",
+    "workspaceFoldersBusy": "Có agent đang chạy. Đợi lượt chạy xong rồi mới đổi thư mục làm việc hoặc thư mục bản sao git.",
     "workspaceNameRequired": "Cần tên workspace.",
     "workspaceNotFound": "Không tìm thấy workspace.",
     "agentRunningCannotSwitchEngine": "Agent đang chạy. Hãy đợi lượt chạy kết thúc rồi đổi engine.",
@@ -158,14 +214,25 @@
     "held": "Có tin đang bị giữ",
     "idle": "Rảnh, chờ việc",
     "leadIdle": "Sẵn sàng nhận việc từ bạn",
+    "leadRoom": "Phòng điều phối",
+    "meetingRoom": "Phòng họp",
+    "teamFloor": "Khu làm việc",
+    "taskBoard": "Mở bảng công việc",
     "needsHint": "Bấm để trả lời hoặc duyệt",
     "office": "Văn phòng",
     "openChat": "Mở trò chuyện với {{name}}",
+    "sfxWorking": "Tạch tạch!",
+    "sfxWaiting": "Ê!",
+    "sfxReceived": "Nhận!",
+    "sfxPaused": "Zzz",
     "paused": "Đang tạm nghỉ",
     "waitingOnYou": "Đang chờ bạn trả lời!",
     "working": "Đang làm việc…"
   },
   "inbox": {
+    "sending": "Đang gửi…",
+    "otherAnswer": "Hoặc trả lời theo cách khác…",
+    "pickOption": "Chọn một phương án",
     "answerInNeeds": "Trả lời",
     "composerTo": "Nhắn cho {{name}}…",
     "allMessages": "Mọi tin nhắn",
@@ -220,9 +287,11 @@
     "workflows": "Quy trình"
   },
   "settings": {
+    "apiKeyConfigured": "Đã có API key",
+    "apiKeyMissing": "Thiếu API key",
     "engines": "Agent CLI trên máy",
     "enginesHint": "Hub chạy các CLI đã cài sẵn và dùng đăng nhập sẵn có của chúng.",
-    "folderChangeWarning": "Đổi thư mục: lượt chạy kế tiếp của mọi agent (trừ agent dùng thư mục tuỳ chỉnh) sẽ bắt đầu session mới ở chỗ mới. Worktree cũ vẫn nằm ở thư mục cũ, bạn tự xoá nếu không cần. Không lưu được khi có agent đang chạy.",
+    "folderChangeWarning": "Đổi thư mục: lượt chạy kế tiếp của mọi agent (trừ agent dùng thư mục tự chọn) sẽ bắt đầu session mới ở chỗ mới. Bản sao git cũ vẫn nằm ở thư mục cũ, bạn tự xoá nếu không cần. Không lưu được khi có agent đang chạy.",
     "installed": "Đã cài",
     "notOnPath": "Chưa thấy trên PATH",
     "notSupportedYet": "chưa hỗ trợ",
@@ -248,6 +317,8 @@
     "maxHops": "Tin agent liên tiếp tối đa"
   },
   "tasks": {
+    "allStatuses": "Mọi trạng thái",
+    "taskMoved": "Đã chuyển công việc",
     "approveStep": "Duyệt kết quả bước “{{name}}”.",
     "archived": "Đã lưu trữ",
     "code": {
@@ -289,6 +360,7 @@
     "yourStep": "Bước “{{name}}” do bạn làm."
   },
   "workflows": {
+    "editorDescription": "Sắp xếp các bước ở giữa; cấu hình người làm và lịch ở bên cạnh.",
     "addStep": "Thêm bước",
     "allWorkflows": "Mọi workflow",
     "articleDescription": "Nghiên cứu, viết, biên tập và duyệt trước khi đăng.",
@@ -357,12 +429,50 @@
     "deleteWorkspaceTitle": "Xoá workspace “{{name}}”?",
     "exampleTeam": "Ví dụ: Product team",
     "name": "Tên workspace",
-    "repositoryPath": "Đường dẫn repo",
+    "repositoryPath": "Thư mục làm việc",
     "saveWorkspace": "Lưu workspace",
     "setUpYourWorkspace": "Bắt đầu với workspace của bạn",
     "welcomeDescription": "Tạo workspace để tập hợp agents, hội thoại và quy trình.",
     "workspace": "Workspace",
-    "worktreeDirectory": "Thư mục worktree",
+    "worktreeDirectory": "Thư mục chứa bản sao git (chỉ khi dùng git)",
     "worktreePlaceholder": "Để trống để dùng mặc định"
+  },
+  "usage": {
+    "title": "Hạn mức sử dụng",
+    "freshness": "Số liệu cách đây tối đa 1 phút",
+    "refresh": "Làm mới hạn mức",
+    "loading": "Đang đọc hạn mức…",
+    "nearLimit": "Sắp hết",
+    "limitReached": "Đã chạm hạn mức",
+    "used": "{{percent}}% đã dùng",
+    "left": "{{percent}}% còn lại",
+    "resetsIn": "Reset sau {{hours}} giờ {{minutes}} phút",
+    "resetsAt": "Reset {{time}}",
+    "resetSoon": "Sắp reset",
+    "noReset": "Chưa rõ giờ reset",
+    "window": {
+      "session": "Giới hạn 5 giờ",
+      "week": "Giới hạn tuần",
+      "quota": "Hạn mức tài khoản"
+    },
+    "status": {
+      "notInstalled": "Chưa cài",
+      "noSource": "Không có nguồn",
+      "noReading": "Chưa có số liệu",
+      "error": "Lỗi đọc",
+      "notSignedIn": "Chưa đăng nhập"
+    },
+    "hint": {
+      "notInstalled": "{{name}} chưa được cài trên máy này.",
+      "noSource": "{{name}} không báo phần trăm đã dùng. Hub chỉ biết khi hạn mức đã hết (đọc từ log của CLI).",
+      "noReading": "Chưa có số liệu từ {{name}}. Số liệu sẽ có sau lượt chạy tiếp theo.",
+      "error": "Không đọc được hạn mức của {{name}}. Bấm làm mới để thử lại.",
+      "notSignedIn": "{{name}} chưa đăng nhập trên máy này."
+    }
+  },
+  "engines": {
+    "notInstalled": "Chưa tìm thấy lệnh “{{command}}” của {{name}} trên máy này.",
+    "installGuide": "Hướng dẫn cài đặt",
+    "loginHint": "Lần đầu dùng {{name}}: mở terminal, chạy “{{command}}” và đăng nhập. Mọi agent dùng lại đăng nhập này."
   }
 }

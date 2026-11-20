@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { useTheme } from 'next-themes';
 import { useTranslation } from 'react-i18next';
 import {
-  Activity,
   Bot,
   House,
   Inbox,
@@ -30,6 +29,7 @@ import { TasksPage } from '@/features/tasks/TasksPage';
 import { WorkflowsPage } from '@/features/workflows/WorkflowsPage';
 import { AgentsPage, AgentDetail, LeadAgentDialog } from '@/features/agents/AgentsPage';
 import { SettingsPage } from '@/features/settings/SettingsPage';
+import { UsageMeters } from '@/features/usage/UsageMeters';
 import { AgentAvatar, Field, FolderField } from '@/components/shared';
 
 const THEME = { dark: 'dark', light: 'light' } as const;
@@ -44,6 +44,8 @@ const iconMap: Record<(typeof PAGE)[keyof typeof PAGE], typeof Inbox> = {
 } as const;
 
 export function App() {
+  // Pages translate with the plain `t()`, so the root subscribes to language changes and re-renders the tree.
+  useTranslation();
   const h = useHub();
   const [parts, navigate] = useHashRoute();
   const page = parts[0] || PAGE.home;
@@ -115,11 +117,24 @@ export function App() {
           )}
           <p className="mt-auto px-2 text-xs text-muted-foreground">{t('app.avatarLicense')}</p>
         </aside>
-        <main className="min-h-0 min-w-0 flex-1 overflow-auto">
+        {/* relative: absolutely positioned descendants (e.g. Radix hidden inputs) must scroll inside main, not stretch the page. */}
+        <main
+          className={cn(
+            'relative min-h-0 min-w-0 flex-1',
+            page === PAGE.home
+              ? 'overflow-hidden max-lg:overflow-auto [@media(max-height:760px)]:overflow-auto'
+              : 'overflow-auto',
+          )}
+        >
           {page === PAGE.inbox ? (
             <InboxPage filter={filter} setFilter={setFilter} />
           ) : (
-            <div className="flex min-h-full flex-col p-7">
+            <div
+              className={cn(
+                'flex flex-col p-7',
+                page === PAGE.home || page === PAGE.tasks ? 'h-full min-h-0' : 'min-h-full',
+              )}
+            >
               {page === PAGE.home ? (
                 <HomePage
                   openAgent={(id) => openInbox(AGENT_THREAD + id)}
@@ -217,13 +232,14 @@ function AppHeader() {
   return (
     <header className="flex h-18 shrink-0 items-center bg-sidebar">
       <div className="flex w-60 shrink-0 items-center gap-2.5 px-6">
-        <div className="grid size-8 place-items-center rounded-lg bg-primary text-primary-foreground">
-          <Activity size={18} />
+        <div className="grid size-8 place-items-center rounded-lg bg-primary">
+          <img src="/agent-hub-mark.svg" alt="" aria-hidden="true" className="size-6" />
         </div>
-        <span className="text-sm font-medium tracking-tight">{t('app.brand')}</span>
+        <span className="text-sm font-semibold tracking-tight">{t('app.brand')}</span>
       </div>
       <div className="min-w-0 flex-1 px-7">{h.ws && <WorkspaceMenu />}</div>
       <div className="flex shrink-0 items-center gap-2 pr-6">
+        <UsageMeters />
         <Select
           value={activeI18n.resolvedLanguage?.startsWith('en') ? 'en' : 'vi'}
           onValueChange={(language) => void activeI18n.changeLanguage(language)}
@@ -283,8 +299,9 @@ function Welcome({ isReady }: { isReady: boolean }) {
                   if (created) location.hash = `/${PAGE.agents}`;
                 }}
               >
-                <Field label={t('workspace.name')}>
+                <Field label={t('workspace.name')} isRequired>
                   <Input
+                    required
                     value={name}
                     onChange={(event) => setName(event.target.value)}
                     placeholder={t('workspace.exampleTeam')}

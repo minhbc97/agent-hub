@@ -5,6 +5,42 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* Home office reactions: a letter landing (pop, hop) and an agent at work (wiggle). */
+@theme {
+  --animate-wiggle: wiggle 0.5s ease-in-out infinite;
+  --animate-pop: pop 0.35s cubic-bezier(0.3, 1.6, 0.6, 1) both;
+  --animate-hop: hop 0.6s ease-out 2;
+
+  @keyframes wiggle {
+    0%,
+    100% {
+      transform: rotate(4deg) translateY(0);
+    }
+    50% {
+      transform: rotate(-5deg) translateY(-2px);
+    }
+  }
+  @keyframes pop {
+    from {
+      transform: scale(0) rotate(-25deg);
+      opacity: 0;
+    }
+    to {
+      transform: scale(1) rotate(-6deg);
+      opacity: 1;
+    }
+  }
+  @keyframes hop {
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+    40% {
+      transform: translateY(-10px);
+    }
+  }
+}
+
 /*
  * agent-hub design system
  * - Warm neutral surfaces (stone hue ~60), one action color: honey.
@@ -56,6 +92,21 @@
   --color-chart-4: var(--chart-4);
   --color-chart-5: var(--chart-5);
 
+  --color-office-wall: var(--office-wall);
+  --color-office-floor: var(--office-floor);
+  --color-office-carpet: var(--office-carpet);
+  --color-office-meeting: var(--office-meeting);
+  --color-office-wood: var(--office-wood);
+  --color-office-chair: var(--office-chair);
+  --color-office-shade: var(--office-shade);
+  --color-office-highlight: var(--office-highlight);
+  --color-office-metal: var(--office-metal);
+  --color-office-screen: var(--office-screen);
+  --color-office-leaf: var(--office-leaf);
+  --color-office-leaf-dark: var(--office-leaf-dark);
+  --color-office-pot: var(--office-pot);
+  --color-office-ink: var(--office-ink);
+
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -67,7 +118,7 @@
 
 /* Light */
 :root {
-  --app-min-width: 1024px;
+  --app-min-width: 1280px;
   --radius: 0.5rem;
   --background: oklch(0.985 0.003 75);
   --foreground: oklch(0.2 0.01 60);
@@ -96,6 +147,22 @@
   --chart-3: oklch(0.6 0.13 245);
   --chart-4: oklch(0.65 0.17 330);
   --chart-5: oklch(0.6 0.15 30);
+  /* Home office floor plan: each room has its own floor so departments read apart. */
+  --office-wall: oklch(0.8 0.02 70);
+  --office-floor: oklch(0.91 0.035 170);
+  --office-carpet: oklch(0.87 0.05 285);
+  --office-meeting: oklch(0.87 0.055 72);
+  --office-wood: oklch(0.73 0.1 62);
+  --office-chair: oklch(0.56 0.13 255);
+  /* Illustration paints: shade stays dark and highlight stays light in both themes. */
+  --office-shade: oklch(0.25 0.03 60);
+  --office-highlight: oklch(0.99 0.004 85);
+  --office-metal: oklch(0.36 0.012 250);
+  --office-screen: oklch(0.82 0.12 215);
+  --office-leaf: oklch(0.66 0.15 148);
+  --office-leaf-dark: oklch(0.5 0.13 155);
+  --office-pot: oklch(0.66 0.13 42);
+  --office-ink: oklch(0.2 0.01 60);
   --sidebar: oklch(0.97 0.004 75);
   --sidebar-foreground: var(--foreground);
   --sidebar-primary: var(--primary);
@@ -135,6 +202,21 @@
   --chart-3: oklch(0.72 0.12 245);
   --chart-4: oklch(0.72 0.15 330);
   --chart-5: oklch(0.7 0.15 30);
+  /* Home office floor plan, after hours: deep slate walls around lit, saturated rooms. */
+  --office-wall: oklch(0.3 0.035 265);
+  --office-floor: oklch(0.5 0.065 182);
+  --office-carpet: oklch(0.46 0.085 295);
+  --office-meeting: oklch(0.56 0.08 68);
+  --office-wood: oklch(0.7 0.11 62);
+  --office-chair: oklch(0.6 0.14 255);
+  --office-shade: oklch(0.16 0.025 265);
+  --office-highlight: oklch(0.96 0.008 85);
+  --office-metal: oklch(0.32 0.02 260);
+  --office-screen: oklch(0.84 0.13 210);
+  --office-leaf: oklch(0.72 0.16 148);
+  --office-leaf-dark: oklch(0.56 0.14 155);
+  --office-pot: oklch(0.64 0.13 42);
+  --office-ink: oklch(0.14 0.02 265);
   --sidebar: oklch(0.155 0.006 60);
   --sidebar-foreground: var(--foreground);
   --sidebar-primary: var(--primary);
@@ -175,6 +257,19 @@
     scrollbar-width: thin;
     scrollbar-color: var(--border) transparent;
   }
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 0.5rem;
+    height: 0.5rem;
+  }
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    border: 2px solid transparent;
+    border-radius: 9999px;
+    background: var(--border);
+    background-clip: content-box;
+  }
   .text-balance {
     text-wrap: balance;
   }
@@ -184,6 +279,29 @@
 @utility halftone {
   background-image: radial-gradient(color-mix(in oklch, var(--foreground) 14%, transparent) 1.2px, transparent 1.6px);
   background-size: 16px 16px;
+}
+@utility floor-tiles {
+  background-image:
+    linear-gradient(color-mix(in oklch, var(--office-shade) 8%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in oklch, var(--office-shade) 8%, transparent) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+@utility floorboards {
+  background-image:
+    repeating-linear-gradient(
+      0deg,
+      color-mix(in oklch, var(--office-shade) 9%, transparent) 0 1.5px,
+      transparent 1.5px 22px
+    ),
+    repeating-linear-gradient(
+      90deg,
+      transparent 0 140px,
+      color-mix(in oklch, var(--office-shade) 6%, transparent) 140px 141.5px
+    );
+}
+/* Comic shadow in illustration ink, which stays dark in both themes (the office is drawn like a printed page). */
+@utility ink-shadow {
+  box-shadow: 3px 3px 0 var(--office-ink);
 }
 @utility comic-shadow {
   box-shadow: 4px 4px 0 var(--foreground);
