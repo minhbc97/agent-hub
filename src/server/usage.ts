@@ -143,7 +143,7 @@ function newestRollout(dir: string): string | null {
     .map((e) => join(dir, e.name))
     .sort((a, b) => statSync(b).mtimeMs - statSync(a).mtimeMs);
   if (files[0]) return files[0];
-  // Only date folders: other tools keep their own Codex sessions beside them (e.g. a `munder-difflin/` folder).
+  // Only date folders: other tools keep their own Codex sessions beside them in named subfolders.
   const folders = entries
     .filter((e) => e.isDirectory() && DATE_FOLDER.test(e.name))
     .map((e) => e.name)

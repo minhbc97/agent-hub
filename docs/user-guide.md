@@ -1,6 +1,6 @@
 # Hướng dẫn sử dụng
 
-Tài liệu này dành cho người dùng app. Cách cài và chạy xem [README](../README.md#chạy-từ-source).
+Tài liệu này dành cho người dùng app. Cách cài và chạy xem [README](../README.vi.md#bắt-đầu-nhanh).
 
 ## 1. Khái niệm
 
@@ -9,7 +9,7 @@ Tài liệu này dành cho người dùng app. Cách cài và chạy xem [README
 | **Workspace** | Một team agent làm việc trên một repo. Mỗi workspace có agent, task, workflow và cài đặt riêng. |
 | **Agent** | Một CLI (Claude Code, Codex hoặc lệnh tùy chỉnh) cùng vai trò, model, thư mục làm việc. |
 | **Lượt (turn / run)** | Hub chạy CLI một lần cho một tin nhắn đến, ở chế độ headless. Lượt sau nối tiếp session cũ. |
-| **Agent điều phối** (orchestrator) | Bắt buộc, mỗi workspace đúng một. Nhận và chia việc; ở routing *star*, mọi tin giữa các agent đi qua agent này. |
+| **Lead Agent** (orchestrator) | Bắt buộc, mỗi workspace đúng một. Nhận và chia việc; ở routing *star*, mọi tin giữa các agent đi qua agent này. |
 | **Outbox** | Thư mục riêng của mỗi agent. Agent nhắn cho người hoặc agent khác bằng cách ghi file JSON vào đây. |
 | **Task** | Một việc trên board, có key dạng `T-12`, giao cho một agent, cho bạn, hoặc đi theo một workflow. |
 | **Workflow** | Chuỗi bước có thứ tự, mỗi bước do một agent hoặc bạn làm, có thể yêu cầu bạn duyệt. |
@@ -19,17 +19,16 @@ ai thì phải ghi vào outbox. Cách này tránh hai agent trả lời qua lạ
 
 ## 2. Bắt đầu
 
-1. Chạy `npm run dev`, mở <http://127.0.0.1:4310>.
+1. Chạy `npx @minhbc97/agent-hub` (hoặc `npm run dev` nếu chạy từ source), mở <http://127.0.0.1:4310>.
 2. Màn chào: nhập **tên workspace**, **đường dẫn repo** và (tùy chọn) **thư mục worktree**. Nút **Chọn thư mục**
    mở hộp chọn thư mục của hệ điều hành (Windows, macOS; Linux cần `zenity` hoặc `kdialog`), hoặc gõ tay đường dẫn.
-3. Ngay sau khi tạo workspace, popup **Tạo agent điều phối** mở ra và không đóng được cho tới khi tạo xong (xem mục 3).
-   Workspace cũ chưa có agent điều phối cũng hiện popup này. Các agent khác thêm ở **Agents → Thêm agent**.
+3. Ngay sau khi tạo workspace, popup **Tạo Lead Agent** mở ra và không đóng được cho tới khi tạo xong (xem mục 3).
+   Workspace cũ chưa có Lead Agent cũng hiện popup này. Các agent khác thêm ở **Agents → Thêm agent**.
 4. Bấm **Chạy thử** trên agent: hub gửi một tin kiểm tra, agent trả lời tên và vai trò trong **Hộp thư**.
 
 **Trang chủ** là màn mở đầu: một "văn phòng" kiểu truyện tranh, mỗi agent một bàn làm việc với bong bóng thoại cho biết
 nó đang làm gì (task đang làm, đang chờ bạn trả lời, có tin bị giữ, tạm nghỉ hoặc rảnh). Bấm vào bàn để mở kênh nhắn
-với agent đó. Bên phải là giấy note **Cần bạn** và số task theo trạng thái; dưới cùng là ô giao việc thẳng cho agent
-điều phối.
+với agent đó. Bên phải là giấy note **Cần bạn** và số task theo trạng thái; dưới cùng là ô giao việc thẳng cho Lead Agent.
 
 ## 3. Agent
 
@@ -46,7 +45,7 @@ Form **Thêm agent / Cấu hình agent**:
 | Lệnh | File chạy của CLI (`claude`, `codex`) hoặc lệnh đầy đủ với Custom. |
 | Tham số thêm | Cờ truyền thêm cho CLI. Đổi engine thì ô này được điền giá trị mặc định của engine đó. |
 | Isolation | `worktree` (mặc định, khuyến nghị): mỗi agent một git worktree riêng (tự tạo), agent không giẫm file của nhau. Cần workspace có đường dẫn repo là git repo. `shared`: dùng chung repo. `custom`: tự nhập hoặc chọn thư mục. |
-| Agent điều phối | Không có công tắc trong form: agent đầu tiên (tạo qua popup) là agent điều phối. |
+| Lead Agent | Không có công tắc trong form: agent đầu tiên (tạo qua popup) là Lead Agent. |
 
 Tham số mặc định theo engine:
 
@@ -62,7 +61,7 @@ Các nút trên agent:
 - **Chạy thử**: gửi tin kiểm tra kết nối.
 - **Session mới**: bỏ session hiện tại, lượt sau bắt đầu lại từ đầu (gồm cả preamble).
 - **Tạm dừng / Tiếp tục**: agent tạm dừng thì tin gửi đến bị giữ, không mất.
-- **Xoá**: không xoá được khi agent đang chạy, và không xoá được agent điều phối. Tin đang chờ của agent bị đánh dấu thất bại; lịch sử hội thoại giữ lại.
+- **Xoá**: không xoá được khi agent đang chạy, và không xoá được Lead Agent. Tin đang chờ của agent bị đánh dấu thất bại; lịch sử hội thoại giữ lại.
 
 Trang chi tiết agent (nút **Xem agent** trong kênh riêng, hoặc **Lịch sử lượt** trên thẻ) có: trạng thái, engine / model /
 isolation, vai trò và mục tiêu, session, token hôm nay, chi phí các lượt gần đây, các nút **Chạy thử**, **Session mới**,
@@ -73,7 +72,7 @@ chi phí (Claude), thời gian và output.
 
 Hộp thư có cột kênh riêng (nền khác sidebar) và ô **Tìm tin nhắn** (lọc tin trong kênh đang mở):
 
-- *Cho bạn*: **Cần bạn** (kèm số việc đang chờ) và agent điều phối.
+- *Cho bạn*: **Cần bạn** (kèm số việc đang chờ) và Lead Agent.
 - *Tất cả*: **Mọi tin nhắn** trong workspace.
 - *Agents*: mỗi agent còn lại một dòng, kèm avatar, chấm trạng thái, tin gần nhất và giờ.
 
@@ -90,7 +89,7 @@ Trong luồng tin: có mốc ngày (Hôm nay, Hôm qua, ...), tin liên tiếp c
 loại tin cần chú ý mới có nhãn: *Cần người dùng*, *Hoàn tất*, *Truy vấn*. Câu hỏi đang chờ bạn có nút **Trả lời** dẫn
 sang mục Cần bạn.
 
-Ô soạn tin: ở kênh riêng của agent thì gửi thẳng cho agent đó; ở Mọi tin nhắn chọn người nhận (mặc định agent điều phối);
+Ô soạn tin: ở kênh riêng của agent thì gửi thẳng cho agent đó; ở Mọi tin nhắn chọn người nhận (mặc định Lead Agent);
 trong luồng task thì mặc định người được giao task và tin gắn vào task. Bật **Gấp** nếu cần (tin gấp được xếp lên đầu
 hàng đợi của agent). Enter để gửi, Shift+Enter để xuống dòng.
 

@@ -2,12 +2,12 @@
 
 | Tài liệu | Dành cho | Nội dung |
 | --- | --- | --- |
-| [README dự án](../README.md) | mọi người | Giới thiệu, cài đặt, chạy từ source, đã làm / chưa làm |
+| [README dự án](../README.vi.md) | mọi người | Giới thiệu, cài đặt bằng npx, cấu hình, lộ trình |
+| [CONTRIBUTING.md](../CONTRIBUTING.md) | người đóng góp | Chạy từ source, lệnh npm, cấu trúc thư mục, quy tắc PR |
 | [user-guide.md](user-guide.md) | người dùng | Workspace, agent, hộp thư, task, workflow, cài đặt, xử lý sự cố |
 | [architecture.md](architecture.md) | lập trình viên | Thành phần, vòng đời tin nhắn, giao thức outbox, loop guard, dữ liệu, test |
 | [api.md](api.md) | lập trình viên | Toàn bộ endpoint REST và SSE |
-| [engines.md](engines.md) | lập trình viên | Adapter Claude / Codex / Custom, sandbox Codex trên Windows, thêm engine mới |
+| [engines.md](engines.md) | lập trình viên | Adapter Claude / Codex / Antigravity / OpenRouter / Custom, engine dự phòng, thêm engine mới |
 | [cli-probe.md](cli-probe.md) | lập trình viên | Kết quả dò output JSON và nguồn hạn mức của từng CLI |
 
-Tài liệu thiết kế và trạng thái làm việc ở thư mục gốc: [PLAN.md](../PLAN.md), [HANDOFF.md](../HANDOFF.md),
-quy tắc code [AGENTS.md](../AGENTS.md).
+Quy tắc code (cho người và agent lập trình) ở [AGENTS.md](../AGENTS.md).

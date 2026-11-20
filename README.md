@@ -1,142 +1,116 @@
 # agent-hub
 
-Hub tự host để điều phối nhiều agent CLI (Claude Code, Codex, lệnh tùy chỉnh) làm việc như một team, có giao diện
-web chạy local. Mỗi tin nhắn chạy CLI một lượt ở chế độ headless và nối session bằng id. Agent nhắn cho nhau bằng cách
-ghi file JSON vào thư mục outbox riêng của mình.
+[![npm](https://img.shields.io/npm/v/@minhbc97/agent-hub)](https://www.npmjs.com/package/@minhbc97/agent-hub)
+[![license](https://img.shields.io/npm/l/@minhbc97/agent-hub)](LICENSE)
+[![node](https://img.shields.io/node/v/@minhbc97/agent-hub)](https://nodejs.org)
 
-Tài liệu chi tiết ở [docs/](docs/README.md): [hướng dẫn sử dụng](docs/user-guide.md),
-[kiến trúc](docs/architecture.md), [API](docs/api.md), [engine](docs/engines.md).
-Thiết kế ban đầu ở [PLAN.md](PLAN.md), trạng thái làm việc gần nhất ở [HANDOFF.md](HANDOFF.md), quy tắc code
-ở [AGENTS.md](AGENTS.md).
+**English** | [Tiếng Việt](README.vi.md)
 
-## Yêu cầu
+A self-hosted hub that runs the agent CLIs you already have (Claude Code, Codex, Antigravity, or any command) as one
+team, with a local web UI. You give the lead agent a goal; it hands parts of the work to other agents, and you review
+the results or answer when an agent asks you something.
 
-- **Node.js 24 trở lên** (dùng `node:sqlite` có sẵn, không cần build native module).
-- Ít nhất một CLI agent đã cài và đăng nhập:
-  - [Claude Code](https://docs.claude.com/en/docs/claude-code) (`claude`), đăng nhập sẵn. Hub không đọc credential.
-  - Tùy chọn: Codex CLI (`codex`, đã thử với 0.164.0), đăng nhập sẵn.
-- Đã chạy thử trên Windows 11. macOS/Linux chưa thử.
+Each message runs the CLI for one headless turn and resumes the session by id. Agents talk to each other by writing
+JSON files into their own outbox folder. Plain output goes to you only, so two agents can't reply to each other
+forever. Data is a SQLite file on your machine, the server listens on `127.0.0.1` only, and the hub never reads your
+CLI credentials.
 
-## Chạy từ source
+## Quick start
 
-```bash
-npm install
-npm run dev
-```
-
-Mở <http://127.0.0.1:4310>. Lần đầu sẽ có màn tạo workspace (tên, đường dẫn repo, thư mục worktree), sau đó vào
-**Agents → Thêm agent** để tạo agent.
-
-## Chạy trực tiếp bằng npx
-
-Khi package được publish lên npm, cài và chạy bằng một lệnh:
+Requires Node.js 24+ and at least one agent CLI installed and signed in:
+[Claude Code](https://docs.claude.com/en/docs/claude-code), [Codex](https://github.com/openai/codex) or
+[Antigravity](https://antigravity.google/docs/cli/install). An OpenRouter API key also works, for text-only agents.
 
 ```bash
-npx agent-hub
+npx @minhbc97/agent-hub
 ```
 
-Yêu cầu Node.js 24 trở lên. Lệnh chạy hub tại `http://127.0.0.1:4310`; dữ liệu được tạo trong `data/` ở thư mục
-đang mở terminal. Dùng `HUB_PORT` hoặc `HUB_DATA` để đổi port/thư mục dữ liệu, ví dụ:
+Open <http://127.0.0.1:4310>. Create a workspace (name, repo path, optional worktree folder), then create the lead
+agent when prompted. Click **Test run** on an agent to check that it answers in the **Inbox**.
+
+Data is stored in `./data` under the folder you run the command from. To always use the same place:
 
 ```bash
-npx agent-hub --data ./my-agent-hub-data
+npx @minhbc97/agent-hub --data "$HOME/.agent-hub"
 ```
 
-Để cập nhật package đã cache, thêm `@latest`: `npx agent-hub@latest`.
+Use `npx @minhbc97/agent-hub@latest` to pick up a new version.
 
-| Lệnh | Việc |
-| --- | --- |
-| `npm run dev` | Server + Vite middleware (hot reload), dữ liệu ở `data/` |
-| `npm run build` rồi `npm start` | Bản production, phục vụ `dist/` |
-| `npm test` | Test workflow, outbox, loop guard, Codex usage... bằng agent giả (không tốn token) |
-| `npm run check` | `format` → `lint` → `typecheck`, phải sạch trước khi commit |
-| `npm run demo:pm-be` | Demo thật pm → be → pm bằng Claude (model `haiku`, tốn token), dữ liệu ở `data/demo` |
+## Features
 
-Tùy chọn:
+Engines and sessions:
 
-- `HUB_PORT=4311` đổi port (mặc định `4310`).
-- `HUB_DATA=đường/dẫn` hoặc `--data đường/dẫn` đổi thư mục dữ liệu (mặc định `data/`). Ví dụ chạy lại dữ liệu demo:
-  `npx tsx src/server/index.ts --data data/demo`.
-- `data/models.json` (tự tạo) để thêm hoặc thay danh sách model cho ô chọn model, không cần sửa code:
-  `{"claude":[{"id":"claude-opus-5-5","label":"Opus 5.5"}],"codex":[{"id":"gpt-6.2-sol","label":"GPT-6.2 Sol"}]}`
+- Adapters for Claude Code, Codex and Antigravity (new turn, resume, per-turn token usage), OpenRouter over its API,
+  and a custom command that reads the prompt on stdin.
+- Quota-aware queue: the hub reads each CLI's usage limits, holds work when an engine is out of quota, and can switch
+  an agent to a fallback engine until the reset.
+- Before a session gets too long or its cache expires, the agent writes a handoff note and the next session starts
+  from that note instead of the full history.
+- Lean mode for Claude agents cuts the per-call baseline from about 49k tokens to about 10k, with MCP servers picked
+  per agent.
 
-Thư mục `data/` (DB SQLite, outbox của agent) nằm trong `.gitignore`.
+Coordination:
 
-### An toàn
+- Each agent works in its own git worktree (default), the shared repo, or a custom folder.
+- Star routing sends everything through the lead agent; mesh lets chosen pairs talk directly.
+- The loop guard stops a chain of agent-to-agent messages after `maxHops` with no human in between.
+- Queue limits on concurrent agents and turns per hour, and a per-turn timeout that kills the whole process tree.
 
-- Server chỉ nghe `127.0.0.1`, chặn request ghi khác origin và chặn DNS rebinding, vì hub chạy lệnh trên máy bạn.
-- Agent Claude mặc định chạy với `--permission-mode acceptEdits` và bị chặn cứng `git push/merge/rebase`
-  (`--disallowedTools`).
-- Agent Codex mặc định chạy `-c sandbox_mode="workspace-write"`. Trên Windows có thêm
-  `-c windows.sandbox="unelevated"` vì chế độ `elevated` treo mọi lệnh shell khi thiếu bước cài đặt admin. Hub chỉ
-  truyền cờ cho từng lượt, không sửa `~/.codex/config.toml`.
+In the UI:
 
-## Cấu trúc
+- Task board and list (TODO / DOING / REVIEW / BLOCKED / DONE) with review, return and reply actions.
+- Workflows with steps for agents or people, review steps, "return to step" on rejection, manual or cron runs.
+- A Slack-style inbox with a "Needs you" queue, a home view of the agents at their desks, a map of who talks to whom,
+  and run history with tokens and cost.
+- English and Vietnamese, light and dark themes.
 
-```
-src/server/          Node server (node:http), không framework
-  routes/            REST API /api/...
-  bus.ts             hàng đợi, outbox, routing star/mesh, loop guard
-  runner.ts          chạy một lượt CLI (prompt qua stdin, timeout, kill cây tiến trình)
-  engines/           adapter từng CLI (claude, codex, custom) + catalog model
-  workflow.ts        engine workflow / task, lịch cron
-  db.ts              SQLite (node:sqlite) + migration
-src/web/             React + Vite + Tailwind 4 + shadcn/ui
-  features/          inbox, tasks, workflows, agents, settings
-  locales/           vi.json, en.json
-src/shared/          kiểu và hằng số dùng chung server/web
-scripts/             test (agent giả) và demo
-docs/cli-probe.md    kết quả dò output JSON và nguồn hạn mức của từng CLI
-```
+## Configuration
 
-## Đã làm được
+| Option | Default | Purpose |
+| --- | --- | --- |
+| `--data <dir>` or `HUB_DATA` | `./data` | Data folder (SQLite DB, agent outboxes) |
+| `HUB_PORT` | `4310` | HTTP port |
+| `OPENROUTER_API_KEY` | none | Needed only for OpenRouter agents. Never stored in the DB or passed to CLI processes |
+| `<data>/models.json` | built-in list | Replaces an engine's model list in the picker, e.g. `{"claude":[{"id":"claude-opus-5-5","label":"Opus 5.5"}]}` |
 
-**Chạy agent**
-- Adapter **Claude Code** và **Codex** (lượt mới + resume session, đọc token từng lượt; Codex báo tổng cộng dồn nên
-  hub tự trừ), **Custom** (lệnh bất kỳ, prompt qua stdin).
-- Đã chạy thật Claude và Codex qua hub, kể cả Codex ghi tin vào outbox.
-- Isolation theo agent: `worktree` (tự tạo git worktree), `shared`, `custom` (cwd tự nhập).
-- Timeout mỗi lượt, kill cả cây tiến trình. CLI đã báo xong lượt mà không thoát thì sau 10 giây hub tự kết thúc.
-- Chính sách reset session theo số lượt hoặc độ lớn context (phía server).
+## Safety
 
-**Nhắn tin và điều phối**
-- Outbox: mỗi tin một file JSON, có kiểm tra hợp lệ, giới hạn 256 KiB, không tạo tin trùng khi rename lỗi.
-- Routing star (qua orchestrator) hoặc mesh (cặp agent được nhắn thẳng).
-- `needs_human` vào hàng "Cần bạn"; câu trả lời thường của agent chỉ người dùng thấy (tránh ping-pong).
-- **Loop guard**: quá `maxHops` tin agent→agent liên tiếp không có người chen vào thì dừng, chờ người bấm Thử lại.
-- Hàng đợi: số agent chạy cùng lúc và số lượt mỗi giờ.
-- Hub khởi động lại: lượt đang chạy dở chuyển `failed` (không tự chạy lại), có nút **Thử lại**.
+The hub runs commands on your machine, so:
 
-**Giao diện** (tiếng Việt / English, dark / light)
-- **Trang chủ**: văn phòng kiểu truyện tranh, mỗi agent một bàn với bong bóng thoại trạng thái; giao việc cho agent điều phối.
-- **Hộp thư**: cột kênh (Cần bạn, agent điều phối, mọi tin, từng agent), tìm tin; luồng tin kiểu Slack; duyệt / trả lại / trả lời task.
-- **Công việc**: board 5 cột TODO / DOING / REVIEW / BLOCKED / DONE mỗi cột một màu, list, lọc, tạo task, sheet chi tiết.
-- **Quy trình (workflow)**: các bước giao cho agent hoặc người, bước cần duyệt, bước quay lại khi bị trả,
-  chạy tay hoặc theo lịch cron (xem trước 3 lần chạy), mẫu Viết bài / Báo cáo định kỳ / Ticket dev.
-- **Agents**: popup bắt buộc tạo agent điều phối khi workspace chưa có, thẻ agent, form cấu hình (avatar và màu nền, vai trò, mục tiêu,
-  engine, ô chọn model hoặc tự gõ, lệnh, tham số, isolation mặc định `worktree`),
-  cảnh báo khi CLI chưa có trên PATH, lịch sử lượt chạy với token và chi phí.
-- **Cài đặt**: workspace (đổi thư mục an toàn), giới hạn hàng đợi, loop guard, routing, kiểm tra CLI trên máy.
+- The server listens on `127.0.0.1` only, rejects cross-origin writes and blocks DNS rebinding.
+- Claude agents run with `--permission-mode acceptEdits`, and `git push/merge/rebase` is blocked via
+  `--disallowedTools`.
+- Codex agents run with `sandbox_mode="workspace-write"` (plus `windows.sandbox="unelevated"` on Windows). Flags are
+  passed per turn; `~/.codex/config.toml` is never modified.
+- Antigravity agents run with `--mode accept-edits`.
 
-## Chưa làm
+Known gap: the `git push` block matches the command prefix, so forms like `git -C dir push` are not caught yet.
 
-- **Antigravity (`agy`)**: mới dò CLI (`docs/cli-probe.md`), chưa có adapter.
-- **Trang Usage**: % hạn mức 5 giờ / tuần và giờ reset theo engine, tự giữ việc khi chạm ngưỡng
-  (bảng `limits_snapshots` có sẵn nhưng chưa dùng).
-- **Giờ làm việc**: giờ bắt đầu / dừng / ngừng giao việc, từ khóa "gấp" cho chạy ngoài giờ.
-- **Thông báo**: Windows toast, Slack / Telegram.
-- **Xuất / nhập cấu hình** ra JSON và template "BookLink Scrum".
-- Form agent còn thiếu: file brief, màu / seed avatar, chính sách reset context (server đã hỗ trợ).
-- Cấu hình loại hành động bắt buộc chờ duyệt.
-- Chặn `git push` mới theo tiền tố lệnh, chưa bắt được dạng `git -C dir push`.
-- Hub bị crash thì tiến trình CLI con có thể còn chạy mồ côi (chưa lưu pid để dọn).
-- Chưa có CI.
+## Platform support
 
-## Skill cho agent lập trình
+Tested on Windows 11. macOS and Linux should work but are not tested yet; reports are welcome. The folder picker on
+Linux needs `zenity` or `kdialog`.
 
-Các skill bên thứ ba dùng khi phát triển repo (thư mục `.agents/`, `.claude/skills/`) không commit;
-nguồn của chúng ghi trong `skills-lock.json`.
+## Documentation
 
-## Credit
+- [User guide](docs/user-guide.md): workspaces, agents, inbox, tasks, workflows, troubleshooting
+- [Architecture](docs/architecture.md): message lifecycle, outbox protocol, loop guard, handoff notes, data
+- [REST and SSE API](docs/api.md)
+- [Engines](docs/engines.md): adapters, fallback engine, how to add a new one
 
-Avatar [Micah](https://www.dicebear.com/styles/micah/) qua DiceBear, giấy phép CC BY 4.0.
+The docs are in Vietnamese for now.
+
+## Roadmap
+
+- Work hours: when agents start, stop and stop taking new work
+- Notifications (Windows toast, Slack, Telegram)
+- Config export / import
+- Usage percentage for Antigravity (its CLI only reports when the quota is already used up)
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md). Changes are listed in [CHANGELOG.md](CHANGELOG.md).
+
+## License
+
+[MIT](LICENSE). Avatars use [DiceBear Micah](https://www.dicebear.com/styles/micah/) (CC BY 4.0).

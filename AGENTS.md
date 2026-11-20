@@ -1,7 +1,8 @@
 # Quy tắc code cho agent (Codex, Claude, ...)
 
-Đọc `PLAN.md` (thiết kế, ràng buộc §10) và `HANDOFF.md` (trạng thái hiện tại) trước khi làm.
+Đọc `docs/architecture.md` và `docs/engines.md` trước khi làm; lệnh và cấu trúc thư mục ở `CONTRIBUTING.md`.
 Trả lời người dùng bằng tiếng Việt; code, comment, commit bằng tiếng Anh.
+Không chạy `git push`/merge/rebase thay người dùng; không ghi credential, `.env`, token ra log, DB hay tin nhắn.
 
 ## 1. Nguyên tắc chung
 
