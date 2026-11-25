@@ -6,6 +6,7 @@ import { join, resolve } from 'node:path';
 import {
   DATA_DIR,
   createRun,
+  findTaskByKey,
   finishRun,
   getAgent,
   getTask,
@@ -15,6 +16,7 @@ import {
   listMessages,
   listTasks,
   now,
+  sessionMail,
   sessionUsage,
   updateAgent,
   type Agent,
@@ -33,6 +35,7 @@ import { liveInput, type LiveInput } from './live-input.ts';
 import { openTerminal, type TerminalWriter } from './terminal.ts';
 import { enterTask, leaveTask } from './task-branch.ts';
 import { formatIncoming, preamble, type Brief } from './preamble.ts';
+import { isTaskBrief, taskBrief } from './workflow.ts';
 
 const HUB_URL = `http://127.0.0.1:${process.env.HUB_PORT ?? 4310}`;
 
@@ -94,7 +97,12 @@ const HANDOFF_PROMPT = [
   'instructions: the next session gets those again. Plain text only. Do not send outbox messages.',
 ].join('\n');
 
-const OPEN_TASK = new Set<string>([TASK_STATUS.todo, TASK_STATUS.doing, TASK_STATUS.review, TASK_STATUS.blocked]);
+export const OPEN_TASK = new Set<string>([
+  TASK_STATUS.todo,
+  TASK_STATUS.doing,
+  TASK_STATUS.review,
+  TASK_STATUS.blocked,
+]);
 
 export interface Incoming {
   message: Message;
@@ -168,13 +176,17 @@ async function takeTurn(
   const activeEngine = target === agent.engine ? null : target;
   if (agent.activeEngine !== activeEngine) updateAgent(agent.id, { activeEngine });
   const current = runsAs({ ...agent, activeEngine }, target);
+  const missing = missingBriefs(current, batch);
   const formatted = batch.map((m) =>
     formatIncoming(m.message, m.fromName, m.message.taskId ? getTask(m.message.taskId)?.key : undefined),
   );
-  const incoming =
+  const mail =
     formatted.length === 1
       ? formatted[0]!
       : `You have ${formatted.length} new messages; handle all of them in this turn.\n\n${formatted.join('\n\n---\n\n')}`;
+  const incoming = missing.length
+    ? `Background on tasks named below, which this session has not seen yet:\n\n${[...missing, mail].join('\n\n---\n\n')}`
+    : mail;
   const task = codeTask(current, batch);
   let taskCwd = '';
   const outcome = await runPrompt(
@@ -213,6 +225,30 @@ async function takeTurn(
     turnsInSession: (isSameSession ? current.turnsInSession : 0) + 1,
   });
   return outcome;
+}
+
+/**
+ * Briefs of the tasks this mail is about that the session never got: it is new, or was rotated since. Without them an
+ * agent asks for the brief again, which costs a turn on both sides.
+ */
+function missingBriefs(agent: Agent, batch: Incoming[]): string[] {
+  const known = agent.sessionId ? sessionMail(agent.id, agent.sessionId).map((m) => taskAbout(m)?.id) : [];
+  const tasks = new Map(
+    batch
+      .map(({ message }) => taskAbout(message))
+      .filter((t) => t !== undefined)
+      .map((t) => [t.id, t]),
+  );
+  return [...tasks.values()]
+    .filter((t) => !known.includes(t.id) && !batch.some(({ message }) => isTaskBrief(message.body, t)))
+    .map((t) => taskBrief(t, agent));
+}
+
+/** The task a message belongs to, else the one its subject names ("T-42 resume"). */
+function taskAbout(message: Message): Task | undefined {
+  if (message.taskId) return getTask(message.taskId);
+  const key = /\bT-\d+\b/i.exec(message.subject)?.[0];
+  return key ? findTaskByKey(message.workspaceId, key) : undefined;
 }
 
 function shownInput({ message, fromName }: Incoming): string {
@@ -399,6 +435,11 @@ async function runPrompt(
       cacheReadTokens: Math.max(0, u.cacheReadTokens - before.cacheReadTokens),
     };
   }
+  if (adapter.cumulativeCost && result.sessionId && result.sessionId === agent.sessionId) {
+    const before = sessionUsage(agent.id, result.sessionId).costUsd;
+    // Below what is recorded, the CLI counted this turn alone.
+    if (result.usage.costUsd >= before) result.usage = { ...result.usage, costUsd: result.usage.costUsd - before };
+  }
   Object.assign(run, result.usage, {
     endedAt: now(),
     status: result.isError ? RUN_STATUS.failed : RUN_STATUS.ok,
@@ -411,6 +452,11 @@ async function runPrompt(
   terminal.end(run.status, result.isError ? result.text : '');
   emit({ type: 'run', workspaceId: ws.id, id: run.id });
   return { run, result, unread: live?.unread() ?? [] };
+}
+
+/** The agent's work is over: start the next one in a small session, keeping the handoff note. */
+export function dropSession(agentId: string) {
+  updateAgent(agentId, { sessionId: null, turnsInSession: 0 });
 }
 
 /** The user asked for a clean start, so the old handoff note goes too. */

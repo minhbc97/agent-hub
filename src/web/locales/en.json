@@ -346,7 +346,9 @@
     "title": "Settings",
     "workspaceDeleted": "Workspace deleted",
     "workspaceSaved": "Workspace saved",
-    "maxHops": "Max agent messages in a row"
+    "maxHops": "Max agent messages in a row",
+    "quotaPausePercent": "Pause at quota (%)",
+    "quotaPauseHint": "At this level the hub holds messages until the reset or uses the fallback engine; a running turn finishes. 100 pauses only when the quota is used up. Engines that report no percentage are not affected."
   },
   "tasks": {
     "allStatuses": "All statuses",

@@ -8,6 +8,7 @@ Mỗi engine là một adapter trong `src/server/engines/`, cài đặt interfac
 | `command(agent, { resumeId, extraDirs })` | có | Trả về dòng lệnh shell cho một lượt. Prompt **luôn đi qua stdin** để tránh lỗi quoting và giới hạn độ dài lệnh trên Windows. `extraDirs` là các thư mục agent cần ghi (outbox). |
 | `parse(stdout, stderr, exitCode)` | có | Trả về `{ text, sessionId, usage, isError }`. |
 | `cumulativeUsage` | không | `true` khi CLI báo token cộng dồn cả session khi resume; runner tự trừ phần đã lưu. |
+| `cumulativeCost` | không | Như trên nhưng chỉ cho chi phí: `total_cost_usd` của Claude cộng dồn cả session khi resume. |
 | `afterTurn(agent)` | không | Xoá file mà `command` tạo cho lượt; chạy dù lượt kết thúc thế nào. |
 | `live` | không | CLI nhận thêm tin qua stdin khi đang chạy (chỉ Claude): cách mã hoá tin, sự kiện báo đã đọc và báo xong lượt. |
 | `describe(event)` | không | Đổi một sự kiện JSON của stdout thành các dòng dễ đọc cho tab Terminal; không có thì stdout hiện nguyên văn. |
@@ -31,7 +32,7 @@ claude -p --input-format stream-json --output-format stream-json --verbose --rep
   `usage.{input_tokens, output_tokens, cache_creation_input_tokens, cache_read_input_tokens}` (đã kiểm với 2.1.329).
 - Stdin giữ mở tới khi có `result` và mọi tin đã được đọc. Tin gửi giữa lượt được đọc sau bước đang chạy; sự kiện
   `isReplay` cùng `uuid` báo đã đọc. Tin đến đúng lúc xong lượt sinh thêm một `result` (token cộng lại,
-  `total_cost_usd` đã là tổng).
+  `total_cost_usd` đã là tổng của cả session, kể cả các lượt resume trước).
 - Tham số mặc định: `--permission-mode acceptEdits`.
 - `acceptEdits` chỉ tự duyệt sửa file và lệnh đọc. Đã thử trên 2.1.329: `git status` chạy được, `npm test` và
   `git add` bị từ chối. Ô **Lệnh được phép** của agent (mặc định trống) thêm `--allowedTools "Bash(<lệnh>:*)"`; engine dự
@@ -120,6 +121,9 @@ Agent OpenRouter chỉ trả lời text: không đọc hay sửa file trong work
 khác. Mỗi lượt nhận đúng một tin. Kết quả bước workflow vẫn được lưu và chuyển bước như engine khác.
 
 ## Engine dự phòng
+
+`quotaPausePercent` của workspace (mặc định 100) coi engine là hết hạn mức từ phần trăm đó; khi có tin chờ, hub tự đọc
+lại hạn mức, tối đa mỗi phút một lần. Antigravity không báo phần trăm nên không dừng sớm được.
 
 Mỗi agent chọn được `fallbackEngine` (Claude, Codex hoặc Antigravity) và `fallbackModel`. Khi engine chính hết hạn
 mức (đọc từ trang hạn mức hoặc từ lỗi của lượt), hub chạy tin bằng engine dự phòng; cả hai đều bị chặn thì tin chờ ở

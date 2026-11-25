@@ -1,5 +1,8 @@
 // Stand-in for `codex exec --json`: JSONL events whose usage is the running total of the thread, like real Codex.
 // A prompt containing "linger" keeps the process alive after the turn, like Codex waiting on a hung shell command.
+// FAKE_CODEX_PROMPT: file that receives the prompt, so a test can read it.
+import { writeFileSync } from 'node:fs';
+
 const resumed = process.argv.includes('resume');
 const usage = resumed
   ? { input_tokens: 300, cached_input_tokens: 100, output_tokens: 30 }
@@ -8,6 +11,7 @@ let input = '';
 process.stdin.setEncoding('utf8');
 process.stdin.on('data', (d) => (input += d));
 process.stdin.on('end', () => {
+  if (process.env.FAKE_CODEX_PROMPT) writeFileSync(process.env.FAKE_CODEX_PROMPT, input);
   // FAKE_CODEX_QUOTA set: answer like an exhausted plan, so the hub's quota hold can be tested.
   if (process.env.FAKE_CODEX_QUOTA) {
     console.log(

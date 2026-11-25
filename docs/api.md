@@ -28,7 +28,7 @@ REST JSON tại `http://127.0.0.1:4310/api/...`. Kiểu dữ liệu chi tiết n
 | --- | --- | --- |
 | GET | `/api/workspaces` | |
 | POST | `/api/workspaces` | `name` (bắt buộc, không trùng), `repoPath` (phải là thư mục có thật), `worktreesDir` |
-| PATCH | `/api/workspaces/:ws` | Các trường trên và `settings` (một phần): `routing` (`star`/`mesh`), `directPairs` (`[["a","b"]]`), `maxConcurrent` (1–20), `maxTurnsPerHour` (1–1000), `turnTimeoutMin` (1–240), `maxHops` (1–100). Đổi `repoPath` / `worktreesDir`: 409 khi có agent đang chạy; lưu xong thì xoá session của các agent không dùng isolation `custom` |
+| PATCH | `/api/workspaces/:ws` | Các trường trên và `settings` (một phần): `routing` (`star`/`mesh`), `directPairs` (`[["a","b"]]`), `maxConcurrent` (1–20), `maxTurnsPerHour` (1–1000), `turnTimeoutMin` (1–240), `maxHops` (1–100), `quotaPausePercent` (1–100). Đổi `repoPath` / `worktreesDir`: 409 khi có agent đang chạy; lưu xong thì xoá session của các agent không dùng isolation `custom` |
 | DELETE | `/api/workspaces/:ws` | 409 nếu có agent đang chạy |
 
 ## Agent

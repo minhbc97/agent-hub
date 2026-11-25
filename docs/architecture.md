@@ -87,7 +87,7 @@ Xử lý của hub:
 - Mục không hợp lệ: file chuyển vào `rejected/` kèm `<file>.error.txt` ghi lý do. Mục hợp lệ trong cùng file vẫn được nhận.
 - Routing *star*: tin giữa hai agent thường bị chuyển qua orchestrator, tiêu đề thêm `[for <tên>]`.
   *Mesh*: các cặp trong `directPairs` được nhắn thẳng.
-- `done` + `task`: báo xong bước hiện tại (`agentDone`); `done` cũng reset session của agent. Task do agent khác giao
+- `done` + `task`: báo xong bước hiện tại (`agentDone`); `done` cũng bỏ session khi agent không còn việc dở. Task do agent khác giao
   (`"task":"new"`) xong thì hub tự gửi kết quả cho người giao dưới tên agent làm, nên vẫn tính vào loop guard.
   `done` gửi thẳng cho người giao thì không gửi thêm.
 - Header tin gửi cho agent có key task (`task: T-12`) khi tin thuộc một task.
@@ -124,7 +124,9 @@ bắt đầu từ `HEAD` của repo, chưa thấy code chưa merge của task kh
   đang mở. Lượt bàn giao hiện trong lịch sử lượt như lượt thường.
 - Context của lượt lấy từ `usage.iterations` (Claude) hoặc `last_token_usage` trong rollout (Codex). Antigravity chưa
   báo nên chỉ xoay theo lượt hoặc khi nghỉ lâu.
-- Agent gửi `done` cũng reset session. **Session mới** xoá cả sổ bàn giao. Đổi engine xoá `sessionId` nhưng giữ sổ,
+- Agent gửi `done` thì bỏ session nhưng giữ sổ bàn giao. Session được giữ nếu agent còn task mở đã nhận tin, hoặc task
+  mở do mình giao. Task mà session chưa biết được kèm brief khi có tin về nó (theo `taskId`, hoặc key trong tiêu đề).
+  **Session mới** xoá cả sổ bàn giao. Đổi engine xoá `sessionId` nhưng giữ sổ,
   vì sổ là text dùng được cho CLI khác.
 - File trong `briefFiles` được chèn vào preamble (tổng tối đa 60k ký tự); file thiếu hoặc quá cỡ thì agent được dặn tự
   đọc.
@@ -158,6 +160,7 @@ Giới hạn đã biết: hub bị kill đột ngột thì tiến trình CLI con
 | `missions`, `limits_snapshots` | Có trong schema nhưng chưa dùng. Hạn mức đọc trực tiếp từ CLI qua `GET /api/usage`, không lưu DB. |
 
 Đổi schema: thêm cột qua mảng `MIGRATIONS` trong `db.ts` (chạy `ALTER TABLE` nếu cột chưa có).
+Sửa dữ liệu cũ một lần thì dùng `PRAGMA user_version`.
 `settings` của workspace là JSON nên thêm trường mới chỉ cần thêm vào `DEFAULT_SETTINGS`.
 
 ## Realtime

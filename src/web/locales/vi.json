@@ -346,7 +346,9 @@
     "title": "Cài đặt",
     "workspaceDeleted": "Đã xoá workspace",
     "workspaceSaved": "Đã lưu workspace",
-    "maxHops": "Tin agent liên tiếp tối đa"
+    "maxHops": "Tin agent liên tiếp tối đa",
+    "quotaPausePercent": "Dừng khi hạn mức đạt (%)",
+    "quotaPauseHint": "Engine đạt mức này thì hub giữ tin chờ reset hoặc chuyển sang engine dự phòng; lượt đang chạy vẫn chạy nốt. 100 là chỉ dừng khi hết hạn mức. Engine không báo phần trăm thì không áp dụng."
   },
   "tasks": {
     "allStatuses": "Mọi trạng thái",

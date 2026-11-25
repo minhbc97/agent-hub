@@ -457,6 +457,56 @@ bus.sendFromUser(ws.id, 'coder', 'after a long break');
 await settle();
 assert.equal(db.listRuns(coder.id).length, idleRuns + 2, 'idle session rotated before the turn');
 
+// "done" starts a fresh session but keeps the note; other work the agent has begun keeps the session.
+const finish = async (task: string) => {
+  const done = { to: 'user', act: 'done', task, body: 'x' };
+  writeFileSync(resolve(outboxDir(coder.id), 'done.json'), JSON.stringify(done));
+  await settle();
+};
+const codexTask = (title: string) =>
+  wfe.startTask(db.createTask({ workspaceId: ws.id, title, body: `brief of ${title}`, assigneeId: coder.id }));
+const taskA = codexTask('task A');
+const taskB = codexTask('task B');
+await settle();
+const note = db.getAgent(coder.id)!.handoff;
+assert.ok(note);
+await finish(taskA.key);
+assert.ok(db.getAgent(coder.id)!.sessionId, 'task B is under way');
+// The session knows task B already; a new one gets its brief, also when only the subject names the task.
+const promptFile = resolve(work, 'prompt.txt');
+process.env.FAKE_CODEX_PROMPT = promptFile;
+bus.sendFromUser(ws.id, 'coder', 'go on', { taskId: taskB.id });
+await settle();
+assert.ok(!readFileSync(promptFile, 'utf8').includes('brief of task B'));
+db.updateAgent(coder.id, { sessionId: null });
+bus.sendFromUser(ws.id, 'coder', 'go on', { subject: `${taskB.key} resume` });
+await settle();
+assert.ok(readFileSync(promptFile, 'utf8').includes('brief of task B'));
+delete process.env.FAKE_CODEX_PROMPT;
+await finish(taskB.key);
+assert.equal(db.getAgent(coder.id)!.sessionId, null, 'no work left');
+assert.equal(db.getAgent(coder.id)!.handoff, note, 'the note survives');
+
+// Claude's cost is the session's running total; runs store what each turn added.
+const coster = db.createAgent({
+  ...fake,
+  name: 'coster',
+  engine: ENGINE.claude,
+  command: `${nodeCommand} "${resolve('scripts/fake-claude.mjs')}"`,
+  extraArgs: '',
+});
+for (const total of ['0.5', '0.75']) {
+  process.env.FAKE_CLAUDE_COST = total;
+  bus.sendFromUser(ws.id, 'coster', 'work');
+  await settle();
+}
+delete process.env.FAKE_CLAUDE_COST;
+assert.deepEqual(
+  db.listRuns(coster.id).map((r) => r.costUsd),
+  [0.25, 0.5],
+);
+db.deleteAgent(coster.id);
+
 // Out of quota: the message is held until the engine's reset instead of failing, then runs by itself.
 const availability = await import('../src/server/availability.ts');
 process.env.FAKE_CODEX_QUOTA = '1';
@@ -549,7 +599,7 @@ const carried = preamble({ ...lead, handoff: 'pick up T-9' }, team(), db.getWork
 });
 assert.ok(carried.includes('Brief file pm.md (already loaded, do not read it again):\nbe brief'));
 assert.ok(carried.includes('Read these brief files before working: huge.md'));
-assert.ok(carried.includes('Handoff note from your previous session:\npick up T-9'));
+assert.ok(carried.includes('may still be in it):\npick up T-9'));
 assert.ok(carried.includes(`- ${openTask.key} [${openTask.status}] carried task`));
 const badPath = await fetch(`${base}/api/tasks/%E0%A4%A`, { method: 'DELETE' });
 assert.equal(badPath.status, 400);

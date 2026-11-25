@@ -1,7 +1,14 @@
 // Self-check for the plan-limit parsers (Claude Code get_usage answer, Codex rollout line).
 import assert from 'node:assert/strict';
 import { parseAntigravityLogs, parseClaudeUsageLine, parseCodexRolloutLine } from '../src/server/usage.ts';
-import { QUOTA_RECHECK_MS, blockEngine, engineBlock, noteUsage, quotaRetryAt } from '../src/server/availability.ts';
+import {
+  QUOTA_RECHECK_MS,
+  blockEngine,
+  engineBlock,
+  noteUsage,
+  quotaHold,
+  quotaRetryAt,
+} from '../src/server/availability.ts';
 
 const claude = parseClaudeUsageLine(
   JSON.stringify({
@@ -126,5 +133,12 @@ noteUsage(
   t0,
 );
 assert.equal(engineBlock('codex', t0), null);
+// A pause limit below 100% holds work until the reset of the window that is over it.
+assert.equal(quotaHold('codex', 41, t0), null);
+assert.equal(quotaHold('codex', 100, t0), null);
+assert.equal(quotaHold('codex', 40, t0)?.until, t0 + 3600_000);
+assert.match(quotaHold('codex', 40, t0)!.reason, /Codex usage at 40% \(pause limit 40%\)/);
+assert.equal(quotaHold('codex', 40, t0 + 3600_001), null, 'expires at the reset');
+assert.equal(quotaHold('claude', 40, t0), null, 'no reading yet');
 
 console.log('usage test: PASS');

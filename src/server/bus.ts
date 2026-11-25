@@ -8,6 +8,7 @@ import {
   MESSAGE_STATUS,
   AGENT_STATUS,
   ENGINE,
+  ENGINES,
   ISOLATION,
   TASK_STATUS,
   ROUTING,
@@ -28,6 +29,7 @@ import {
   getTask,
   getWorkspace,
   listAgents,
+  listTasks,
   listWorkspaces,
   pendingFor,
   resolveLooseQuestions,
@@ -35,6 +37,7 @@ import {
   turnsLastHour,
   updateAgent,
   updateTask,
+  wasMailedTask,
   type Act,
   type Agent,
   type Message,
@@ -43,11 +46,13 @@ import {
 } from './db.ts';
 import { emit } from './events.ts';
 import { DomainError } from './domain-error.ts';
-import { outboxDir, resetSession, runTurn, steerTurn } from './runner.ts';
+import { OPEN_TASK, dropSession, outboxDir, runTurn, steerTurn } from './runner.ts';
 import { agentAsks, agentDone, tickSchedules } from './workflow.ts';
 import { parseTaskReply } from './engines/openrouter.ts';
 import { taskBranch } from './task-branch.ts';
-import { blockEngine, engineBlock, quotaRetryAt } from './availability.ts';
+import { FULL_PERCENT, blockEngine, quotaHold, quotaRetryAt } from './availability.ts';
+import { engineCatalog } from './engines/catalog.ts';
+import { usageReport } from './usage.ts';
 
 /** Outbox "task" value that asks the hub to create a new task for the recipient. */
 const NEW_TASK_REF = 'new';
@@ -185,9 +190,21 @@ function scanOutbox(agent: Agent, parentId: string | null): OutboxResult {
       writeFileSync(`${target}.error.txt`, errors.join('; ') + '\n');
     }
   }
-  if (finished) resetSession(agent.id);
+  if (finished && !hasStartedWork(agent)) dropSession(agent.id);
   if (res.rejected.length) reportRejected(agent, res.rejected);
   return res;
+}
+
+/**
+ * Work whose context would be lost with the session: a task the agent already got mail about, or one it delegated.
+ * Tasks still waiting in its queue come with their own brief, so a fresh session is cheaper for those.
+ */
+function hasStartedWork(agent: Agent): boolean {
+  return listTasks(agent.workspaceId).some(
+    (t) =>
+      OPEN_TASK.has(t.status) &&
+      (t.createdBy === agent.id || (t.assigneeId === agent.id && wasMailedTask(agent.id, t.id))),
+  );
 }
 
 /** Why the loop guard stops an agent message continuing `parentId`'s chain (the message adds one hop), if it does. */
@@ -397,6 +414,7 @@ function dispatchAll(): void {
       }
       const pending = pendingFor(agent.id);
       if (!pending.length) continue;
+      if (ws.settings.quotaPausePercent < FULL_PERCENT) refreshUsage();
 
       const engine = pickEngine(agent);
       const hold = holdReason(agent, ws) ?? (typeof engine === 'string' ? null : engine.hold);
@@ -456,14 +474,20 @@ function holdReason(agent: Agent, ws: Workspace): string | null {
   return null;
 }
 
+/** A pause limit must hold with no browser open, so waiting mail keeps the plan reading fresh (cached for a minute). */
+function refreshUsage() {
+  usageReport(engineCatalog(ENGINES), false).catch((err) => console.error('usage refresh failed', err));
+}
+
 /**
  * The agent's own engine, else its fallback while its own is out of quota, else why its mail waits.
  * A block expires at the engine's reset time, so held mail resumes by itself.
  */
 export function pickEngine(agent: Agent): Engine | { hold: string } {
-  const block = engineBlock(agent.engine);
+  const pausePercent = getWorkspace(agent.workspaceId)!.settings.quotaPausePercent;
+  const block = quotaHold(agent.engine, pausePercent);
   if (!block) return agent.engine;
-  if (agent.fallbackEngine && !engineBlock(agent.fallbackEngine)) return agent.fallbackEngine;
+  if (agent.fallbackEngine && !quotaHold(agent.fallbackEngine, pausePercent)) return agent.fallbackEngine;
   return { hold: `${block.reason}; retrying at ${new Date(block.until).toLocaleString()}` };
 }
 

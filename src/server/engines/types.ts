@@ -40,6 +40,8 @@ export interface EngineAdapter {
   afterTurn?: (agent: Agent) => void;
   /** Usage reported for a resumed session is the running total of the whole session, not this turn. */
   cumulativeUsage?: boolean;
+  /** The same for the cost alone. */
+  cumulativeCost?: boolean;
   /** True once stdout shows the turn finished, so a CLI that then fails to exit can be ended instead of timing out. */
   isTurnOver?: (stdout: string) => boolean;
   /** Readable lines for one JSON event of stdout; none hides it. Without this, stdout is shown as it is. */

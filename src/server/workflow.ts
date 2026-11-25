@@ -100,7 +100,7 @@ function briefing(
   note: string,
   agent: Agent | undefined,
 ): string {
-  const lines = [`Task ${task.key}: ${task.title}`];
+  const lines = [briefTitle(task)];
   if (task.body.trim()) lines.push('', task.body.trim());
   if (wf && step) {
     const i = stepIndex(wf, step.id);
@@ -124,6 +124,23 @@ function briefing(
   }
   return lines.join('\n');
 }
+
+/** A task's brief for a session that has not seen it: the current step's for its assignee, else what it is about. */
+export function taskBrief(task: Task, agent: Agent): string {
+  if (task.assigneeId === agent.id) {
+    const wf = task.workflowId ? getWorkflow(task.workflowId) : undefined;
+    return briefing(task, wf ?? null, wf?.steps.find((s) => s.id === task.stepId) ?? null, '', agent);
+  }
+  const result = task.result.trim();
+  return [`${briefTitle(task)} [${task.status}]`, task.body.trim(), result && `Latest result:\n${result}`]
+    .filter(Boolean)
+    .join('\n\n');
+}
+
+/** Whether a message already is the task's brief. */
+export const isTaskBrief = (body: string, task: Task) => body.startsWith(briefTitle(task));
+
+const briefTitle = (task: Task) => `Task ${task.key}: ${task.title}`;
 
 function advance(task: Task, wf: Workflow | undefined): Task {
   if (wf) {

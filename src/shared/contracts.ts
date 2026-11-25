@@ -86,6 +86,8 @@ export interface WorkspaceSettings {
   turnTimeoutMin: number;
   /** Agent-to-agent messages allowed in one chain before a human must step in (stops ping-pong loops). */
   maxHops: number;
+  /** Hold mail while the engine's plan usage is at or above this percent; 100 only stops at the limit itself. */
+  quotaPausePercent: number;
 }
 
 export const DEFAULT_SETTINGS: WorkspaceSettings = {
@@ -95,6 +97,7 @@ export const DEFAULT_SETTINGS: WorkspaceSettings = {
   maxTurnsPerHour: 30,
   turnTimeoutMin: 30,
   maxHops: 8,
+  quotaPausePercent: 100,
 };
 
 export interface Workspace {

@@ -35,6 +35,7 @@ export function SettingsPage() {
     maxTurnsPerHour: number;
     turnTimeoutMin: number;
     maxHops: number;
+    quotaPausePercent: number;
     routing: Routing;
   }>({
     name: '',
@@ -44,6 +45,7 @@ export function SettingsPage() {
     maxTurnsPerHour: 30,
     turnTimeoutMin: 30,
     maxHops: 8,
+    quotaPausePercent: 100,
     routing: ROUTING.star,
   });
   useEffect(() => {
@@ -56,6 +58,7 @@ export function SettingsPage() {
         maxTurnsPerHour: ws.settings.maxTurnsPerHour,
         turnTimeoutMin: ws.settings.turnTimeoutMin,
         maxHops: ws.settings.maxHops,
+        quotaPausePercent: ws.settings.quotaPausePercent,
         routing: ws.settings.routing,
       });
   }, [ws]);
@@ -139,7 +142,17 @@ export function SettingsPage() {
                 onChange={(e) => setForm({ ...form, maxHops: Number(e.target.value) })}
               />
             </Field>
+            <Field label={t('settings.quotaPausePercent')}>
+              <Input
+                type="number"
+                min="1"
+                max="100"
+                value={form.quotaPausePercent}
+                onChange={(e) => setForm({ ...form, quotaPausePercent: Number(e.target.value) })}
+              />
+            </Field>
           </div>
+          <p className="text-xs/5 text-muted-foreground">{t('settings.quotaPauseHint')}</p>
           <Button
             className="w-fit"
             onClick={() =>
@@ -151,6 +164,7 @@ export function SettingsPage() {
                       maxTurnsPerHour: form.maxTurnsPerHour,
                       turnTimeoutMin: form.turnTimeoutMin,
                       maxHops: form.maxHops,
+                      quotaPausePercent: form.quotaPausePercent,
                     },
                   }),
                 t('settings.queueSaved'),

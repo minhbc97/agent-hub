@@ -5,6 +5,16 @@ the project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Pause limit per workspace: hold messages once an engine's plan usage reaches a chosen percentage.
+
+### Fixed
+
+- Reporting a task done no longer erases the agent's handoff note, nor its session while other work is under way.
+- A session that has not seen a task gets its brief with the first message about it.
+- The cost of a Claude run is what that turn cost, not the total of its session. Stored runs are corrected once.
+
 ## [0.2.0] - 2026-11-25
 
 ### Added

@@ -128,6 +128,21 @@ const MIGRATIONS: [table: string, column: string, ddl: string][] = [
   ],
 ];
 
+/** Runs stored a session's running cost total; keep only what each turn added. */
+const SPLIT_SESSION_COST = `
+BEGIN;
+UPDATE runs SET costUsd = split.cost FROM (
+  SELECT id, CASE WHEN costUsd >= before THEN costUsd - before ELSE costUsd END AS cost FROM (
+    SELECT id, costUsd, COALESCE(MAX(costUsd) OVER (
+      PARTITION BY agentId, sessionId ORDER BY startedAt ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING
+    ), 0) AS before
+    FROM runs WHERE sessionId IS NOT NULL AND costUsd > 0
+  )
+) AS split WHERE runs.id = split.id;
+PRAGMA user_version = 1;
+COMMIT;
+`;
+
 let db: DatabaseSync | null = null;
 
 export function openDb(file = resolve(DATA_DIR, 'hub.db')): DatabaseSync {
@@ -142,6 +157,8 @@ export function openDb(file = resolve(DATA_DIR, 'hub.db')): DatabaseSync {
     }[];
     if (!cols.some((c) => c.name === column)) db.exec(ddl);
   }
+  const { user_version: version } = db.prepare('PRAGMA user_version').get() as { user_version: number };
+  if (version < 1) db.exec(SPLIT_SESSION_COST);
   return db;
 }
 
@@ -724,15 +741,38 @@ export function lastSessionRun(agentId: string, sessionId: string): Run | undefi
     .get(agentId, sessionId) as Run | undefined;
 }
 
+/** Mail the session has already read, which tells whether it knows a task's brief. */
+export function sessionMail(agentId: string, sessionId: string): Message[] {
+  return (
+    openDb()
+      .prepare(
+        `SELECT messages.* FROM messages JOIN runs ON runs.id = messages.runId
+         WHERE messages.toId = ? AND runs.agentId = ? AND runs.sessionId = ? AND runs.status = ?`,
+      )
+      .all(agentId, agentId, sessionId, RUN_STATUS.ok) as Row[]
+  ).map(toMessage);
+}
+
+/** Whether the agent was ever given mail about the task in a turn. */
+export function wasMailedTask(agentId: string, taskId: string): boolean {
+  return !!openDb()
+    .prepare('SELECT 1 FROM messages WHERE toId = ? AND taskId = ? AND runId IS NOT NULL LIMIT 1')
+    .get(agentId, taskId);
+}
+
 /** Token totals already recorded for one session, used to turn a CLI's running total into per-turn usage. */
 export function sessionUsage(agentId: string, sessionId: string) {
   return openDb()
     .prepare(
       `SELECT COALESCE(SUM(inputTokens), 0) AS inputTokens, COALESCE(SUM(outputTokens), 0) AS outputTokens,
-        COALESCE(SUM(cacheWriteTokens), 0) AS cacheWriteTokens, COALESCE(SUM(cacheReadTokens), 0) AS cacheReadTokens
+        COALESCE(SUM(cacheWriteTokens), 0) AS cacheWriteTokens, COALESCE(SUM(cacheReadTokens), 0) AS cacheReadTokens,
+        COALESCE(SUM(costUsd), 0) AS costUsd
        FROM runs WHERE agentId = ? AND sessionId = ? AND status != 'running'`,
     )
-    .get(agentId, sessionId) as Record<'inputTokens' | 'outputTokens' | 'cacheWriteTokens' | 'cacheReadTokens', number>;
+    .get(agentId, sessionId) as Record<
+    'inputTokens' | 'outputTokens' | 'cacheWriteTokens' | 'cacheReadTokens' | 'costUsd',
+    number
+  >;
 }
 
 export function finishRun(run: Run): void {

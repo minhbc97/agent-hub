@@ -174,7 +174,11 @@ export function settingsFields(v: unknown, workspaceId: string): Partial<Workspa
       seen.add(key);
     }
   }
-  const num = (k: 'maxConcurrent' | 'maxTurnsPerHour' | 'turnTimeoutMin' | 'maxHops', min: number, max: number) => {
+  const num = (
+    k: 'maxConcurrent' | 'maxTurnsPerHour' | 'turnTimeoutMin' | 'maxHops' | 'quotaPausePercent',
+    min: number,
+    max: number,
+  ) => {
     if (s[k] === undefined) return;
     const n = Number(s[k]);
     if (!Number.isInteger(n) || n < min || n > max)
@@ -189,6 +193,7 @@ export function settingsFields(v: unknown, workspaceId: string): Partial<Workspa
   num('maxTurnsPerHour', 1, 1000);
   num('turnTimeoutMin', 1, 240);
   num('maxHops', 1, 100);
+  num('quotaPausePercent', 1, 100);
   return out;
 }
 

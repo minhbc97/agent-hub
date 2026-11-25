@@ -108,7 +108,9 @@ function carriedContext(agent: Agent, { briefs, openTasks }: CarriedContext): st
       b.content === null ? [] : [`Brief file ${b.path} (already loaded, do not read it again):\n${b.content.trim()}`],
     ),
     toRead.length ? `Read these brief files before working: ${toRead.join(', ')}` : '',
-    agent.handoff ? `Handoff note from your previous session:\n${agent.handoff}` : '',
+    agent.handoff
+      ? `Handoff note from an earlier session (work finished since then may still be in it):\n${agent.handoff}`
+      : '',
     openTasks.length
       ? `Your open tasks on the board:\n${openTasks.map((t) => `- ${t.key} [${t.status}] ${t.title}`).join('\n')}`
       : '',

@@ -38,6 +38,8 @@ const STREAM_ARGS = [
  * total_cost_usd and usage.{input_tokens, output_tokens, cache_creation_input_tokens, cache_read_input_tokens}.
  */
 export const claude: EngineAdapter = {
+  cumulativeCost: true,
+
   command(agent, { resumeId, extraDirs }) {
     const parts = [agent.command.trim() || 'claude', '-p', ...STREAM_ARGS];
     if (agent.model) parts.push('--model', q(agent.model));
@@ -98,7 +100,7 @@ export const claude: EngineAdapter = {
         outputTokens: sum('output_tokens'),
         cacheWriteTokens: sum('cache_creation_input_tokens'),
         cacheReadTokens: sum('cache_read_input_tokens'),
-        // Unlike usage, the cost is the running total of the process.
+        // Unlike usage, the cost is the running total of the session, over rounds and resumes alike.
         costUsd: Number(last.total_cost_usd ?? 0),
       },
       contextTokens: context

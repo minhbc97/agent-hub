@@ -1,6 +1,7 @@
 // Stand-in for `claude -p --input-format stream-json --output-format stream-json --replay-user-messages`: prints the
 // events of a short turn, one at a time, and answers messages that arrive meanwhile at the next step, like the CLI.
 // FAKE_CLAUDE_STEP_MS slows it down and FAKE_CLAUDE_LINES makes it longer, so the live view can be watched.
+// FAKE_CLAUDE_COST: the session's cost so far.
 // FAKE_CLAUDE_DEAF: ends the turn without reading what arrived during it.
 import { createInterface } from 'node:readline';
 import { setTimeout as sleep } from 'node:timers/promises';
@@ -19,6 +20,7 @@ const result = (text) => ({
   result: text,
   session_id: 'fake-session',
   is_error: false,
+  total_cost_usd: Number(process.env.FAKE_CLAUDE_COST ?? 0),
   usage: { input_tokens: 10, output_tokens: 1 },
 });
 
