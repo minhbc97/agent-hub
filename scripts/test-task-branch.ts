@@ -132,6 +132,14 @@ for (const [i, name] of ['x', 'y'].entries())
     [`${name}.txt`],
   );
 
+// A folder left by another repository is refused instead of being worked in.
+mkdirSync(resolve(trees, 'stray'), { recursive: true });
+git(resolve(trees, 'stray'), 'init', '-q');
+const stray = db.createAgent({ ...fake, name: 'stray' });
+bus.sendFromUser(ws.id, 'stray', 'hello');
+await settle();
+assert.match(db.listRuns(stray.id)[0]!.output, /is not a worktree of/);
+
 // Shared-folder agents work as before and have no changes to show.
 const shared = db.createAgent({ ...fake, name: 'shared', isolation: ISOLATION.shared });
 const plain = wfe.startTask(db.createTask({ workspaceId: ws.id, title: 'plain', assigneeId: shared.id }));

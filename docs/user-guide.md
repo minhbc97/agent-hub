@@ -24,7 +24,13 @@ ai thì phải ghi vào outbox. Cách này tránh hai agent trả lời qua lạ
    mở hộp chọn thư mục của hệ điều hành (Windows, macOS; Linux cần `zenity` hoặc `kdialog`), hoặc gõ tay đường dẫn.
 3. Ngay sau khi tạo workspace, popup **Tạo Lead Agent** mở ra và không đóng được cho tới khi tạo xong (xem mục 3).
    Workspace cũ chưa có Lead Agent cũng hiện popup này. Các agent khác thêm ở **Agents → Thêm agent**.
+   Khi có nhiều workspace, popup này có menu để chuyển sang workspace khác.
 4. Bấm **Chạy thử** trên agent: hub gửi một tin kiểm tra, agent trả lời tên và vai trò trong **Hộp thư**.
+
+Bấm **tên workspace** ở đầu trang để chuyển workspace hoặc chọn **Workspace mới**. Mỗi workspace có agent, tin nhắn, task,
+workflow, giới hạn lượt và worktree riêng; agent của workspace không mở vẫn chạy nền. Tên và thư mục bản sao git không được
+trùng giữa các workspace. Hạn mức engine là của tài khoản nên dùng chung; hai workspace cùng trỏ một thư mục và dùng
+isolation `shared` thì vẫn sửa chung file.
 
 **Trang chủ** là màn mở đầu: một "văn phòng" kiểu truyện tranh, mỗi agent một bàn làm việc với bong bóng thoại cho biết
 nó đang làm gì (task đang làm, đang chờ bạn trả lời, có tin bị giữ, tạm nghỉ hoặc rảnh). Bấm vào bàn để mở kênh nhắn

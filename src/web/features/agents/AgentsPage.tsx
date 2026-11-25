@@ -29,6 +29,7 @@ import {
   type EngineInfo,
   type TokenTotal,
 } from '@/lib/api';
+import { WorkspaceMenu } from '@/components/WorkspaceMenu';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { cn } from '@/lib/utils';
@@ -614,6 +615,12 @@ function AgentEditor({
           showCloseButton={false}
         >
           <DialogHeader className="shrink-0 border-b px-6 py-5">
+            {/* The dialog cannot be closed, so it must offer the way to another workspace itself. */}
+            {h.workspaces.length > 1 && (
+              <div className="mb-2">
+                <WorkspaceMenu />
+              </div>
+            )}
             <DialogTitle className="text-2xl font-semibold">{t('agents.createLeadAgent')}</DialogTitle>
             <DialogDescription>{t('agents.firstAgentDescription')}</DialogDescription>
           </DialogHeader>

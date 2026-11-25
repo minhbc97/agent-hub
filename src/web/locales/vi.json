@@ -210,6 +210,8 @@
     "workflowStepsArray": "Danh sách bước workflow phải là mảng.",
     "workspaceHasRunningAgents": "Workspace có agent đang chạy. Hãy đợi các lượt chạy kết thúc rồi xoá.",
     "workspaceFoldersBusy": "Có agent đang chạy. Đợi lượt chạy xong rồi mới đổi thư mục làm việc hoặc thư mục bản sao git.",
+    "workspaceNameExists": "Đã có workspace tên “{{name}}”.",
+    "worktreesDirTaken": "Workspace “{{name}}” đã để bản sao git trong thư mục này. Hãy chọn thư mục khác.",
     "workspaceNameRequired": "Cần tên workspace.",
     "workspaceNotFound": "Không tìm thấy workspace.",
     "agentRunningCannotSwitchEngine": "Agent đang chạy. Hãy đợi lượt chạy kết thúc rồi đổi engine.",
@@ -433,6 +435,10 @@
     "yourWorkflows": "Workflow của bạn"
   },
   "workspace": {
+    "createDescription": "Mỗi workspace có thư mục, agent, task và workflow riêng, không dùng chung với workspace khác.",
+    "newWorkspace": "Workspace mới",
+    "switchFrom": "Workspace {{name}}. Chuyển workspace",
+    "workspaces": "Các workspace",
     "createWorkspace": "Tạo workspace",
     "created": "Đã tạo workspace",
     "deleteConfirmation": "Xoá workspace cùng dữ liệu liên quan. Không thể hoàn tác.",

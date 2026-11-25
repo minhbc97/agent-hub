@@ -5,14 +5,16 @@ import {
   getWorkflow,
   getWorkspace,
   listAgents,
+  listWorkspaces,
   newId,
   type Agent,
   type Workflow,
   type WorkflowStep,
+  type Workspace,
   type WorkspaceSettings,
 } from '../db.ts';
 import { nextRuns } from '../cron.ts';
-import { hasGitHead } from '../git.ts';
+import { hasGitHead, worktreesBase } from '../git.ts';
 import { isEngineSupported } from '../engines/index.ts';
 import {
   ENGINE,
@@ -134,6 +136,17 @@ export function workspaceFields(b: Record<string, unknown>, creating: boolean) {
   }
   if (b.worktreesDir !== undefined) out.worktreesDir = str(b.worktreesDir).trim();
   return out;
+}
+
+/** Workspaces work independently: a shared worktree folder would put same-named agents of both in one checkout. */
+export function assertSeparateWorkspace(next: Pick<Workspace, 'name' | 'repoPath' | 'worktreesDir'>, id?: string) {
+  const others = listWorkspaces().filter((w) => w.id !== id);
+  const key = (s: string) => s.toLowerCase();
+  if (others.some((w) => key(w.name) === key(next.name)))
+    throw new HttpError(400, 'errors.workspaceNameExists', { name: next.name });
+  const base = (w: typeof next) => (w.repoPath || w.worktreesDir ? key(worktreesBase(w)) : null);
+  const taken = base(next) && others.find((w) => base(w) === base(next));
+  if (taken) throw new HttpError(400, 'errors.worktreesDirTaken', { name: taken.name });
 }
 
 export function settingsFields(v: unknown, workspaceId: string): Partial<WorkspaceSettings> {

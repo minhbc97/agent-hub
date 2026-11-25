@@ -1,6 +1,6 @@
 import { HttpError } from '../http/errors.ts';
 import { body } from '../http/request.ts';
-import { needWorkspace, workspaceFields, settingsFields } from '../api/validation.ts';
+import { assertSeparateWorkspace, needWorkspace, workspaceFields, settingsFields } from '../api/validation.ts';
 import {
   createWorkspace,
   deleteWorkspace,
@@ -24,7 +24,9 @@ on('GET', '/api/workspaces/:ws/git', (_req, _r, p) => ({ hasGit: hasGitHead(need
 
 on('POST', '/api/workspaces', async (req) => {
   const b = await body(req);
-  const ws = createWorkspace(workspaceFields(b, true) as { name: string });
+  const fields = { name: '', repoPath: '', worktreesDir: '', ...workspaceFields(b, true) };
+  assertSeparateWorkspace(fields);
+  const ws = createWorkspace(fields);
   emit({ type: 'agent', workspaceId: ws.id });
   return ws;
 });
@@ -33,10 +35,13 @@ on('PATCH', '/api/workspaces/:ws', async (req, _r, p) => {
   const cur = needWorkspace(p.ws!);
   const b = await body(req);
   const fields = workspaceFields(b, false);
+  // Only what changes is checked, so workspaces saved before this rule can still change everything else.
+  const isRenamed = fields.name !== undefined && fields.name !== cur.name;
   const settings = b.settings !== undefined ? settingsFields(b.settings, cur.id) : undefined;
   const movesFolders =
     (fields.repoPath !== undefined && fields.repoPath !== cur.repoPath) ||
     (fields.worktreesDir !== undefined && fields.worktreesDir !== cur.worktreesDir);
+  if (isRenamed || movesFolders) assertSeparateWorkspace({ ...cur, ...fields }, cur.id);
   const team = listAgents(cur.id);
   // A turn in flight keeps its old folder; moving it underneath would split one task across two checkouts.
   if (movesFolders && team.some((a) => isAgentRunning(a.id))) throw new HttpError(409, 'errors.workspaceFoldersBusy');
