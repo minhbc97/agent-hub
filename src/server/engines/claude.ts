@@ -14,13 +14,10 @@ const DENIED_TOOLS = ['Bash(git push:*)', 'Bash(git merge:*)', 'Bash(git rebase:
  * Lean start: without the user's plugins, skills, hooks and MCP servers, and with only the file and shell tools.
  * Measured on 2.1.329: the fixed prompt every model call carries drops from ~49k to ~9k tokens.
  */
-const LEAN_ARGS = [
-  '--strict-mcp-config',
-  '--setting-sources',
-  'project,local',
-  '--tools',
-  'Read,Write,Edit,Bash,Glob,Grep',
-];
+const LEAN_ARGS = ['--strict-mcp-config', '--setting-sources', 'project,local', '--tools'];
+const LEAN_TOOLS = 'Read,Write,Edit,Bash,Glob,Grep';
+/** Loads MCP tool descriptions on demand; without it every model call carries them all (Atlassian: 42k vs 23k tokens). */
+const LEAN_MCP_TOOLS = `${LEAN_TOOLS},ToolSearch`;
 
 /** Messages go in and events come out as JSON lines; replayed messages tell the hub which ones Claude has read. */
 const STREAM_ARGS = [
@@ -45,7 +42,7 @@ export const claude: EngineAdapter = {
     if (agent.model) parts.push('--model', q(agent.model));
     if (resumeId) parts.push('--resume', q(resumeId));
     for (const d of extraDirs) parts.push('--add-dir', q(d));
-    if (agent.isLean) parts.push(...LEAN_ARGS);
+    if (agent.isLean) parts.push(...LEAN_ARGS, agent.mcpServers.length ? LEAN_MCP_TOOLS : LEAN_TOOLS);
     // Picked servers are the user's explicit choice, so their tools run without a permission prompt headless
     // turns could not answer.
     const allowed = agent.allowedCommands.map((c) => q(`Bash(${c}:*)`));

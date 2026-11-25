@@ -159,6 +159,12 @@ assert.equal(claude.parse('{"type":"result","result":"ok","usage":{}}', '', 0).c
 assert.ok(
   claude.command({ ...agent, isLean: true }, { resumeId: null, extraDirs: [] }).includes('--strict-mcp-config'),
 );
+// Lean agents get ToolSearch only with MCP servers, so their tool descriptions load on demand.
+const leanCommand = (mcpServers: string[]) =>
+  claude.command({ ...agent, isLean: true, mcpServers }, { resumeId: null, extraDirs: [] });
+assert.ok(!leanCommand([]).includes('ToolSearch'));
+assert.ok(leanCommand(['jira']).includes(',ToolSearch --mcp-config'));
+claude.afterTurn!(agent);
 assert.equal(mcpToolPrefix('plugin:design:google calendar'), 'mcp__plugin_design_google_calendar');
 
 // Codex: the context is the last model call's input from its rollout log, found by thread id.

@@ -9,6 +9,10 @@ the project uses [Semantic Versioning](https://semver.org/).
 
 - Pause limit per workspace: hold messages once an engine's plan usage reaches a chosen percentage.
 
+### Changed
+
+- Lean agents with MCP servers load tool descriptions on demand, which cuts the fixed prompt of every model call.
+
 ### Fixed
 
 - Reporting a task done no longer erases the agent's handoff note, nor its session while other work is under way.

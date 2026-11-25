@@ -43,7 +43,8 @@ claude -p --input-format stream-json --output-format stream-json --verbose --rep
 
 **Chế độ gọn** (công tắc trong form agent, chỉ Claude): thêm `--strict-mcp-config --setting-sources project,local
 --tools Read,Write,Edit,Bash,Glob,Grep`. Mặc định `claude -p` nạp plugin, skill, hook và MCP cấp user, khoảng 49k token
-nền mỗi lần gọi API; chế độ gọn còn khoảng 10k. Đổi lại agent mất MCP cấp user, trừ server được chọn riêng ở dưới.
+nền mỗi lần gọi API; chế độ gọn còn khoảng 10k. Agent có chọn MCP thì thêm tool `ToolSearch` để mô tả tool MCP chỉ nạp
+khi cần (đo với Atlassian: 42k còn 23k). Đổi lại agent mất MCP cấp user, trừ server được chọn riêng ở dưới.
 
 **MCP theo agent**: form liệt kê server MCP đọc từ `~/.claude.json` và plugin đã cài. Ở chế độ gọn, server được chọn
 ghi vào `data/mcp/<agentId>.json` rồi truyền qua `--mcp-config`. Cấu hình có thể chứa token nên file chỉ tồn tại trong
