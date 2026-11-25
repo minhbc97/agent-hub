@@ -4,6 +4,7 @@ import { needWorkspace, needTask, resolveAssignee } from '../api/validation.ts';
 import { TASK_STATUS, TASK_STATUSES } from '../../shared/contracts.ts';
 import { createTask, deleteTask, getWorkflow, listTasks, updateTask, type TaskStatus } from '../db.ts';
 import { answer, decide, startTask } from '../workflow.ts';
+import { taskChanges } from '../task-branch.ts';
 import { tick } from '../bus.ts';
 import { emit } from '../events.ts';
 import { on } from '../http/router.ts';
@@ -55,6 +56,11 @@ on('DELETE', '/api/tasks/:id', (_q, _r, p) => {
   deleteTask(task.id);
   emit({ type: 'task', workspaceId: task.workspaceId });
   return { ok: true };
+});
+
+on('GET', '/api/tasks/:id/changes', (_q, _r, p) => {
+  const task = needTask(p.id!);
+  return taskChanges(needWorkspace(task.workspaceId).repoPath, task);
 });
 
 on('POST', '/api/tasks/:id/start', async (req, _r, p) => {

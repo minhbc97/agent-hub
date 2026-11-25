@@ -10,6 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { TaskChanges } from '@/components/TaskChanges';
 import { t } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { Avatar, Field, PageHeading, TASK_TONE, label, type Tone } from '@/components/shared';
@@ -331,6 +332,7 @@ function TaskSheet({ task, close }: { task: Task | null; close: () => void }) {
                   <Card className="p-3 leading-6 whitespace-pre-wrap">{task.result}</Card>
                 </div>
               )}
+              <TaskChanges key={task.id} task={task} />
               {(task.status === TASK_STATUS.review || task.status === TASK_STATUS.blocked) &&
                 waitingText(task, h.workflows) && (
                   <p className="text-sm text-warning">{waitingText(task, h.workflows)}</p>

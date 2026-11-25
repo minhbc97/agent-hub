@@ -50,7 +50,8 @@ Engine và session:
 
 Điều phối:
 
-- Mỗi agent làm trong git worktree riêng (mặc định), repo dùng chung, hoặc thư mục tự chọn.
+- Mỗi agent làm trong git worktree riêng (mặc định), repo dùng chung, hoặc thư mục tự chọn. Với worktree, code của task
+  đi theo task qua từng bước và bạn xem diff trước khi tự merge.
 - Routing star cho mọi tin đi qua Lead Agent; mesh cho các cặp được chọn nhắn thẳng.
 - Loop guard dừng chuỗi tin agent→agent sau `maxHops` tin không có người chen vào.
 - Giới hạn số agent chạy cùng lúc và số lượt mỗi giờ, timeout mỗi lượt kill cả cây tiến trình.

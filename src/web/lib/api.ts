@@ -4,6 +4,7 @@ import type {
   Meta,
   Run,
   Task,
+  TaskChanges,
   TokenTotal,
   UsageReport,
   Workflow,
@@ -46,7 +47,9 @@ export type {
   Message,
   Meta,
   Run,
+  FileChange,
   Task,
+  TaskChanges,
   TaskStatus,
   TokenTotal,
   EngineUsage,
@@ -126,6 +129,7 @@ export const api = {
   ) => call<Task>('POST', `/api/workspaces/${ws}/tasks`, t),
   updateTask: (id: string, t: Partial<Pick<Task, 'title' | 'body' | 'status' | 'assigneeId'>>) =>
     call<Task>('PATCH', `/api/tasks/${id}`, t),
+  taskChanges: (id: string) => call<TaskChanges | null>('GET', `/api/tasks/${id}/changes`),
   deleteTask: (id: string) => call('DELETE', `/api/tasks/${id}`),
   startTask: (id: string, note?: string) => call<Task>('POST', `/api/tasks/${id}/start`, { note }),
   decide: (id: string, approve: boolean, note: string) =>

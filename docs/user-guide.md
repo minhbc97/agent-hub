@@ -127,6 +127,9 @@ todo ──Bắt đầu──▶ doing ──agent báo done──▶ (bước c
 Agent cũng có thể tự tạo task khi giao việc cho agent khác (`"task":"new"` trong outbox); task đó hiện trên board.
 Task xong thì agent đã giao việc tự nhận được kết quả.
 
+Với agent dùng worktree, mục **Thay đổi code** trong task và thẻ duyệt hiện diff từng file kèm lệnh `git merge` để bạn tự
+đưa vào nhánh của mình. Hub tự lưu thay đổi sau mỗi lượt, gồm mọi file không nằm trong `.gitignore`.
+
 ## 6. Quy trình (workflow)
 
 Editor theo chiều dọc:

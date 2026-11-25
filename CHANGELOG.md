@@ -7,6 +7,8 @@ the project uses [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- Each task's code follows it from agent to agent (worktree isolation), starts from the repo's current HEAD, and shows
+  as a diff with a merge command in the task and its review card.
 - Allowed commands per agent: shell commands Claude may run without asking, such as `npm test`.
 - Stop an agent's running turn.
 - CI on Windows, macOS and Linux.

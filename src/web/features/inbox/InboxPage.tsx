@@ -36,6 +36,7 @@ import { InputGroup, InputGroupAddon, InputGroupInput } from '@/components/ui/in
 import { i18n, t } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { AgentAvatar, Avatar, UserAvatar, label } from '@/components/shared';
+import { TaskChanges } from '@/components/TaskChanges';
 import { Composer } from '@/components/Composer';
 
 /** Only acts that change what the reader should do get a badge; plain chat stays unlabeled. */
@@ -694,6 +695,7 @@ function NeedTask({ task }: { task: Task }) {
           {task.result && (
             <p className="mt-3 line-clamp-6 rounded-lg bg-muted/60 p-3 text-sm/6 whitespace-pre-wrap">{task.result}</p>
           )}
+          {isReview && <TaskChanges task={task} className="mt-3" />}
           {!isReview && !!question?.options.length && (
             <AnswerOptions
               options={question.options}

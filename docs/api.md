@@ -60,6 +60,7 @@ REST JSON tại `http://127.0.0.1:4310/api/...`. Kiểu dữ liệu chi tiết n
 | GET | `/api/workspaces/:ws/tasks` | |
 | POST | `/api/workspaces/:ws/tasks` | `title` (bắt buộc), `body`, `workflowId` **hoặc** `assigneeId` (id/tên agent, `"user"`), `start` (mặc định bắt đầu ngay; `false` để giữ ở `todo`) |
 | PATCH | `/api/tasks/:id` | `title`, `body`, `status`, `assigneeId` |
+| GET | `/api/tasks/:id/changes` | `{ branch, files: [{ path, added, deleted, patch }] }` so với lúc task bắt đầu; `null` nếu task không có code riêng |
 | DELETE | `/api/tasks/:id` | |
 | POST | `/api/tasks/:id/start` | `note`. Chỉ khi task ở `todo` và đã có người làm hoặc workflow |
 | POST | `/api/tasks/:id/decision` | `approve` (bool), `note`. Chỉ khi task ở `review` |

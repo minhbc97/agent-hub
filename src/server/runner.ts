@@ -19,6 +19,7 @@ import {
   type Agent,
   type Message,
   type Run,
+  type Task,
   type Workspace,
 } from './db.ts';
 import { adapterFor, type TurnResult } from './engines/index.ts';
@@ -27,6 +28,7 @@ import { engineBlock } from './availability.ts';
 import { OPENROUTER_API_KEY_ENV } from './engines/openrouter.ts';
 import { hasGitHead } from './git.ts';
 import { emit } from './events.ts';
+import { enterTask, leaveTask } from './task-branch.ts';
 import { formatIncoming, preamble, type Brief } from './preamble.ts';
 
 const HUB_URL = `http://127.0.0.1:${process.env.HUB_PORT ?? 4310}`;
@@ -147,14 +149,28 @@ async function takeTurn(
     formatted.length === 1
       ? formatted[0]!
       : `You have ${formatted.length} new messages; handle all of them in this turn.\n\n${formatted.join('\n\n---\n\n')}`;
-  const outcome = await runPrompt(current, ws, message.id, stop, (cwd) =>
-    current.sessionId
-      ? incoming
+  const task = codeTask(current, batch);
+  let taskCwd = '';
+  const outcome = await runPrompt(current, ws, message.id, stop, async (cwd) => {
+    let prompt = incoming;
+    if (task) {
+      prompt = `${await enterTask(ws.repoPath, cwd, current.name, task)}\n\n${incoming}`;
+      taskCwd = cwd;
+    }
+    return current.sessionId
+      ? prompt
       : `${preamble(current, listAgents(ws.id), ws, outboxDir(current.id), {
           briefs: loadBriefs(current.briefFiles, cwd),
           openTasks: listTasks(ws.id).filter((t) => t.assigneeId === current.id && OPEN_TASK.has(t.status)),
-        })}\n\n---\n\n${incoming}`,
-  );
+        })}\n\n---\n\n${prompt}`;
+  });
+  // A failed or stopped turn is saved too: the next one continues from what it left.
+  if (task && taskCwd) {
+    const warning = await leaveTask(taskCwd, current.name, task).catch(
+      (err: Error) => `The changes of ${task.key} could not be saved to git: ${err.message}`,
+    );
+    if (warning) outcome.result.text += `\n\n[agent-hub] ${warning}`;
+  }
 
   const { result } = outcome;
   const isSameSession = !!result.sessionId && result.sessionId === current.sessionId;
@@ -163,6 +179,14 @@ async function takeTurn(
     turnsInSession: (isSameSession ? current.turnsInSession : 0) + 1,
   });
   return outcome;
+}
+
+/** The task whose code the turn works on: the one assigned to the agent, when it has a worktree to put it in. */
+function codeTask(agent: Agent, batch: Incoming[]): Task | undefined {
+  if (agent.isolation !== ISOLATION.worktree) return undefined;
+  return batch
+    .map(({ message }) => (message.taskId ? getTask(message.taskId) : undefined))
+    .find((task) => task?.assigneeId === agent.id);
 }
 
 /**
@@ -256,7 +280,7 @@ async function runPrompt(
   ws: Workspace,
   messageId: string,
   stop: AbortSignal,
-  buildPrompt: (cwd: string) => string,
+  buildPrompt: (cwd: string) => string | Promise<string>,
 ): Promise<TurnOutcome> {
   const adapter = adapterFor(agent.engine);
   const outbox = outboxDir(agent.id);
@@ -268,12 +292,12 @@ async function runPrompt(
   try {
     if (adapter.run) {
       const signal = AbortSignal.any([stop, AbortSignal.timeout(timeoutMs)]);
-      result = await adapter.run(agent, buildPrompt(ws.repoPath || '.'), signal);
+      result = await adapter.run(agent, await buildPrompt(ws.repoPath || '.'), signal);
       if (result.isError && stop.aborted) result.text = STOPPED;
       exitCode = result.isError ? 1 : 0;
     } else {
       const cwd = resolveCwd(agent, ws);
-      const prompt = buildPrompt(cwd);
+      const prompt = await buildPrompt(cwd);
       const cmd = adapter.command(agent, { resumeId: agent.sessionId, extraDirs: [outbox] });
       const out = await exec(
         cmd,
