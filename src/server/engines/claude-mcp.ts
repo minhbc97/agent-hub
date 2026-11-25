@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import type { Agent } from '../../shared/contracts.ts';
@@ -69,13 +69,23 @@ export function claudeMcpServers(): Record<string, Config> {
 /** Tool-permission prefix Claude uses for a server's tools (`mcp__<name>__<tool>`). */
 export const mcpToolPrefix = (name: string) => `mcp__${name.replace(/[^a-zA-Z0-9_-]/g, '_')}`;
 
-/** Write the agent's picked servers to a config file for `--mcp-config`; servers no longer installed are skipped. */
+const MCP_DIR = join(DATA_DIR, 'mcp');
+const mcpConfigFile = (agent: Agent) => join(MCP_DIR, `${agent.id}.json`);
+
+/**
+ * Write the agent's picked servers to a config file for `--mcp-config`; servers no longer installed are skipped.
+ * Server entries can hold tokens, so the file only exists during the turn and only its owner can read it.
+ */
 export function writeMcpConfig(agent: Agent): string {
   const all = claudeMcpServers();
   const mcpServers = Object.fromEntries(agent.mcpServers.filter((name) => all[name]).map((name) => [name, all[name]]));
-  const dir = join(DATA_DIR, 'mcp');
-  mkdirSync(dir, { recursive: true });
-  const file = join(dir, `${agent.id}.json`);
-  writeFileSync(file, JSON.stringify({ mcpServers }, null, 2));
+  mkdirSync(MCP_DIR, { recursive: true, mode: 0o700 });
+  const file = mcpConfigFile(agent);
+  writeFileSync(file, JSON.stringify({ mcpServers }), { mode: 0o600 });
   return file;
 }
+
+export const removeMcpConfig = (agent: Agent) => rmSync(mcpConfigFile(agent), { force: true, maxRetries: 3 });
+
+/** Config files left behind by a hub that was killed mid-turn or by a release that kept them. */
+export const removeAllMcpConfigs = () => rmSync(MCP_DIR, { recursive: true, force: true, maxRetries: 3 });

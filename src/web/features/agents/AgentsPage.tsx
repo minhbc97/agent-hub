@@ -10,10 +10,12 @@ import {
   Plus,
   RotateCcw,
   Settings2,
+  Square,
   Trash2,
 } from 'lucide-react';
 import { PAGE, useHub, agentState } from '@/lib/hub';
 import {
+  AGENT_STATUS,
   api,
   DEFAULT_CONTEXT_LIMIT,
   ENGINE,
@@ -768,7 +770,8 @@ export function AgentDetail({ id }: { id: string }) {
       .runs(id)
       .then(setRuns)
       .catch(() => setRuns([]));
-  }, [id]);
+    // The status changes when a turn starts or ends.
+  }, [id, a?.status]);
   const [isEditing, setEditing] = useState(false);
   if (!a) return <div>{t('errors.agentNotFound')}</div>;
   const state = agentState(a, h.messages);
@@ -804,6 +807,12 @@ export function AgentDetail({ id }: { id: string }) {
           </p>
         </div>
         <div className="flex shrink-0 gap-2">
+          {a.status === AGENT_STATUS.working && (
+            <Button variant="destructive" onClick={() => h.attempt(() => api.stopAgent(a.id), t('agents.turnStopped'))}>
+              <Square />
+              {t('agents.stopTurn')}
+            </Button>
+          )}
           <Button variant="outline" onClick={() => h.attempt(() => api.testAgent(a.id), t('agents.testRunQueued'))}>
             <Play />
             {t('agents.testRun')}

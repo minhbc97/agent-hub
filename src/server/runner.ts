@@ -88,11 +88,42 @@ export interface Incoming {
   fromName: string;
 }
 
+const STOPPED = 'Stopped by the user';
+const turns = new Map<string, AbortController>();
+
+/** End the agent's current turn, handoff note included. False when it has none. */
+export function stopTurn(agentId: string): boolean {
+  const turn = turns.get(agentId);
+  turn?.abort();
+  return !!turn;
+}
+
 /**
  * Run one headless turn of an agent for the messages waiting for it (the first one owns the run), on `engine`:
  * the agent's own, or its fallback while its own is out of quota.
  */
 export async function runTurn(agentId: string, batch: Incoming[], engine?: Engine): Promise<TurnOutcome> {
+  const turn = new AbortController();
+  turns.set(agentId, turn);
+  try {
+    return await takeTurn(agentId, batch, engine, turn.signal);
+  } finally {
+    turns.delete(agentId);
+    const agent = getAgent(agentId);
+    if (agent) {
+      // Re-read: the human may have paused the agent while it was working.
+      updateAgent(agent.id, { status: agent.paused ? AGENT_STATUS.paused : AGENT_STATUS.idle });
+      emit({ type: 'agent', workspaceId: agent.workspaceId, id: agent.id });
+    }
+  }
+}
+
+async function takeTurn(
+  agentId: string,
+  batch: Incoming[],
+  engine: Engine | undefined,
+  stop: AbortSignal,
+): Promise<TurnOutcome> {
   const message = batch[0]!.message;
   let agent = getAgent(agentId);
   if (!agent) throw new Error(`Unknown agent ${agentId}`);
@@ -103,9 +134,9 @@ export async function runTurn(agentId: string, batch: Incoming[], engine?: Engin
   const target = engine ?? agent.engine;
   const sessionEngine = agent.activeEngine ?? agent.engine;
   if (agent.sessionId && sessionEngine !== target)
-    agent = { ...agent, ...(await leaveSession(agent, sessionEngine, ws, message.id)) };
+    agent = { ...agent, ...(await leaveSession(agent, sessionEngine, ws, message.id, stop)) };
   else if (agent.sessionId && shouldRotate(agent, agent.sessionId))
-    agent = { ...agent, ...(await rotateSession(runsAs(agent, sessionEngine), ws, message.id)) };
+    agent = { ...agent, ...(await rotateSession(runsAs(agent, sessionEngine), ws, message.id, stop)) };
   const activeEngine = target === agent.engine ? null : target;
   if (agent.activeEngine !== activeEngine) updateAgent(agent.id, { activeEngine });
   const current = runsAs({ ...agent, activeEngine }, target);
@@ -116,7 +147,7 @@ export async function runTurn(agentId: string, batch: Incoming[], engine?: Engin
     formatted.length === 1
       ? formatted[0]!
       : `You have ${formatted.length} new messages; handle all of them in this turn.\n\n${formatted.join('\n\n---\n\n')}`;
-  const outcome = await runPrompt(current, ws, message.id, (cwd) =>
+  const outcome = await runPrompt(current, ws, message.id, stop, (cwd) =>
     current.sessionId
       ? incoming
       : `${preamble(current, listAgents(ws.id), ws, outboxDir(current.id), {
@@ -130,9 +161,7 @@ export async function runTurn(agentId: string, batch: Incoming[], engine?: Engin
   updateAgent(current.id, {
     sessionId: result.sessionId ?? current.sessionId,
     turnsInSession: (isSameSession ? current.turnsInSession : 0) + 1,
-    status: current.paused ? AGENT_STATUS.paused : AGENT_STATUS.idle,
   });
-  emit({ type: 'agent', workspaceId: ws.id, id: current.id });
   return outcome;
 }
 
@@ -155,8 +184,10 @@ function shouldRotate(agent: Agent, sessionId: string): boolean {
  * Ask the agent for a handoff note in its old session, then drop that session. Works for any engine with sessions
  * because the note is plain reply text; the next fresh session gets it in its preamble.
  */
-async function rotateSession(agent: Agent, ws: Workspace, messageId: string): Promise<SessionPatch> {
-  const { result } = await runPrompt(agent, ws, messageId, () => HANDOFF_PROMPT);
+async function rotateSession(agent: Agent, ws: Workspace, messageId: string, stop: AbortSignal): Promise<SessionPatch> {
+  const { result } = await runPrompt(agent, ws, messageId, stop, () => HANDOFF_PROMPT);
+  // A stop must not cost the agent its memory: the session stays and the note is asked for again next turn.
+  if (stop.aborted) throw new Error(STOPPED);
   // A failed note keeps the previous one; the session is dropped either way, since it is what costs tokens.
   const handoff = result.isError ? agent.handoff : result.text.trim().slice(0, MAX_HANDOFF_CHARS);
   const patch = { sessionId: null, turnsInSession: 0, handoff };
@@ -170,8 +201,8 @@ type SessionPatch = Pick<Agent, 'sessionId' | 'turnsInSession' | 'handoff'>;
  * Switching engines: a session only resumes on the CLI that made it. The old engine writes the handoff note when it
  * still can; an engine that is out of quota cannot, so the hub writes one from the agent's recent messages.
  */
-async function leaveSession(agent: Agent, sessionEngine: Engine, ws: Workspace, messageId: string) {
-  if (!engineBlock(sessionEngine)) return rotateSession(runsAs(agent, sessionEngine), ws, messageId);
+async function leaveSession(agent: Agent, sessionEngine: Engine, ws: Workspace, messageId: string, stop: AbortSignal) {
+  if (!engineBlock(sessionEngine)) return rotateSession(runsAs(agent, sessionEngine), ws, messageId, stop);
   const names = new Map(listAgents(ws.id).map((a) => [a.id, a.name]));
   const recent = listMessages(ws.id)
     .filter((m) => m.fromId === agent.id || m.toId === agent.id)
@@ -224,6 +255,7 @@ async function runPrompt(
   agent: Agent,
   ws: Workspace,
   messageId: string,
+  stop: AbortSignal,
   buildPrompt: (cwd: string) => string,
 ): Promise<TurnOutcome> {
   const adapter = adapterFor(agent.engine);
@@ -235,7 +267,9 @@ async function runPrompt(
   let exitCode: number | null = null;
   try {
     if (adapter.run) {
-      result = await adapter.run(agent, buildPrompt(ws.repoPath || '.'), timeoutMs);
+      const signal = AbortSignal.any([stop, AbortSignal.timeout(timeoutMs)]);
+      result = await adapter.run(agent, buildPrompt(ws.repoPath || '.'), signal);
+      if (result.isError && stop.aborted) result.text = STOPPED;
       exitCode = result.isError ? 1 : 0;
     } else {
       const cwd = resolveCwd(agent, ws);
@@ -247,21 +281,26 @@ async function runPrompt(
         cwd,
         timeoutMs,
         { HUB_OUTBOX: outbox, HUB_AGENT: agent.name, HUB_URL },
+        stop,
         adapter.isTurnOver,
       );
       // Killed by us after the CLI reported the turn finished: that is a normal end, not a crash.
       exitCode = out.endedEarly ? 0 : out.code;
-      result = out.timedOut
-        ? {
-            ...adapter.parse(out.stdout, out.stderr, exitCode),
-            isError: true,
-            text: `Timed out after ${ws.settings.turnTimeoutMin} min`,
-          }
-        : adapter.parse(out.stdout, out.stderr, exitCode);
+      result = adapter.parse(out.stdout, out.stderr, exitCode);
+      if (out.timedOut || out.stopped) {
+        result.isError = true;
+        result.text = out.stopped ? STOPPED : `Timed out after ${ws.settings.turnTimeoutMin} min`;
+      }
     }
   } catch (err) {
     result = adapter.parse('', String((err as Error).message), null);
     result.isError = true;
+  } finally {
+    try {
+      adapter.afterTurn?.(agent);
+    } catch (err) {
+      console.error(`cleanup after a turn of ${agent.name} failed`, err); // the turn's result still counts
+    }
   }
 
   if (adapter.cumulativeUsage && result.sessionId && result.sessionId === agent.sessionId) {
@@ -298,9 +337,15 @@ interface ExecOut {
   stderr: string;
   code: number | null;
   timedOut: boolean;
+  stopped: boolean;
   /** The CLI reported its turn finished but did not exit (e.g. a command it started still hangs), so we ended it. */
   endedEarly: boolean;
 }
+
+const IS_WINDOWS = process.platform === 'win32';
+const livePids = new Set<number>();
+// CLIs run outside the hub's process group, so the terminal's Ctrl+C does not reach them.
+process.on('exit', () => livePids.forEach(killTree));
 
 /** Time a CLI gets to exit by itself after reporting its turn finished. */
 const TURN_EXIT_GRACE_MS = 10_000;
@@ -311,9 +356,11 @@ function exec(
   cwd: string,
   timeoutMs: number,
   env: Record<string, string>,
+  stop: AbortSignal,
   isTurnOver?: (stdout: string) => boolean,
 ): Promise<ExecOut> {
   return new Promise((resolvePromise, reject) => {
+    stop.throwIfAborted();
     const childEnv = { ...process.env };
     delete childEnv[OPENROUTER_API_KEY_ENV];
     const child = spawn(cmd, {
@@ -321,10 +368,14 @@ function exec(
       cwd,
       env: { ...childEnv, ...env },
       windowsHide: true,
+      // Its own process group, so killTree can end everything the CLI started.
+      detached: !IS_WINDOWS,
     });
+    if (child.pid) livePids.add(child.pid);
     let stdout = '';
     let stderr = '';
     let timedOut = false;
+    let stopped = false;
     let endedEarly = false;
     let graceTimer: NodeJS.Timeout | undefined;
     child.stdout.setEncoding('utf8').on('data', (d) => {
@@ -340,29 +391,38 @@ function exec(
       timedOut = true;
       killTree(child.pid);
     }, timeoutMs);
-    child.on('error', (e) => {
+    const onStop = () => {
+      stopped = true;
+      killTree(child.pid);
+    };
+    stop.addEventListener('abort', onStop);
+    const release = () => {
       clearTimeout(timer);
       clearTimeout(graceTimer);
+      stop.removeEventListener('abort', onStop);
+      if (child.pid) livePids.delete(child.pid);
+    };
+    child.on('error', (e) => {
+      release();
       reject(e);
     });
     child.on('close', (code) => {
-      clearTimeout(timer);
-      clearTimeout(graceTimer);
-      resolvePromise({ stdout, stderr, code, timedOut, endedEarly });
+      release();
+      resolvePromise({ stdout, stderr, code, timedOut, stopped, endedEarly });
     });
     child.stdin.on('error', () => {}); // process may exit before reading stdin
     child.stdin.end(stdin, 'utf8');
   });
 }
 
-function killTree(pid: number | undefined) {
+function killTree(pid: number | undefined): void {
   if (!pid) return;
   try {
-    if (process.platform === 'win32')
+    if (IS_WINDOWS)
       execFileSync('taskkill', ['/pid', String(pid), '/T', '/F'], {
         stdio: 'ignore',
       });
-    else process.kill(pid, 'SIGKILL');
+    else process.kill(-pid, 'SIGKILL');
   } catch {
     /* already gone */
   }

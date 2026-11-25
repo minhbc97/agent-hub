@@ -8,6 +8,7 @@ Mỗi engine là một adapter trong `src/server/engines/`, cài đặt interfac
 | `command(agent, { resumeId, extraDirs })` | có | Trả về dòng lệnh shell cho một lượt. Prompt **luôn đi qua stdin** để tránh lỗi quoting và giới hạn độ dài lệnh trên Windows. `extraDirs` là các thư mục agent cần ghi (outbox). |
 | `parse(stdout, stderr, exitCode)` | có | Trả về `{ text, sessionId, usage, isError }`. |
 | `cumulativeUsage` | không | `true` khi CLI báo token cộng dồn cả session khi resume; runner tự trừ phần đã lưu. |
+| `afterTurn(agent)` | không | Xoá file mà `command` tạo cho lượt; chạy dù lượt kết thúc thế nào. |
 | `isTurnOver(stdout)` | không | `true` khi stdout cho thấy lượt đã xong; CLI không thoát sau 10 giây thì runner kill và coi lượt là thành công. |
 
 Runner chạy lệnh bằng `spawn(cmd, { shell: true, cwd })` với biến môi trường `HUB_OUTBOX`, `HUB_AGENT`, `HUB_URL`.
@@ -26,6 +27,8 @@ claude -p --output-format json [--model <m>] [--resume <session>] --add-dir <out
 - Output: một object JSON có `result`, `session_id`, `is_error`, `total_cost_usd`,
   `usage.{input_tokens, output_tokens, cache_creation_input_tokens, cache_read_input_tokens}` (đã kiểm với 2.1.328).
 - Tham số mặc định: `--permission-mode acceptEdits`.
+- `acceptEdits` chỉ tự duyệt sửa file và lệnh đọc. Đã thử trên 2.1.329: `git status` chạy được, `npm test` và
+  `git add` bị từ chối. Muốn agent chạy được thì thêm vào **Tham số thêm**, ví dụ `--allowedTools "Bash(npm test:*)"`.
 - `--disallowedTools` chặn theo tiền tố lệnh, nên chưa bắt được `git -C <dir> push` hay script tự push.
   Cần chặn chắc hơn thì dùng hook `PreToolUse`.
 - Claude Code dùng đăng nhập của chính nó; hub không đọc credential.
@@ -35,7 +38,8 @@ claude -p --output-format json [--model <m>] [--resume <session>] --add-dir <out
 nền mỗi lần gọi API; chế độ gọn còn khoảng 10k. Đổi lại agent mất MCP cấp user, trừ server được chọn riêng ở dưới.
 
 **MCP theo agent**: form liệt kê server MCP đọc từ `~/.claude.json` và plugin đã cài. Ở chế độ gọn, server được chọn
-ghi vào `data/mcp/<agentId>.json` rồi truyền qua `--mcp-config`. Tên server giữ dạng `plugin:<plugin>:<server>` giống
+ghi vào `data/mcp/<agentId>.json` rồi truyền qua `--mcp-config`. Cấu hình có thể chứa token nên file chỉ tồn tại trong
+lượt chạy và bị xoá ngay sau đó (còn sót do hub bị kill thì xoá khi khởi động). Tên server giữ dạng `plugin:<plugin>:<server>` giống
 Claude nên dùng lại được đăng nhập OAuth đã có. Connector của claude.ai không truyền qua file được.
 
 ## Codex

@@ -15,7 +15,8 @@ the results or answer when an agent asks you something.
 Each message runs the CLI for one headless turn and resumes the session by id. Agents talk to each other by writing
 JSON files into their own outbox folder. Plain output goes to you only, so two agents can't reply to each other
 forever. Data is a SQLite file on your machine, the server listens on `127.0.0.1` only, and the hub never reads your
-CLI credentials.
+CLI sign-ins. MCP servers you pick for a lean agent are the one exception: their config, tokens included, is copied to a
+private file for the length of each turn.
 
 ## Quick start
 
@@ -80,7 +81,8 @@ In the UI:
 The hub runs commands on your machine, so:
 
 - The server listens on `127.0.0.1` only, rejects cross-origin writes and blocks DNS rebinding.
-- Claude agents run with `--permission-mode acceptEdits`, and `git push/merge/rebase` is blocked via
+- Claude agents run with `--permission-mode acceptEdits` (commands such as `npm test` need an `--allowedTools` entry in
+  the agent's extra arguments), and `git push/merge/rebase` is blocked via
   `--disallowedTools`.
 - Codex agents run with `sandbox_mode="workspace-write"` (plus `windows.sandbox="unelevated"` on Windows). Flags are
   passed per turn; `~/.codex/config.toml` is never modified.

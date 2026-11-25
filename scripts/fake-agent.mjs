@@ -1,4 +1,5 @@
 // Stand-in agent for tests: reads the prompt on stdin, and if it names a task, reports it done via the outbox.
+import { spawn } from 'node:child_process';
 import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
@@ -6,6 +7,12 @@ let input = '';
 process.stdin.setEncoding('utf8');
 process.stdin.on('data', (d) => (input += d));
 process.stdin.on('end', () => {
+  // "[hang]": stay alive with a child process, so stopping a turn must end the whole tree.
+  if (input.includes('[hang]')) {
+    const child = spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], { stdio: 'inherit' });
+    writeFileSync('hang.pid', String(child.pid));
+    return;
+  }
   // The preamble has an example key; the real one is in a request's header, or the last mentioned.
   const key = input.match(/act: request \| task: (T-\d+)/)?.[1] ?? [...input.matchAll(/"task":"(T-\d+)"/g)].at(-1)?.[1];
   const agent = process.env.HUB_AGENT;

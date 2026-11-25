@@ -108,12 +108,12 @@ try {
       },
     );
   };
-  const result = await openrouter.run(agent, 'test prompt', 1000);
+  const result = await openrouter.run(agent, 'test prompt', AbortSignal.timeout(1000));
   assert.equal(result.text, 'API reply');
   assert.equal(result.isError, false);
 
   shouldReject = true;
-  const rejected = await openrouter.run(agent, 'test prompt', 1000);
+  const rejected = await openrouter.run(agent, 'test prompt', AbortSignal.timeout(1000));
   assert.equal(rejected.isError, true);
   assert.ok(!rejected.text.includes('test-openrouter-key'));
 } finally {

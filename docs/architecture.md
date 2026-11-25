@@ -116,6 +116,9 @@ chuỗi dài nhất trong lô để loop guard không bị đếm lại.
 - Hub khởi động lại: agent đang `working` về `idle`; tin đang chạy thành `failed` ("interrupted by hub restart")
   và task liên quan bị block. Không tự chạy lại vì lượt dở có thể đã sửa file một nửa.
 - Timeout mỗi lượt (`turnTimeoutMin`): kill cả cây tiến trình (`taskkill /T /F` trên Windows).
+- **Dừng lượt** (`stopTurn`): kill cả cây tiến trình; tin thành `failed`, task bị block, session giữ nguyên.
+- macOS/Linux: CLI chạy trong process group riêng để kill được cả cây. Hub thoát bình thường (Ctrl+C) thì kill các CLI
+  đang chạy.
 - CLI đã báo xong lượt (adapter có `isTurnOver`) mà 10 giây sau chưa thoát thì hub kill và coi là thành công.
 - Lỗi khi quét outbox của một agent chỉ được log, không làm dừng tick của agent khác.
 

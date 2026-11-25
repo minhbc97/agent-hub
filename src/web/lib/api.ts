@@ -95,6 +95,7 @@ export const api = {
   updateAgent: (id: string, a: Partial<Agent>) => call<Agent>('PATCH', `/api/agents/${id}`, a),
   deleteAgent: (id: string) => call('DELETE', `/api/agents/${id}`),
   newSession: (id: string) => call<Agent>('POST', `/api/agents/${id}/new-session`),
+  stopAgent: (id: string) => call('POST', `/api/agents/${id}/stop`),
   testAgent: (id: string) => call<Message>('POST', `/api/agents/${id}/test`),
   runs: (id: string) => call<Run[]>('GET', `/api/agents/${id}/runs`),
 
