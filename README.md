@@ -54,7 +54,8 @@ Engines and sessions:
 
 Coordination:
 
-- Each agent works in its own git worktree (default), the shared repo, or a custom folder.
+- Each agent works in its own git worktree (default), the shared repo, or a custom folder. With worktrees, a task's code
+  moves with it from step to step, and you review the diff before merging it yourself.
 - Star routing sends everything through the lead agent; mesh lets chosen pairs talk directly.
 - The loop guard stops a chain of agent-to-agent messages after `maxHops` with no human in between.
 - Queue limits on concurrent agents and turns per hour, and a per-turn timeout that kills the whole process tree.

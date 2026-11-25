@@ -94,6 +94,21 @@ Mỗi tin từ outbox có `parentId` là tin đã kích hoạt lượt ghi ra n�
 làm chuỗi dài hơn `settings.maxHops` thì tin được tạo ở trạng thái `failed` với lý do "loop guard" và task liên quan
 bị block. **Thử lại** xoá `parentId` của tin đó nên chuỗi được đếm lại.
 
+## Code của task
+
+Agent dùng isolation `worktree` có một worktree cố định (session CLI gắn với thư mục). Code của task đi giữa các agent
+qua ref git `refs/agent-hub/<key>-<id>` (`src/server/task-branch.ts`):
+
+1. Trước lượt của agent đang được giao task, hub checkout (detached) ref đó vào worktree của agent. Lần đầu, ref tạo từ
+   `HEAD` hiện tại của repo và lưu vào `tasks.baseCommit`. Việc dở ngoài task được giữ ở `refs/agent-hub/saved/...`.
+2. Hết lượt (kể cả lỗi hay bị dừng), hub commit mọi thay đổi không bị `.gitignore` rồi dời ref. Agent tự rời sang commit
+   khác thì ref không dời; phần đó giữ ở `saved/` và câu trả lời có cảnh báo.
+3. Bước sau, kể cả của agent khác, thấy đủ code. Mỗi lượt của agent worktree chỉ gom tin của một task mình đang làm.
+4. Người xem diff ở task và tự `git merge agent-hub/<key>-<id>`. Hub không merge, không push, không xoá ref.
+
+Ref nằm ngoài `refs/heads` để không bị dời khi người đang checkout và `git push --all` không đẩy lên. Giới hạn: task con
+bắt đầu từ `HEAD` của repo, chưa thấy code chưa merge của task khác; task cũ không tự rebase.
+
 ## Session và sổ bàn giao
 
 - Agent lưu `sessionId` từ output của CLI; lượt sau truyền lại để nối session.

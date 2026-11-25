@@ -118,6 +118,7 @@ const MIGRATIONS: [table: string, column: string, ddl: string][] = [
   ['agents', 'fallbackModel', "ALTER TABLE agents ADD COLUMN fallbackModel TEXT NOT NULL DEFAULT ''"],
   ['agents', 'mcpServers', "ALTER TABLE agents ADD COLUMN mcpServers TEXT NOT NULL DEFAULT '[]'"],
   ['agents', 'allowedCommands', "ALTER TABLE agents ADD COLUMN allowedCommands TEXT NOT NULL DEFAULT '[]'"],
+  ['tasks', 'baseCommit', "ALTER TABLE tasks ADD COLUMN baseCommit TEXT NOT NULL DEFAULT ''"],
   // Agents saved before handoff notes existed never reset; move them to the context limit once.
   [
     'agents',
@@ -556,13 +557,14 @@ export function createTask(t: Pick<Task, 'workspaceId' | 'title'> & Partial<Task
     createdBy: USER_ID,
     result: '',
     waitingReason: '',
+    baseCommit: '',
     createdAt: now(),
     updatedAt: now(),
     ...t,
   };
   d.prepare(
     `INSERT INTO tasks (id, workspaceId, key, title, body, workflowId, stepId, status, assigneeId, createdBy, result,
-      waitingReason, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      waitingReason, baseCommit, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   ).run(
     task.id,
     task.workspaceId,
@@ -576,6 +578,7 @@ export function createTask(t: Pick<Task, 'workspaceId' | 'title'> & Partial<Task
     task.createdBy,
     task.result,
     task.waitingReason,
+    task.baseCommit,
     task.createdAt,
     task.updatedAt,
   );
@@ -591,6 +594,7 @@ const TASK_COLUMNS = new Set([
   'assigneeId',
   'result',
   'waitingReason',
+  'baseCommit',
 ]);
 
 export function updateTask(id: string, patch: Partial<Task>): Task | undefined {

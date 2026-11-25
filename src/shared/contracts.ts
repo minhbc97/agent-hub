@@ -214,8 +214,24 @@ export interface Task {
   result: string;
   /** Why the task waits on the human (question or approval note). */
   waitingReason: string;
+  /** Commit the task's code started from; empty until a worktree agent works on it. */
+  baseCommit: string;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface FileChange {
+  path: string;
+  added: number;
+  deleted: number;
+  /** Null when the diff is too large to show. */
+  patch: string | null;
+}
+
+export interface TaskChanges {
+  /** Name git commands accept, e.g. `git merge <branch>`. */
+  branch: string;
+  files: FileChange[];
 }
 
 export interface Run {

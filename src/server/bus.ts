@@ -8,6 +8,7 @@ import {
   MESSAGE_STATUS,
   AGENT_STATUS,
   ENGINE,
+  ISOLATION,
   TASK_STATUS,
   ROUTING,
   FALLBACK_ENGINES,
@@ -45,6 +46,7 @@ import { DomainError } from './domain-error.ts';
 import { outboxDir, resetSession, runTurn } from './runner.ts';
 import { agentAsks, agentDone, tickSchedules } from './workflow.ts';
 import { parseTaskReply } from './engines/openrouter.ts';
+import { taskBranch } from './task-branch.ts';
 import { blockEngine, engineBlock, quotaRetryAt } from './availability.ts';
 
 /** Outbox "task" value that asks the hub to create a new task for the recipient. */
@@ -207,7 +209,7 @@ function reportToDelegator(task: Task, worker: Agent, result: string, parentId: 
     toId: delegator.id,
     act: ACT.inform,
     subject: `${task.key} done · ${task.title}`,
-    body: result,
+    body: task.baseCommit ? `${result}\n\nCode: git diff ${task.baseCommit} ${taskBranch(task)}` : result,
     taskId: task.id,
     parentId,
     status: stopped ? MESSAGE_STATUS.failed : MESSAGE_STATUS.queued,
@@ -402,10 +404,19 @@ function dispatchAll(): void {
       if (active >= ws.settings.maxConcurrent) break;
       active++;
       // OpenRouter turns map one reply to one task, so they stay one message per turn.
-      const batch = agent.engine === ENGINE.openrouter ? pending.slice(0, 1) : pending.slice(0, MAX_BATCH);
+      const batch =
+        agent.engine === ENGINE.openrouter ? pending.slice(0, 1) : oneTask(agent, pending).slice(0, MAX_BATCH);
       start(agent, batch, team, engine);
     }
   }
+}
+
+/** A worktree is at one task's code at a time, so mail about the agent's other tasks waits for its own turn. */
+function oneTask(agent: Agent, pending: Message[]): Message[] {
+  if (agent.isolation !== ISOLATION.worktree) return pending;
+  const ownTask = (m: Message) => (m.taskId && getTask(m.taskId)?.assigneeId === agent.id ? m.taskId : null);
+  const current = pending.map(ownTask).find(Boolean);
+  return pending.filter((m) => [null, current].includes(ownTask(m)));
 }
 
 /** One broken outbox must not stop mail for every other agent. */
