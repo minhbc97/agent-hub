@@ -81,7 +81,10 @@ Xử lý của hub:
 - Mục không hợp lệ: file chuyển vào `rejected/` kèm `<file>.error.txt` ghi lý do. Mục hợp lệ trong cùng file vẫn được nhận.
 - Routing *star*: tin giữa hai agent thường bị chuyển qua orchestrator, tiêu đề thêm `[for <tên>]`.
   *Mesh*: các cặp trong `directPairs` được nhắn thẳng.
-- `done` + `task`: báo xong bước hiện tại (`agentDone`); `done` cũng reset session của agent.
+- `done` + `task`: báo xong bước hiện tại (`agentDone`); `done` cũng reset session của agent. Task do agent khác giao
+  (`"task":"new"`) xong thì hub tự gửi kết quả cho người giao dưới tên agent làm, nên vẫn tính vào loop guard.
+  `done` gửi thẳng cho người giao thì không gửi thêm.
+- Header tin gửi cho agent có key task (`task: T-12`) khi tin thuộc một task.
 - `needs_human` + `task`: task chuyển `blocked` kèm câu hỏi.
 
 ## Loop guard

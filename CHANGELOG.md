@@ -5,6 +5,11 @@ the project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- Agents now see the task key of each incoming message, so delegated tasks no longer get stuck in DOING.
+- An agent that delegates a task receives the result when the task is done.
+
 ## [0.1.0]
 
 First public release.

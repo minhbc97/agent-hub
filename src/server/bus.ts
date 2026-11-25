@@ -37,6 +37,7 @@ import {
   type Act,
   type Agent,
   type Message,
+  type Task,
   type Workspace,
 } from './db.ts';
 import { emit } from './events.ts';
@@ -83,9 +84,7 @@ function scanOutbox(agent: Agent, parentId: string | null): OutboxResult {
   const ws = getWorkspace(agent.workspaceId)!;
   const team = listAgents(ws.id);
   let finished = false;
-  // This turn adds one agent hop to the chain that triggered it.
-  const hops = (parentId ? agentHops(parentId) : 0) + 1;
-  const loopHold = hops > ws.settings.maxHops ? `loop guard: ${hops} agent messages in a row without a human` : null;
+  const loopHold = loopHoldReason(parentId, ws);
 
   for (const name of files) {
     const path = join(dir, name);
@@ -163,7 +162,11 @@ function scanOutbox(agent: Agent, parentId: string | null): OutboxResult {
       res.accepted.push(msg);
       emit({ type: 'message', workspaceId: ws.id, id: msg.id });
       const task = taskId && !v.newTask ? getTask(taskId) : undefined;
-      if (task && v.act === ACT.done) agentDone(task, agent.id, v.body);
+      if (task && v.act === ACT.done) {
+        const isComplete = agentDone(task, agent.id, v.body);
+        // A "done" addressed to the delegator already carries the result.
+        if (isComplete && v.toId !== task.createdBy) reportToDelegator(task, agent, v.body || v.subject, parentId);
+      }
       if (task && v.act === ACT.needsHuman) agentAsks(task, v.body || v.subject);
     }
     if (errors.length) {
@@ -182,6 +185,35 @@ function scanOutbox(agent: Agent, parentId: string | null): OutboxResult {
   if (finished) resetSession(agent.id);
   if (res.rejected.length) reportRejected(agent, res.rejected);
   return res;
+}
+
+/** Why the loop guard stops an agent message continuing `parentId`'s chain (the message adds one hop), if it does. */
+function loopHoldReason(parentId: string | null, ws: Workspace): string | null {
+  const hops = (parentId ? agentHops(parentId) : 0) + 1;
+  return hops > ws.settings.maxHops ? `loop guard: ${hops} agent messages in a row without a human` : null;
+}
+
+/**
+ * The agent that delegated a task is not running while it is done, so the result has to wake it up.
+ * Sent as the worker, not the hub: hub mail starts a new chain, which would hide delegation loops from the loop guard.
+ */
+function reportToDelegator(task: Task, worker: Agent, result: string, parentId: string | null) {
+  const delegator = getAgent(task.createdBy);
+  if (!delegator || delegator.id === worker.id) return; // created by the human or a schedule, or since deleted
+  const stopped = loopHoldReason(parentId, getWorkspace(task.workspaceId)!);
+  const msg = createMessage({
+    workspaceId: task.workspaceId,
+    fromId: worker.id,
+    toId: delegator.id,
+    act: ACT.inform,
+    subject: `${task.key} done · ${task.title}`,
+    body: result,
+    taskId: task.id,
+    parentId,
+    status: stopped ? MESSAGE_STATUS.failed : MESSAGE_STATUS.queued,
+    holdReason: stopped,
+  });
+  emit({ type: 'message', workspaceId: task.workspaceId, id: msg.id });
 }
 
 /** The agent believes it sent these; tell the human, or a lost question waits forever without anyone knowing. */
@@ -458,7 +490,8 @@ function start(agent: Agent, batch: Message[], team: Agent[], engine: Engine) {
       emit({ type: 'message', workspaceId: agent.workspaceId, id: reply.id });
       if (task && openRouterTaskReply && task.assigneeId === agent.id) {
         if (openRouterTaskReply.act === 'needs_human') agentAsks(task, openRouterTaskReply.body);
-        else agentDone(task, agent.id, openRouterTaskReply.body);
+        else if (agentDone(task, agent.id, openRouterTaskReply.body))
+          reportToDelegator(task, agent, openRouterTaskReply.body, msg.id);
       }
       if (result.isError) for (const m of batch) blockTaskOnFailure(m, agent.id, result.text);
     })

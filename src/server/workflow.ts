@@ -139,10 +139,10 @@ function advance(task: Task, wf: Workflow | undefined): Task {
   return t;
 }
 
-/** An agent reported the task (or its current step) finished. */
-export function agentDone(task: Task, agentId: string, result: string): void {
-  if (task.status === TASK_STATUS.done || task.status === TASK_STATUS.archived) return;
-  if (task.assigneeId && task.assigneeId !== agentId) return; // not this agent's turn
+/** An agent reported the task (or its current step) finished. True when that completes the whole task. */
+export function agentDone(task: Task, agentId: string, result: string): boolean {
+  if (task.status === TASK_STATUS.done || task.status === TASK_STATUS.archived) return false;
+  if (task.assigneeId && task.assigneeId !== agentId) return false; // not this agent's turn
   const t = updateTask(task.id, { result })!;
   const wf = t.workflowId ? getWorkflow(t.workflowId) : undefined;
   const step = wf?.steps.find((s) => s.id === t.stepId);
@@ -153,9 +153,9 @@ export function agentDone(task: Task, agentId: string, result: string): void {
       waitingReason: '',
     })!;
     touch(r);
-    return;
+    return false;
   }
-  advance(t, wf);
+  return advance(t, wf).status === TASK_STATUS.done;
 }
 
 /** An agent asked the human something about the task. */
