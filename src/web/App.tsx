@@ -1,25 +1,12 @@
 import { useState } from 'react';
 import { useTheme } from 'next-themes';
 import { useTranslation } from 'react-i18next';
-import {
-  Bot,
-  House,
-  Inbox,
-  Moon,
-  Plus,
-  Settings,
-  Sun,
-  Workflow as WorkflowIcon,
-  Columns3,
-  ArrowRight,
-  FolderKanban,
-} from 'lucide-react';
+import { Bot, House, Inbox, Moon, Plus, Settings, Sun, Workflow as WorkflowIcon, Columns3 } from 'lucide-react';
 import { PAGE, useHub, useHashRoute, waitingOnUser } from '@/lib/hub';
-import { AGENT_STATUS, api } from '@/lib/api';
+import { AGENT_STATUS } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { t } from '@/lib/i18n';
@@ -30,7 +17,8 @@ import { WorkflowsPage } from '@/features/workflows/WorkflowsPage';
 import { AgentsPage, AgentDetail, LeadAgentDialog } from '@/features/agents/AgentsPage';
 import { SettingsPage } from '@/features/settings/SettingsPage';
 import { UsageMeters } from '@/features/usage/UsageMeters';
-import { AgentAvatar, Field, FolderField } from '@/components/shared';
+import { AgentAvatar } from '@/components/shared';
+import { WorkspaceForm, WorkspaceMenu } from '@/components/WorkspaceMenu';
 
 const THEME = { dark: 'dark', light: 'light' } as const;
 
@@ -47,6 +35,13 @@ export function App() {
   // Pages translate with the plain `t()`, so the root subscribes to language changes and re-renders the tree.
   useTranslation();
   const h = useHub();
+  if (!h.ws) return <Welcome isReady={h.ready} />;
+  // Remounted per workspace, so filters, drafts and open panels of one never show in another.
+  return <WorkspaceShell key={h.ws.id} />;
+}
+
+function WorkspaceShell() {
+  const h = useHub();
   const [parts, navigate] = useHashRoute();
   const page = parts[0] || PAGE.home;
   const [filter, setFilter] = useState<string>(INBOX_CHANNEL.team);
@@ -58,7 +53,6 @@ export function App() {
     navigate(PAGE.inbox);
     setFilter(channel);
   };
-  if (!h.ws) return <Welcome isReady={h.ready} />;
   return (
     <div className="flex h-full min-h-0 min-w-(--app-min-width) flex-col bg-background">
       <AppHeader />
@@ -186,45 +180,6 @@ function SidebarItem({
   );
 }
 
-function WorkspaceMenu() {
-  const h = useHub();
-  const workspace = h.ws;
-  if (!workspace) return null;
-  return (
-    <div className="flex min-w-0 items-center gap-3">
-      <div className="grid size-10 shrink-0 place-items-center rounded-lg bg-primary text-primary-foreground">
-        <FolderKanban size={20} />
-      </div>
-      <div className="min-w-0">
-        {h.workspaces.length === 1 ? (
-          <div className="max-w-96 truncate text-lg font-semibold tracking-tight" title={workspace.name}>
-            {workspace.name}
-          </div>
-        ) : (
-          <Select value={workspace.id} onValueChange={h.selectWorkspace}>
-            <SelectTrigger
-              className="-ml-2 h-8 max-w-96 border-0 bg-transparent px-2 text-lg font-semibold shadow-none hover:bg-sidebar-accent"
-              aria-label={t('workspace.workspace')}
-            >
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {h.workspaces.map((w) => (
-                <SelectItem key={w.id} value={w.id}>
-                  {w.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
-        <div className="max-w-96 truncate text-xs text-muted-foreground" title={workspace.repoPath}>
-          {workspace.repoPath}
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function AppHeader() {
   const h = useHub();
   const { theme, setTheme } = useTheme();
@@ -266,10 +221,6 @@ function AppHeader() {
 }
 
 function Welcome({ isReady }: { isReady: boolean }) {
-  const h = useHub();
-  const [name, setName] = useState(''),
-    [repoPath, setRepo] = useState(''),
-    [worktreesDir, setTree] = useState('');
   return (
     <div className="flex min-h-full min-w-(--app-min-width) flex-col bg-background">
       <AppHeader />
@@ -288,37 +239,9 @@ function Welcome({ isReady }: { isReady: boolean }) {
               <div className="border-b px-8 py-6">
                 <h2 className="text-lg font-semibold">{t('workspace.createWorkspace')}</h2>
               </div>
-              <form
-                className="grid gap-5 p-8"
-                onSubmit={async (event) => {
-                  event.preventDefault();
-                  const created = await h.attempt(
-                    () => api.createWorkspace({ name, repoPath, worktreesDir }),
-                    t('workspace.created'),
-                  );
-                  if (created) location.hash = `/${PAGE.agents}`;
-                }}
-              >
-                <Field label={t('workspace.name')} isRequired>
-                  <Input
-                    required
-                    value={name}
-                    onChange={(event) => setName(event.target.value)}
-                    placeholder={t('workspace.exampleTeam')}
-                  />
-                </Field>
-                <FolderField label={t('workspace.repositoryPath')} value={repoPath} onChange={setRepo} />
-                <FolderField
-                  label={t('workspace.worktreeDirectory')}
-                  value={worktreesDir}
-                  onChange={setTree}
-                  placeholder={t('workspace.worktreePlaceholder')}
-                />
-                <Button type="submit" size="lg" className="mt-2 w-full justify-between" disabled={!name.trim()}>
-                  {t('workspace.createWorkspace')}
-                  <ArrowRight />
-                </Button>
-              </form>
+              <div className="p-8">
+                <WorkspaceForm onCreated={() => (location.hash = `/${PAGE.agents}`)} />
+              </div>
             </Card>
           </div>
         )}

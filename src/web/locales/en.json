@@ -210,6 +210,8 @@
     "workflowStepsArray": "Workflow steps must be an array.",
     "workspaceHasRunningAgents": "This workspace has running agents. Wait for them to finish before deleting it.",
     "workspaceFoldersBusy": "An agent is running. Wait for its turn to finish before moving the working folder or the git copies folder.",
+    "workspaceNameExists": "A workspace named “{{name}}” already exists.",
+    "worktreesDirTaken": "Workspace “{{name}}” already keeps its git copies in this folder. Choose another one.",
     "workspaceNameRequired": "Workspace name is required.",
     "workspaceNotFound": "Workspace not found.",
     "agentRunningCannotSwitchEngine": "This agent is running. Wait for its turn to finish before switching engine.",
@@ -433,6 +435,10 @@
     "yourWorkflows": "Your workflows"
   },
   "workspace": {
+    "createDescription": "A workspace has its own folder, agents, tasks and workflows. Nothing is shared with your other workspaces.",
+    "newWorkspace": "New workspace",
+    "switchFrom": "Workspace {{name}}. Switch workspace",
+    "workspaces": "Workspaces",
     "createWorkspace": "Create workspace",
     "created": "Workspace created",
     "deleteConfirmation": "Delete this workspace and its data. This cannot be undone.",

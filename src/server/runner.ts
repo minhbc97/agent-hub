@@ -26,7 +26,7 @@ import { adapterFor, type TurnResult } from './engines/index.ts';
 import { engineDefaults } from './engines/catalog.ts';
 import { engineBlock } from './availability.ts';
 import { OPENROUTER_API_KEY_ENV } from './engines/openrouter.ts';
-import { hasGitHead } from './git.ts';
+import { hasGitHead, isWorktreeOf, worktreesBase } from './git.ts';
 import { emit } from './events.ts';
 import { enterTask, leaveTask } from './task-branch.ts';
 import { formatIncoming, preamble, type Brief } from './preamble.ts';
@@ -48,7 +48,7 @@ function resolveCwd(agent: Agent, ws: Workspace): string {
   if (!ws.repoPath) throw new Error(`Workspace "${ws.name}" has no repo path`);
   if (agent.isolation === ISOLATION.shared) return resolve(ws.repoPath);
 
-  const base = ws.worktreesDir || join(ws.repoPath, '..', `${ws.name}-worktrees`);
+  const base = worktreesBase(ws);
   const path = resolve(base, agent.name);
   if (!existsSync(path)) {
     // The repo can change after the agent was saved; say what to fix rather than surface git's own error.
@@ -59,6 +59,12 @@ function resolveCwd(agent: Agent, ws: Workspace): string {
       );
     mkdirSync(base, { recursive: true });
     execFileSync('git', ['-C', ws.repoPath, 'worktree', 'add', '--detach', path], { stdio: 'pipe' });
+  } else if (!isWorktreeOf(path, ws.repoPath)) {
+    // Left by a deleted workspace or an earlier repo path: working there would change the wrong project.
+    throw new Error(
+      `"${path}" is not a worktree of "${ws.repoPath}". Move that folder away, or set another git copies folder for ` +
+        `workspace "${ws.name}" in Settings.`,
+    );
   }
   return path;
 }

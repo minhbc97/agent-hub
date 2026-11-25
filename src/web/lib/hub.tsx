@@ -73,12 +73,34 @@ export function HubProvider({ children }: { children: ReactNode }) {
   const wsRef = useRef(wsId);
   wsRef.current = wsId;
 
+  const clearWorkspaceData = useCallback(() => {
+    setAgents([]);
+    setMessages([]);
+    setTasks([]);
+    setWorkflows([]);
+    setTokens([]);
+  }, []);
+
+  /** Drops the old workspace's data at once: until the new data arrives, nothing of it may show or be acted on. */
+  const selectWorkspace = useCallback(
+    (id: string) => {
+      if (id === wsRef.current) return;
+      setReady(false);
+      clearWorkspaceData();
+      wsRef.current = id;
+      setWsId(id);
+    },
+    [clearWorkspaceData],
+  );
+
   const reload = useCallback(async () => {
     const list = await api.workspaces();
     setWorkspaces(list);
     let id = wsRef.current;
     if (!id || !list.some((w) => w.id === id)) id = list[0]?.id ?? null;
     if (id !== wsRef.current) {
+      setReady(false);
+      clearWorkspaceData();
       setWsId(id);
       wsRef.current = id;
     }
@@ -96,15 +118,9 @@ export function HubProvider({ children }: { children: ReactNode }) {
       setTasks(t);
       setWorkflows(w);
       setTokens(tk);
-    } else {
-      setAgents([]);
-      setMessages([]);
-      setTasks([]);
-      setWorkflows([]);
-      setTokens([]);
     }
     setReady(true);
-  }, []);
+  }, [clearWorkspaceData]);
 
   useEffect(() => {
     api
@@ -183,7 +199,7 @@ export function HubProvider({ children }: { children: ReactNode }) {
       tasks,
       workflows,
       tokens,
-      selectWorkspace: setWsId,
+      selectWorkspace,
       reload,
       attempt,
       outgoing,
@@ -200,6 +216,7 @@ export function HubProvider({ children }: { children: ReactNode }) {
     tasks,
     workflows,
     tokens,
+    selectWorkspace,
     reload,
     attempt,
     outgoing,

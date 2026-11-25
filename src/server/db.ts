@@ -226,7 +226,7 @@ export function deleteWorkspace(id: string): void {
 }
 
 export function listWorkspaces(): Workspace[] {
-  return (openDb().prepare('SELECT * FROM workspaces ORDER BY name').all() as Row[]).map(toWorkspace);
+  return (openDb().prepare('SELECT * FROM workspaces ORDER BY name COLLATE NOCASE').all() as Row[]).map(toWorkspace);
 }
 
 // ---- agents ----

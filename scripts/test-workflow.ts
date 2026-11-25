@@ -497,6 +497,30 @@ const withGoal = await fetch(`${base}/api/agents/${writer.id}`, {
   body: JSON.stringify({ goal: 'ship weekly posts' }),
 });
 assert.equal(withGoal.status, 200);
+// Workspaces stay apart: no shared name, no shared worktree folder.
+const addWorkspace = (w: object) => fetch(`${base}/api/workspaces`, { method: 'POST', body: JSON.stringify(w) });
+const apart = (await (await addWorkspace({ name: 'apart', repoPath: work })).json()) as { id: string };
+assert.ok(apart.id);
+assert.equal((await addWorkspace({ name: 'Apart' })).status, 400, 'same name');
+const apartTrees = resolve(work, '..', 'apart-worktrees');
+assert.equal((await addWorkspace({ name: 'apart2', worktreesDir: apartTrees })).status, 400, 'same worktree folder');
+const rename = (id: string, name: string) =>
+  fetch(`${base}/api/workspaces/${id}`, { method: 'PATCH', body: JSON.stringify({ name }) });
+assert.equal((await rename(apart.id, 'content')).status, 400, 'rename onto another workspace');
+assert.equal((await rename(apart.id, 'apart')).status, 200, 'saving without a change');
+const inApart = db.createAgent({ ...fake, workspaceId: apart.id, name: 'writer' });
+assert.equal(
+  (
+    await fetch(`${base}/api/workspaces/${apart.id}/messages`, {
+      method: 'POST',
+      body: JSON.stringify({ to: 'editor', body: 'hi' }),
+    })
+  ).status,
+  400,
+  'agents of another workspace cannot be reached',
+);
+db.deleteAgent(inApart.id);
+db.deleteWorkspace(apart.id);
 // Moving the repo folder drops sessions tied to it; agents with their own folder keep theirs.
 const movingWs = db.createWorkspace({ name: 'moving' });
 const inRepo = db.createAgent({ ...fake, workspaceId: movingWs.id, name: 'inrepo', isolation: ISOLATION.shared });
