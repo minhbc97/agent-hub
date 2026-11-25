@@ -294,6 +294,48 @@ await settle(loops.id);
 assert.equal(agentMail().length, 7);
 assert.equal(agentMail().filter((m) => m.status === MESSAGE_STATUS.failed).length, 1);
 
+// Delegation: the worker learns the new task's key from the header, and the delegator is woken with the result.
+const delegation = db.createWorkspace({ name: 'delegation' });
+const delegator = db.createAgent({ ...fake, workspaceId: delegation.id, name: 'lead', isOrchestrator: true });
+const worker = db.createAgent({ ...fake, workspaceId: delegation.id, name: 'worker' });
+const delegate = (subject: string) =>
+  writeFileSync(
+    resolve(outboxDir(delegator.id), `${subject}.json`),
+    JSON.stringify({ to: 'worker', act: 'request', task: 'new', subject, body: 'build it' }),
+  );
+const reports = () => db.listMessages(delegation.id).filter((m) => m.fromId === worker.id && m.toId === delegator.id);
+delegate('delegated');
+await settle(delegation.id);
+const delegated = db.listTasks(delegation.id).find((t) => t.title === 'delegated')!;
+assert.equal(delegated.status, TASK_STATUS.done, 'the worker could report the task by key');
+assert.equal(reports().length, 1);
+assert.equal(reports()[0]!.status, MESSAGE_STATUS.delivered);
+assert.equal(reports()[0]!.body, `worker finished ${delegated.key}`);
+assert.equal(db.listRuns(delegator.id).length, 1, 'the result gave the lead a turn');
+// Finishing it again, or a "done" sent straight to the delegator, adds no second report.
+const workerDone = (to: string, task: string) =>
+  writeFileSync(resolve(outboxDir(worker.id), 'again.json'), JSON.stringify({ to, act: 'done', task, body: 'x' }));
+workerDone('user', delegated.key);
+await settle(delegation.id);
+assert.equal(reports().length, 1);
+const direct = db.createTask({
+  workspaceId: delegation.id,
+  title: 'direct',
+  createdBy: delegator.id,
+  assigneeId: worker.id,
+  status: TASK_STATUS.doing,
+});
+workerDone('lead', direct.key);
+await settle(delegation.id);
+assert.equal(reports().length, 2, 'only the message the worker wrote');
+// Reports count as agent hops, so delegation cannot dodge the loop guard.
+db.updateWorkspace(delegation.id, { settings: { ...db.getWorkspace(delegation.id)!.settings, maxHops: 1 } });
+delegate('too deep');
+await settle(delegation.id);
+const stoppedReport = reports().at(-1)!;
+assert.equal(stoppedReport.status, MESSAGE_STATUS.failed);
+assert.match(stoppedReport.holdReason ?? '', /loop guard/);
+
 // Messages waiting for an agent run together in one turn.
 db.updateAgent(editor.id, { paused: true });
 const waiting = [bus.sendFromUser(ws.id, 'editor', 'first note'), bus.sendFromUser(ws.id, 'editor', 'second note')];

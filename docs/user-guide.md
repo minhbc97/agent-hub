@@ -122,6 +122,7 @@ todo ──Bắt đầu──▶ doing ──agent báo done──▶ (bước c
 ```
 
 Agent cũng có thể tự tạo task khi giao việc cho agent khác (`"task":"new"` trong outbox); task đó hiện trên board.
+Task xong thì agent đã giao việc tự nhận được kết quả.
 
 ## 6. Quy trình (workflow)
 

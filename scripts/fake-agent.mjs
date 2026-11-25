@@ -6,8 +6,8 @@ let input = '';
 process.stdin.setEncoding('utf8');
 process.stdin.on('data', (d) => (input += d));
 process.stdin.on('end', () => {
-  // The preamble has an example key; the real one is the last mentioned.
-  const key = [...input.matchAll(/"task":"(T-\d+)"/g)].at(-1)?.[1];
+  // The preamble has an example key; the real one is in a request's header, or the last mentioned.
+  const key = input.match(/act: request \| task: (T-\d+)/)?.[1] ?? [...input.matchAll(/"task":"(T-\d+)"/g)].at(-1)?.[1];
   const agent = process.env.HUB_AGENT;
   if (key && process.env.HUB_OUTBOX) {
     const msg = { to: 'user', act: 'done', task: key, body: `${agent} finished ${key}` };

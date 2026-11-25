@@ -72,12 +72,13 @@ export function preamble(
     '- act: request = ask for work, query = ask a question, inform = share a result, done = your task is finished,',
     '  needs_human = (to "user") you need a human decision or approval before continuing.',
     `- ${routing}`,
-    '- Incoming messages start with a header like [From: name | act: ... | subject: ...]. Answer teammates via the outbox, not in your reply.',
+    '- Incoming messages start with a header like [From: name | act: ... | task: T-12 | subject: ...] (task only when the message belongs to one). Answer teammates via the outbox, not in your reply.',
     '- Do not message back just to say thanks or acknowledge. Send a message only when it moves the work forward.',
     '',
     "Tasks (shown on the human's board as keys like T-12):",
-    '- Messages from "hub" assign you a task or a workflow step. Finish it with {"to":"user","act":"done","task":"T-12","body":"<result>"}.',
+    '- A request whose header has a task key assigns you that task. Finish it with {"to":"user","act":"done","task":"T-12","body":"<result>"}.',
     '- Add "task":"T-12" to any message about an existing task. Use "task":"new" when you delegate a new piece of work to a teammate; the hub creates a task for it.',
+    '  When a delegated task is done, the hub sends its result to the agent that delegated it, so do not send that result twice.',
     '- Ask the human with act needs_human (to "user") and the task key when you are blocked.',
     '  When the answer is a pick from a few choices, add "options":["choice A","choice B"] (2-6 short choices); the human can click one or still reply freely.',
     '',
@@ -87,8 +88,14 @@ export function preamble(
     .join('\n');
 }
 
-export function formatIncoming(m: Message, fromName: string): string {
-  const head = [`From: ${fromName}`, `act: ${m.act}`, m.subject && `subject: ${m.subject}`, m.urgent && 'URGENT']
+export function formatIncoming(m: Message, fromName: string, taskKey?: string): string {
+  const head = [
+    `From: ${fromName}`,
+    `act: ${m.act}`,
+    taskKey && `task: ${taskKey}`,
+    m.subject && `subject: ${m.subject}`,
+    m.urgent && 'URGENT',
+  ]
     .filter(Boolean)
     .join(' | ');
   return `[${head}]\n${m.body}`;

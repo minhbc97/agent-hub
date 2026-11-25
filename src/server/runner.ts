@@ -7,6 +7,7 @@ import {
   createRun,
   finishRun,
   getAgent,
+  getTask,
   getWorkspace,
   lastSessionRun,
   listAgents,
@@ -108,7 +109,9 @@ export async function runTurn(agentId: string, batch: Incoming[], engine?: Engin
   const activeEngine = target === agent.engine ? null : target;
   if (agent.activeEngine !== activeEngine) updateAgent(agent.id, { activeEngine });
   const current = runsAs({ ...agent, activeEngine }, target);
-  const formatted = batch.map((m) => formatIncoming(m.message, m.fromName));
+  const formatted = batch.map((m) =>
+    formatIncoming(m.message, m.fromName, m.message.taskId ? getTask(m.message.taskId)?.key : undefined),
+  );
   const incoming =
     formatted.length === 1
       ? formatted[0]!
