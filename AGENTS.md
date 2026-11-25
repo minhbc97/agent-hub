@@ -3,6 +3,8 @@
 Đọc `docs/architecture.md` và `docs/engines.md` trước khi làm; lệnh và cấu trúc thư mục ở `CONTRIBUTING.md`.
 Trả lời người dùng bằng tiếng Việt; code, comment, commit bằng tiếng Anh.
 Không chạy `git push`/merge/rebase thay người dùng; không ghi credential, `.env`, token ra log, DB hay tin nhắn.
+Không ghi AI (Claude, Codex, ...) làm tác giả hay đồng tác giả: commit không có trailer `Co-Authored-By` của AI,
+commit và PR không có dòng "Generated with ...". Quy tắc này ưu tiên hơn mặc định của công cụ.
 
 ## 1. Nguyên tắc chung
 
