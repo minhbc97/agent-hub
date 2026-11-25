@@ -225,7 +225,7 @@ assert.deepEqual(db.getMessage(interrupted.id)!.options, [], 'messages without o
 
 // Outbox: an oversized file is rejected unread; a valid file is queued exactly once.
 const { outboxDir } = await import('../src/server/runner.ts');
-const { existsSync, readdirSync, writeFileSync } = await import('node:fs');
+const { existsSync, readFileSync, readdirSync, writeFileSync } = await import('node:fs');
 const box = outboxDir(writer.id);
 writeFileSync(resolve(box, 'big.json'), ' '.repeat(300 * 1024));
 writeFileSync(resolve(box, 'ok.json'), JSON.stringify({ to: 'user', act: 'inform', subject: 'outbox ok', body: 'hi' }));
@@ -335,6 +335,42 @@ await settle(delegation.id);
 const stoppedReport = reports().at(-1)!;
 assert.equal(stoppedReport.status, MESSAGE_STATUS.failed);
 assert.match(stoppedReport.holdReason ?? '', /loop guard/);
+
+// Stop: ends the CLI and everything it started, fails the message and blocks its task, and frees the agent.
+const { stopTurn } = await import('../src/server/runner.ts');
+assert.equal(stopTurn(writer.id), false, 'nothing to stop');
+const hangTask = wfe.startTask(db.createTask({ workspaceId: ws.id, title: '[hang]', assigneeId: writer.id }));
+const pidFile = resolve(work, 'hang.pid');
+bus.tick();
+for (let i = 0; i < 100 && !(existsSync(pidFile) && readFileSync(pidFile, 'utf8')); i++)
+  await new Promise((r) => setTimeout(r, 100));
+const hungPid = Number(readFileSync(pidFile, 'utf8'));
+const isAlive = (pid: number) => {
+  try {
+    return process.kill(pid, 0);
+  } catch {
+    return false;
+  }
+};
+assert.ok(isAlive(hungPid));
+assert.equal(stopTurn(writer.id), true);
+await settle();
+for (let i = 0; i < 20 && isAlive(hungPid); i++) await new Promise((r) => setTimeout(r, 100));
+assert.ok(!isAlive(hungPid), 'the process the CLI started is gone too');
+const stoppedMail = db.listMessages(ws.id).find((m) => m.taskId === hangTask.id && m.toId === writer.id)!;
+assert.equal(stoppedMail.status, MESSAGE_STATUS.failed);
+assert.equal(db.getTask(hangTask.id)!.status, TASK_STATUS.blocked);
+assert.match(db.getTask(hangTask.id)!.waitingReason, /Stopped by the user/);
+assert.equal(db.getAgent(writer.id)!.status, 'idle');
+db.deleteTask(hangTask.id); // open tasks are listed in the next briefing, which would hang that turn too
+
+// MCP config files can hold tokens: they are gone once the turn is over.
+const mcpAgent = db.getAgent(writer.id)!;
+const { writeMcpConfig } = await import('../src/server/engines/claude-mcp.ts');
+const mcpFile = writeMcpConfig(mcpAgent);
+assert.ok(existsSync(mcpFile));
+claude.afterTurn!(mcpAgent);
+assert.ok(!existsSync(mcpFile));
 
 // Messages waiting for an agent run together in one turn.
 db.updateAgent(editor.id, { paused: true });

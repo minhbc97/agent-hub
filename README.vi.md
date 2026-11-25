@@ -10,7 +10,8 @@ trả lời khi agent hỏi.
 
 Mỗi tin nhắn chạy CLI một lượt ở chế độ headless và nối session bằng id. Agent nhắn cho nhau bằng cách ghi file JSON vào
 thư mục outbox riêng. Câu trả lời thường chỉ bạn thấy, nên hai agent không thể trả lời qua lại vô tận. Dữ liệu là một
-file SQLite trên máy bạn, server chỉ nghe `127.0.0.1`, và hub không đọc credential của CLI.
+file SQLite trên máy bạn, server chỉ nghe `127.0.0.1`, và hub không đọc đăng nhập của CLI. Ngoại lệ duy nhất:
+server MCP bạn chọn cho agent chế độ gọn được chép cấu hình, gồm cả token, vào một file riêng chỉ tồn tại trong lượt chạy.
 
 ## Bắt đầu nhanh
 
@@ -76,7 +77,8 @@ Giao diện:
 Hub chạy lệnh trên máy bạn, nên:
 
 - Server chỉ nghe `127.0.0.1`, chặn request ghi khác origin và chặn DNS rebinding.
-- Agent Claude chạy với `--permission-mode acceptEdits` và bị chặn `git push/merge/rebase` qua `--disallowedTools`.
+- Agent Claude chạy với `--permission-mode acceptEdits` (lệnh như `npm test` cần thêm `--allowedTools` vào **Tham số
+  thêm**) và bị chặn `git push/merge/rebase` qua `--disallowedTools`.
 - Agent Codex chạy `sandbox_mode="workspace-write"` (thêm `windows.sandbox="unelevated"` trên Windows). Cờ chỉ truyền
   cho từng lượt, không sửa `~/.codex/config.toml`.
 - Agent Antigravity chạy với `--mode accept-edits`.

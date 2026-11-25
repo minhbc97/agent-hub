@@ -21,10 +21,12 @@ export interface EngineAdapter {
   /** Shell command line for one turn. The prompt itself goes to stdin. */
   command(agent: Agent, opts: { resumeId: string | null; extraDirs: string[] }): string;
   /** Execute providers that communicate over an API instead of spawning a CLI. */
-  run?: (agent: Agent, prompt: string, timeoutMs: number) => Promise<TurnResult>;
+  run?: (agent: Agent, prompt: string, signal: AbortSignal) => Promise<TurnResult>;
   /** Convert the hub prompt to the CLI's stdin protocol when it is not plain text. */
   formatInput?: (prompt: string) => string;
   parse(stdout: string, stderr: string, exitCode: number | null): TurnResult;
+  /** Remove what `command` left on disk for the turn. Runs however the turn ended. */
+  afterTurn?: (agent: Agent) => void;
   /** Usage reported for a resumed session is the running total of the whole session, not this turn. */
   cumulativeUsage?: boolean;
   /** True once stdout shows the turn finished, so a CLI that then fails to exit can be ended instead of timing out. */

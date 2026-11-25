@@ -1,5 +1,5 @@
 import { EMPTY_USAGE, q, type EngineAdapter } from './types.ts';
-import { mcpToolPrefix, writeMcpConfig } from './claude-mcp.ts';
+import { mcpToolPrefix, removeMcpConfig, writeMcpConfig } from './claude-mcp.ts';
 
 /**
  * Hard backstop for the preamble rule "never push, merge or rebase": a prompt rule can be lost when a long
@@ -40,6 +40,8 @@ export const claude: EngineAdapter = {
     if (agent.extraArgs.trim()) parts.push(agent.extraArgs.trim());
     return parts.join(' ');
   },
+
+  afterTurn: removeMcpConfig,
 
   parse(stdout, stderr, exitCode) {
     const json = lastJsonObject(stdout);

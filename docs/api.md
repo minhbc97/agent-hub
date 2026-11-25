@@ -40,6 +40,7 @@ REST JSON tại `http://127.0.0.1:4310/api/...`. Kiểu dữ liệu chi tiết n
 | PATCH | `/api/agents/:id` | Các trường trên và `paused`. Đổi `engine` thì session bị xoá; 409 nếu agent đang chạy |
 | DELETE | `/api/agents/:id` | 409 nếu agent đang chạy hoặc là Lead Agent |
 | POST | `/api/agents/:id/new-session` | Bỏ session hiện tại |
+| POST | `/api/agents/:id/stop` | Dừng lượt đang chạy; 409 nếu agent không chạy |
 | POST | `/api/agents/:id/test` | Gửi tin kiểm tra; trả về tin vừa tạo |
 | GET | `/api/agents/:id/runs` | 50 lượt gần nhất, mới trước |
 

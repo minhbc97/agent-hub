@@ -5,8 +5,15 @@ the project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Stop an agent's running turn.
+- CI on Windows, macOS and Linux.
+
 ### Fixed
 
+- MCP config files, which can hold tokens, no longer stay in the data folder after a turn.
+- On macOS and Linux, a timeout ends every process the CLI started, and quitting the hub ends running CLIs.
 - Agents now see the task key of each incoming message, so delegated tasks no longer get stuck in DOING.
 - An agent that delegates a task receives the result when the task is done.
 

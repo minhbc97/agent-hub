@@ -60,6 +60,8 @@ Các nút trên agent:
 
 - **Chạy thử**: gửi tin kiểm tra kết nối.
 - **Session mới**: bỏ session hiện tại, lượt sau bắt đầu lại từ đầu (gồm cả preamble).
+- **Dừng lượt** (trang agent, khi đang làm): kết thúc CLI và mọi tiến trình nó mở. Tin chuyển `failed`, task vào
+  **BLOCKED**; bấm **Thử lại** để chạy lại. Tin khác đang chờ vẫn chạy tiếp, muốn giữ lại thì **Tạm dừng** trước.
 - **Tạm dừng / Tiếp tục**: agent tạm dừng thì tin gửi đến bị giữ, không mất.
 - **Xoá**: không xoá được khi agent đang chạy, và không xoá được Lead Agent. Tin đang chờ của agent bị đánh dấu thất bại; lịch sử hội thoại giữ lại.
 

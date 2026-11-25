@@ -4,6 +4,7 @@ import { extname, join, resolve, sep } from 'node:path';
 import { openDb } from './db.ts';
 import { startBus } from './bus.ts';
 import { handleApi } from './api.ts';
+import { removeAllMcpConfigs } from './engines/claude-mcp.ts';
 
 const PORT = Number(process.env.HUB_PORT ?? 4310);
 const PROD = process.env.NODE_ENV === 'production' || process.argv.includes('--prod');
@@ -63,7 +64,11 @@ const server = createServer(async (req, res) => {
   ui(req, res, () => res.writeHead(404).end('not found'));
 });
 
+// Exit through process.exit so the running CLIs are ended with the hub.
+for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP'] as const) process.on(signal, () => process.exit(0));
+
 openDb();
+removeAllMcpConfigs();
 startBus();
 // Loopback only: the hub runs commands on this machine.
 server.listen(PORT, '127.0.0.1', () =>

@@ -13,12 +13,13 @@ export const openrouter: EngineAdapter = {
     usage: EMPTY_USAGE,
     isError: exitCode !== 0,
   }),
-  run: async (agent: Agent, prompt: string, timeoutMs: number): Promise<TurnResult> => {
+  run: async (agent: Agent, prompt: string, signal: AbortSignal): Promise<TurnResult> => {
     const apiKey = process.env[OPENROUTER_API_KEY_ENV]?.trim();
     if (!apiKey) return failure('Set OPENROUTER_API_KEY in the agent-hub server environment.');
     if (!agent.model.trim()) return failure('Choose an OpenRouter model before running this agent.');
 
     let response: Response;
+    let raw: string;
     try {
       response = await fetch(CHAT_COMPLETIONS_URL, {
         method: 'POST',
@@ -27,8 +28,9 @@ export const openrouter: EngineAdapter = {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ model: agent.model, messages: [{ role: 'user', content: prompt }] }),
-        signal: AbortSignal.timeout(timeoutMs),
+        signal,
       });
+      raw = await response.text();
     } catch (error) {
       return failure(
         error instanceof Error && error.name === 'TimeoutError'
@@ -37,7 +39,6 @@ export const openrouter: EngineAdapter = {
       );
     }
 
-    const raw = await response.text();
     let payload: unknown;
     try {
       payload = JSON.parse(raw);

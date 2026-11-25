@@ -5,7 +5,7 @@ import { SUPPORTED_ENGINES, needWorkspace, needAgent, agentFields } from '../api
 import { createAgent, deleteAgent, getAgent, listAgents, listRuns, updateAgent } from '../db.ts';
 import { isAgentRunning, sendFromUser, tick } from '../bus.ts';
 import { emit } from '../events.ts';
-import { resetSession } from '../runner.ts';
+import { resetSession, stopTurn } from '../runner.ts';
 import { on } from '../http/router.ts';
 
 on('GET', '/api/workspaces/:ws/agents', (_q, _r, p) => listAgents(needWorkspace(p.ws!).id));
@@ -54,6 +54,11 @@ on('POST', '/api/agents/:id/new-session', (_q, _r, p) => {
   resetSession(agent.id);
   emit({ type: 'agent', workspaceId: agent.workspaceId, id: agent.id });
   return getAgent(agent.id);
+});
+
+on('POST', '/api/agents/:id/stop', (_q, _r, p) => {
+  if (!stopTurn(needAgent(p.id!).id)) throw new HttpError(409, 'errors.agentNotRunning');
+  return { ok: true };
 });
 
 on('POST', '/api/agents/:id/test', (_q, _r, p) => {
