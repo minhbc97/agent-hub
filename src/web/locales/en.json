@@ -107,6 +107,8 @@
       "context": "Context limit (tokens)"
     },
     "resetPolicyHint": "Before a new session starts, the agent writes a handoff note that the next session reads. A session idle for over an hour is also renewed, since its cache has expired.",
+    "allowedCommands": "Allowed commands",
+    "allowedCommandsHint": "One per line. Claude runs each with any arguments, without asking. Other commands that change something are denied, since a headless turn cannot ask you. Scripts you allow can do anything, so list only what the agent needs.",
     "leanMode": "Lean mode",
     "leanModeHint": "Run Claude without your user-level plugins, skills, hooks and MCP servers, with only the file and shell tools. If the agent needs an MCP server (for example Jira), pick it below.",
     "context": "Context",
@@ -153,6 +155,7 @@
     "you": "You"
   },
   "errors": {
+    "allowedCommandInvalid": "“{{command}}” cannot be allowed. Use plain words such as npm test, without quotes or symbols. For git, name the subcommand, such as git commit.",
     "agentNameExists": "An agent named “{{name}}” already exists.",
     "agentNameFormat": "Agent names can contain up to 32 letters, numbers, hyphens, or underscores.",
     "agentNameRequired": "Agent name is required.",

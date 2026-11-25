@@ -7,6 +7,7 @@ the project uses [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- Allowed commands per agent: shell commands Claude may run without asking, such as `npm test`.
 - Stop an agent's running turn.
 - CI on Windows, macOS and Linux.
 

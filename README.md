@@ -81,8 +81,8 @@ In the UI:
 The hub runs commands on your machine, so:
 
 - The server listens on `127.0.0.1` only, rejects cross-origin writes and blocks DNS rebinding.
-- Claude agents run with `--permission-mode acceptEdits` (commands such as `npm test` need an `--allowedTools` entry in
-  the agent's extra arguments), and `git push/merge/rebase` is blocked via
+- Claude agents run with `--permission-mode acceptEdits` (commands such as `npm test` run only if
+  listed in the agent's **Allowed commands**, empty by default), and `git push/merge/rebase` is blocked via
   `--disallowedTools`.
 - Codex agents run with `sandbox_mode="workspace-write"` (plus `windows.sandbox="unelevated"` on Windows). Flags are
   passed per turn; `~/.codex/config.toml` is never modified.

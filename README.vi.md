@@ -77,8 +77,8 @@ Giao diện:
 Hub chạy lệnh trên máy bạn, nên:
 
 - Server chỉ nghe `127.0.0.1`, chặn request ghi khác origin và chặn DNS rebinding.
-- Agent Claude chạy với `--permission-mode acceptEdits` (lệnh như `npm test` cần thêm `--allowedTools` vào **Tham số
-  thêm**) và bị chặn `git push/merge/rebase` qua `--disallowedTools`.
+- Agent Claude chạy với `--permission-mode acceptEdits` (lệnh như `npm test` chỉ chạy được khi có
+  trong **Lệnh được phép** của agent, mặc định trống) và bị chặn `git push/merge/rebase` qua `--disallowedTools`.
 - Agent Codex chạy `sandbox_mode="workspace-write"` (thêm `windows.sandbox="unelevated"` trên Windows). Cờ chỉ truyền
   cho từng lượt, không sửa `~/.codex/config.toml`.
 - Agent Antigravity chạy với `--mode accept-edits`.

@@ -244,6 +244,7 @@ export function agentFields(b: Record<string, unknown>, workspaceId: string, cur
     if (!Array.isArray(b.mcpServers)) throw new HttpError(400, 'errors.fieldInvalid', { field: 'mcpServers' });
     out.mcpServers = [...new Set(b.mcpServers.map((name) => str(name).trim()).filter(Boolean))].slice(0, 50);
   }
+  if (b.allowedCommands !== undefined) out.allowedCommands = allowedCommands(b.allowedCommands);
   if (b.fallbackEngine !== undefined) {
     const fallback =
       b.fallbackEngine === null || b.fallbackEngine === ''
@@ -267,6 +268,21 @@ export function agentFields(b: Record<string, unknown>, workspaceId: string, cur
     engine !== ENGINE.openrouter && isolation === ISOLATION.worktree && (!cur || cur.isolation !== ISOLATION.worktree);
   if (startsWorktree) assertWorktreeRepo(needWorkspace(workspaceId).repoPath);
   return out;
+}
+
+const MAX_ALLOWED_COMMANDS = 50;
+/** Plain words only: the entry ends up inside a quoted argument of a shell command line. */
+const PLAIN_COMMAND = /^[\w@.:/=+-]+( [\w@.:/=+-]+)*$/;
+/** Allowing bare git (or git with options first) would also allow `git -C dir push`, which the push block misses. */
+const OPEN_GIT = /^git(\.exe)?( -|$)/i;
+
+export function allowedCommands(raw: unknown): string[] {
+  if (!Array.isArray(raw)) throw new HttpError(400, 'errors.fieldInvalid', { field: 'allowedCommands' });
+  const list = [...new Set(raw.map((c) => str(c).trim().replace(/\s+/g, ' ')).filter(Boolean))];
+  const bad = list.find((c) => c.length > 100 || !PLAIN_COMMAND.test(c) || OPEN_GIT.test(c));
+  if (bad) throw new HttpError(400, 'errors.allowedCommandInvalid', { command: bad.slice(0, 100) });
+  if (list.length > MAX_ALLOWED_COMMANDS) throw new HttpError(400, 'errors.fieldInvalid', { field: 'allowedCommands' });
+  return list;
 }
 
 /** Fails early with a fixable message instead of a raw `git worktree` error on the agent's first turn. */

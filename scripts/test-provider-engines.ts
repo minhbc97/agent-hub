@@ -36,6 +36,7 @@ const agent: Agent = {
   handoff: '',
   isLean: false,
   mcpServers: [],
+  allowedCommands: [],
   fallbackEngine: null,
   fallbackModel: '',
   activeEngine: null,

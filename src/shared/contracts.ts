@@ -129,6 +129,8 @@ export interface Agent {
   isLean: boolean;
   /** MCP servers a lean Claude agent still loads, by the name Claude gives them (e.g. `plugin:design:atlassian`). */
   mcpServers: string[];
+  /** Shell commands Claude runs without asking, with any arguments (e.g. `npm test`). */
+  allowedCommands: string[];
   /** CLI engine the agent switches to while its own engine is out of quota; null = wait instead. */
   fallbackEngine: Engine | null;
   /** Model on the fallback engine; empty = that CLI's default. */

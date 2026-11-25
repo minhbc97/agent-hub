@@ -34,8 +34,12 @@ export const claude: EngineAdapter = {
     if (agent.isLean) parts.push(...LEAN_ARGS);
     // Picked servers are the user's explicit choice, so their tools run without a permission prompt headless
     // turns could not answer.
-    if (agent.isLean && agent.mcpServers.length)
-      parts.push('--mcp-config', q(writeMcpConfig(agent)), '--allowedTools', ...agent.mcpServers.map(mcpToolPrefix));
+    const allowed = agent.allowedCommands.map((c) => q(`Bash(${c}:*)`));
+    if (agent.isLean && agent.mcpServers.length) {
+      parts.push('--mcp-config', q(writeMcpConfig(agent)));
+      allowed.push(...agent.mcpServers.map(mcpToolPrefix));
+    }
+    if (allowed.length) parts.push('--allowedTools', ...allowed);
     parts.push('--disallowedTools', ...DENIED_TOOLS.map(q));
     if (agent.extraArgs.trim()) parts.push(agent.extraArgs.trim());
     return parts.join(' ');

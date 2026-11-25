@@ -275,6 +275,22 @@ assert.match(
   /--disallowedTools .*git push/,
 );
 
+// Allowed commands: saved, passed as Bash rules, and nothing that could break out of the command line or open git.
+const { allowedCommands } = await import('../src/server/api/validation.ts');
+assert.deepEqual(allowedCommands([' npm  test ', 'npm test', '', 'git commit']), ['npm test', 'git commit']);
+for (const bad of ['npm test" & calc', 'echo $HOME', 'npm test:*', '%PATH%', 'a;b', 'git', 'git -C x push', 'a\nb | c'])
+  assert.throws(() => allowedCommands([bad]), bad);
+db.updateAgent(writer.id, { allowedCommands: ['npm test', 'git commit'] });
+const allowing = db.getAgent(writer.id)!;
+assert.match(
+  claude.command(allowing, { resumeId: null, extraDirs: [] }),
+  /--allowedTools "Bash\(npm test:\*\)" "Bash\(git commit:\*\)" --disallowedTools/,
+);
+assert.ok(
+  !claude.command({ ...allowing, allowedCommands: [] }, { resumeId: null, extraDirs: [] }).includes('--allowedTools'),
+);
+db.updateAgent(writer.id, { allowedCommands: [] });
+
 // Loop guard: two agents pinging each other stop after maxHops; Retry lets one more round through.
 const loops = db.createWorkspace({ name: 'loops' });
 db.updateWorkspace(loops.id, { settings: { ...db.getWorkspace(loops.id)!.settings, maxHops: 3 } });
