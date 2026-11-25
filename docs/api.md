@@ -36,7 +36,7 @@ REST JSON tại `http://127.0.0.1:4310/api/...`. Kiểu dữ liệu chi tiết n
 | Method | Đường dẫn | Body / ghi chú |
 | --- | --- | --- |
 | GET | `/api/workspaces/:ws/agents` | |
-| POST | `/api/workspaces/:ws/agents` | `name` (bắt buộc), `role`, `goal`, `engine`, `model`, `command`, `extraArgs`, `isolation` (mặc định `worktree`), `cwd`, `isOrchestrator`, `resetPolicy`, `resetValue`, `briefFiles`, `tint`, `avatarSeed` |
+| POST | `/api/workspaces/:ws/agents` | `name` (bắt buộc), `role`, `goal`, `engine`, `model`, `command`, `extraArgs`, `isolation` (mặc định `worktree`), `cwd`, `isOrchestrator`, `resetPolicy`, `resetValue`, `briefFiles`, `allowedCommands`, `tint`, `avatarSeed` |
 | PATCH | `/api/agents/:id` | Các trường trên và `paused`. Đổi `engine` thì session bị xoá; 409 nếu agent đang chạy |
 | DELETE | `/api/agents/:id` | 409 nếu agent đang chạy hoặc là Lead Agent |
 | POST | `/api/agents/:id/new-session` | Bỏ session hiện tại |

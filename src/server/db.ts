@@ -117,6 +117,7 @@ const MIGRATIONS: [table: string, column: string, ddl: string][] = [
   ['agents', 'activeEngine', 'ALTER TABLE agents ADD COLUMN activeEngine TEXT'],
   ['agents', 'fallbackModel', "ALTER TABLE agents ADD COLUMN fallbackModel TEXT NOT NULL DEFAULT ''"],
   ['agents', 'mcpServers', "ALTER TABLE agents ADD COLUMN mcpServers TEXT NOT NULL DEFAULT '[]'"],
+  ['agents', 'allowedCommands', "ALTER TABLE agents ADD COLUMN allowedCommands TEXT NOT NULL DEFAULT '[]'"],
   // Agents saved before handoff notes existed never reset; move them to the context limit once.
   [
     'agents',
@@ -162,6 +163,7 @@ const toAgent = (r: Row): Agent => {
     isOrchestrator: !!r.isOrchestrator,
     isLean: !!r.isLean,
     mcpServers: JSON.parse(String(r.mcpServers || '[]')),
+    allowedCommands: JSON.parse(String(r.allowedCommands || '[]')),
     paused: !!r.paused,
   };
 };
@@ -248,6 +250,7 @@ export function createAgent(a: Partial<Agent> & { workspaceId: string; name: str
     handoff: '',
     isLean: false,
     mcpServers: [],
+    allowedCommands: [],
     fallbackEngine: null,
     fallbackModel: '',
     activeEngine: null,
@@ -261,9 +264,9 @@ export function createAgent(a: Partial<Agent> & { workspaceId: string; name: str
   openDb()
     .prepare(
       `INSERT INTO agents (id, workspaceId, name, role, goal, briefFiles, engine, model, command, extraArgs,
-        isolation, cwd, isOrchestrator, tint, avatarSeed, resetPolicy, resetValue, handoff, isLean, mcpServers, fallbackEngine, fallbackModel, activeEngine,
+        isolation, cwd, isOrchestrator, tint, avatarSeed, resetPolicy, resetValue, handoff, isLean, mcpServers, allowedCommands, fallbackEngine, fallbackModel, activeEngine,
         sessionId, turnsInSession, paused, status)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       agent.id,
@@ -286,6 +289,7 @@ export function createAgent(a: Partial<Agent> & { workspaceId: string; name: str
       agent.handoff,
       agent.isLean ? 1 : 0,
       JSON.stringify(agent.mcpServers),
+      JSON.stringify(agent.allowedCommands),
       agent.fallbackEngine,
       agent.fallbackModel,
       agent.activeEngine,
@@ -328,6 +332,7 @@ const AGENT_COLUMNS = new Set([
   'handoff',
   'isLean',
   'mcpServers',
+  'allowedCommands',
   'fallbackEngine',
   'fallbackModel',
   'activeEngine',
@@ -342,14 +347,8 @@ export function updateAgent(id: string, patch: Partial<Agent>): void {
   if (!entries.length) return;
   // Only identity changes touch other rows; status updates (every turn) skip this lookup.
   const before = patch.name !== undefined || patch.isOrchestrator ? getAgent(id) : undefined;
-  const values = entries.map(([k, v]) =>
-    k === 'briefFiles' || k === 'mcpServers'
-      ? JSON.stringify(v)
-      : typeof v === 'boolean'
-        ? v
-          ? 1
-          : 0
-        : (v as string | number | null),
+  const values = entries.map(([, v]) =>
+    Array.isArray(v) ? JSON.stringify(v) : typeof v === 'boolean' ? (v ? 1 : 0) : (v as string | number | null),
   );
   openDb()
     .prepare(`UPDATE agents SET ${entries.map(([k]) => `${k} = ?`).join(', ')} WHERE id = ?`)

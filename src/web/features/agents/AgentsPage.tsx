@@ -172,6 +172,7 @@ type AgentForm = Pick<
   | 'resetValue'
   | 'isLean'
   | 'mcpServers'
+  | 'allowedCommands'
   | 'fallbackEngine'
   | 'fallbackModel'
 >;
@@ -257,6 +258,7 @@ function formValues(agent: Agent | null, claude: EngineInfo | undefined, isLeadA
     resetValue: agent?.resetValue ?? DEFAULT_CONTEXT_LIMIT,
     isLean: agent?.isLean ?? false,
     mcpServers: agent?.mcpServers ?? [],
+    allowedCommands: agent?.allowedCommands ?? [],
     fallbackEngine: agent?.fallbackEngine ?? null,
     fallbackModel: agent?.fallbackModel ?? '',
   };
@@ -494,6 +496,19 @@ function AgentEditor({
         </div>
       )}
       {hasSessions && <p className="-mt-2 text-xs/5 text-muted-foreground">{t('agents.resetPolicyHint')}</p>}
+      {(v.engine === ENGINE.claude || v.fallbackEngine === ENGINE.claude) && (
+        <>
+          <Field label={t('agents.allowedCommands')}>
+            <Textarea
+              rows={3}
+              placeholder={'npm test\ngit add\ngit commit'}
+              value={v.allowedCommands.join('\n')}
+              onChange={(e) => set('allowedCommands', e.target.value.split('\n'))}
+            />
+          </Field>
+          <p className="-mt-2 text-xs/5 text-muted-foreground">{t('agents.allowedCommandsHint')}</p>
+        </>
+      )}
       {v.engine === ENGINE.claude && (
         <div className="grid gap-1.5">
           <Label className="flex items-center gap-2 font-normal">

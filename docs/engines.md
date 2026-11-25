@@ -28,7 +28,8 @@ claude -p --output-format json [--model <m>] [--resume <session>] --add-dir <out
   `usage.{input_tokens, output_tokens, cache_creation_input_tokens, cache_read_input_tokens}` (đã kiểm với 2.1.328).
 - Tham số mặc định: `--permission-mode acceptEdits`.
 - `acceptEdits` chỉ tự duyệt sửa file và lệnh đọc. Đã thử trên 2.1.329: `git status` chạy được, `npm test` và
-  `git add` bị từ chối. Muốn agent chạy được thì thêm vào **Tham số thêm**, ví dụ `--allowedTools "Bash(npm test:*)"`.
+  `git add` bị từ chối. Ô **Lệnh được phép** của agent (mặc định trống) thêm `--allowedTools "Bash(<lệnh>:*)"`; engine dự
+  phòng Claude cũng dùng. `git` trần bị từ chối vì nó mở đường cho `git -C <dir> push`.
 - `--disallowedTools` chặn theo tiền tố lệnh, nên chưa bắt được `git -C <dir> push` hay script tự push.
   Cần chặn chắc hơn thì dùng hook `PreToolUse`.
 - Claude Code dùng đăng nhập của chính nó; hub không đọc credential.

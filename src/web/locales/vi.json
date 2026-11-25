@@ -107,6 +107,8 @@
       "context": "Ngưỡng context (token)"
     },
     "resetPolicyHint": "Trước khi mở session mới, agent viết sổ bàn giao để session sau đọc lại. Session nghỉ quá 1 giờ cũng được làm mới, vì cache đã hết hạn.",
+    "allowedCommands": "Lệnh được phép",
+    "allowedCommandsHint": "Mỗi dòng một lệnh. Claude chạy lệnh đó với tham số bất kỳ mà không hỏi. Lệnh khác có thay đổi dữ liệu sẽ bị từ chối vì lượt chạy nền không hỏi bạn được. Script được phép có thể làm mọi thứ, nên chỉ ghi lệnh agent cần.",
     "leanMode": "Chế độ gọn",
     "leanModeHint": "Chạy Claude không kèm plugin, skill, hook, MCP server ở cấp user và chỉ dùng tool đọc/ghi file và shell. Cần MCP (ví dụ Jira) thì chọn riêng server đó bên dưới.",
     "context": "Context",
@@ -153,6 +155,7 @@
     "you": "Bạn"
   },
   "errors": {
+    "allowedCommandInvalid": "Không thể cho phép “{{command}}”. Dùng các từ đơn giản như npm test, không có dấu nháy hay ký hiệu. Với git, ghi rõ lệnh con, ví dụ git commit.",
     "agentNameExists": "Đã có agent tên “{{name}}”.",
     "agentNameFormat": "Tên agent tối đa 32 ký tự, chỉ gồm chữ cái không dấu, số, dấu gạch ngang hoặc gạch dưới.",
     "agentNameRequired": "Cần tên agent.",

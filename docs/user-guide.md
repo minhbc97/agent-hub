@@ -44,6 +44,7 @@ Form **Thêm agent / Cấu hình agent**:
 | Model | Chọn trong danh sách, gõ id bất kỳ CLI chấp nhận, hoặc "Mặc định của CLI". |
 | Lệnh | File chạy của CLI (`claude`, `codex`) hoặc lệnh đầy đủ với Custom. |
 | Tham số thêm | Cờ truyền thêm cho CLI. Đổi engine thì ô này được điền giá trị mặc định của engine đó. |
+| Lệnh được phép | Chỉ Claude (chính hoặc dự phòng). Mỗi dòng một lệnh agent được chạy với tham số bất kỳ, ví dụ `npm test`, `git commit`. Mặc định trống: lệnh có thay đổi dữ liệu bị từ chối. Script được phép có thể làm mọi thứ. |
 | Isolation | `worktree` (mặc định, khuyến nghị): mỗi agent một git worktree riêng (tự tạo), agent không giẫm file của nhau. Cần workspace có đường dẫn repo là git repo. `shared`: dùng chung repo. `custom`: tự nhập hoặc chọn thư mục. |
 | Lead Agent | Không có công tắc trong form: agent đầu tiên (tạo qua popup) là Lead Agent. |
 
