@@ -5,6 +5,8 @@ the project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-11-25
+
 ### Added
 
 - Pause limit per workspace: hold messages once an engine's plan usage reaches a chosen percentage.
