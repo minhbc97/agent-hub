@@ -5,6 +5,8 @@ the project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-25
+
 ### Added
 
 - Create and switch workspaces from the header. Names and worktree folders are unique, so workspaces stay apart.
@@ -20,6 +22,11 @@ the project uses [Semantic Versioning](https://semver.org/).
 - On macOS and Linux, a timeout ends every process the CLI started, and quitting the hub ends running CLIs.
 - Agents now see the task key of each incoming message, so delegated tasks no longer get stuck in DOING.
 - An agent that delegates a task receives the result when the task is done.
+
+## [0.1.1]
+
+- The web UI defaults to English.
+- Landing page on GitHub Pages.
 
 ## [0.1.0]
 
