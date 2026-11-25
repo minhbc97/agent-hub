@@ -1,5 +1,27 @@
 {
   "agents": {
+    "runStatus": { "running": "Running", "ok": "Done", "failed": "Failed" },
+    "backToAgents": "All agents",
+    "overview": "Overview",
+    "terminal": {
+      "title": "Terminal",
+      "ended": {
+        "ok": "Turn finished in {{duration}}",
+        "failed": "Turn failed after {{duration}}"
+      },
+      "chooseAgent": "Choose the agent to watch",
+      "readOnly": "Read only",
+      "emptyHint": "Output shows here once the agent runs its first turn.",
+      "waiting": "Waiting for output…",
+      "started": "Session started · {{model}}",
+      "jumpToLatest": "Jump to latest",
+      "dropped": "{{count}} older lines hidden",
+      "status": {
+        "running": "Running",
+        "ok": "Last turn",
+        "failed": "Last turn failed"
+      }
+    },
     "addAgent": "Add agent",
     "addFirstAgentDescription": "Add an agent to start assigning work.",
     "agentCreated": "Agent created",
@@ -238,6 +260,8 @@
     "working": "Working…"
   },
   "inbox": {
+    "joinsTurnHint": "Joins the running turn",
+    "nextTurnHint": "Waits for the next turn",
     "sending": "Sending…",
     "otherAnswer": "Or answer another way…",
     "pickOption": "Pick an option",

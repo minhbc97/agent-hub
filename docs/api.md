@@ -43,6 +43,7 @@ REST JSON tại `http://127.0.0.1:4310/api/...`. Kiểu dữ liệu chi tiết n
 | POST | `/api/agents/:id/stop` | Dừng lượt đang chạy; 409 nếu agent không chạy |
 | POST | `/api/agents/:id/test` | Gửi tin kiểm tra; trả về tin vừa tạo |
 | GET | `/api/agents/:id/runs` | 50 lượt gần nhất, mới trước |
+| GET | `/api/agents/:id/terminal` | Output của lượt đang chạy, hoặc lượt gần nhất: `{ runId, status, cwd, startedAt, endedAt, droppedEntries, entries: [{ seq, at, kind, text }] }`. `kind`: `start`, `input` (tin giao cho agent), `text`, `thinking`, `shell` (lệnh), `tool`, `output`, `error`. Thêm `?run=<runId>&after=<seq>` để chỉ lấy phần chưa có. Giữ trong bộ nhớ tối đa 500 mục, mỗi mục 4000 ký tự; hub khởi động lại thì chỉ còn câu trả lời đã lưu. Token và mật khẩu nhận ra được thì thay bằng `[redacted]` |
 
 ## Tin nhắn
 
@@ -93,8 +94,9 @@ Dạng `steps` và `trigger`:
 
 ## Sự kiện realtime
 
-`GET /api/events` (Server-Sent Events). Mỗi sự kiện: `data: {"type":"message|agent|run|task|workflow","workspaceId":"...","id":"..."}`.
+`GET /api/events` (Server-Sent Events). Mỗi sự kiện: `data: {"type":"message|agent|run|task|workflow|terminal","workspaceId":"...","id":"..."}`.
 Sự kiện chỉ báo "có thay đổi"; client tự gọi lại endpoint tương ứng để lấy dữ liệu mới.
+`terminal` báo agent `id` vừa in thêm output (tối đa mỗi 300 ms một lần); client gọi `/api/agents/:id/terminal`.
 
 ## Ví dụ
 

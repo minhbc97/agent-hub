@@ -126,6 +126,7 @@ try {
 // Claude sums usage over the turn's model calls; the session's context is the last call's prompt.
 const claudeResult = claude.parse(
   JSON.stringify({
+    type: 'result',
     result: 'ok',
     session_id: 's-1',
     usage: {
@@ -140,7 +141,21 @@ const claudeResult = claude.parse(
   0,
 );
 assert.equal(claudeResult.contextTokens, 542);
-assert.equal(claude.parse('{"result":"ok","usage":{}}', '', 0).contextTokens, undefined);
+// The result is found between other events; a stream cut before it is a failure, not an empty answer.
+const streamed = ['{"type":"assistant","message":{}}', '{"type":"result","result":"done"}', '{"type":"system"}'];
+assert.equal(claude.parse(streamed.join('\n'), '', 0).text, 'done');
+assert.equal(claude.parse(streamed[0]!, 'killed', null).isError, true);
+// A message that arrived as the turn ended is answered in a second round: tokens add up, the cost is already a total.
+const rounds = claude.parse(
+  [
+    '{"type":"result","result":"one","total_cost_usd":1,"usage":{"output_tokens":5}}',
+    '{"type":"result","result":"two","total_cost_usd":3,"usage":{"output_tokens":2}}',
+  ].join('\n'),
+  '',
+  0,
+);
+assert.deepEqual([rounds.text, rounds.usage.outputTokens, rounds.usage.costUsd], ['one\n\ntwo', 7, 3]);
+assert.equal(claude.parse('{"type":"result","result":"ok","usage":{}}', '', 0).contextTokens, undefined);
 assert.ok(
   claude.command({ ...agent, isLean: true }, { resumeId: null, extraDirs: [] }).includes('--strict-mcp-config'),
 );

@@ -1,6 +1,8 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
+import { TERMINAL_KIND, type TerminalLine } from '../../shared/contracts.ts';
+import { isRecord, parseJsonLine } from './json.ts';
 import { EMPTY_USAGE, q, type EngineAdapter } from './types.ts';
 
 const CODEX_SESSIONS = join(process.env.CODEX_HOME ?? join(homedir(), '.codex'), 'sessions');
@@ -26,13 +28,22 @@ export const codex: EngineAdapter = {
     return parts.join(' ');
   },
 
+  describe(event) {
+    if (event.type === 'thread.started') return [{ kind: TERMINAL_KIND.start, text: '' }];
+    if (event.type === 'turn.failed' || event.type === 'error')
+      return [{ kind: TERMINAL_KIND.error, text: errorText(event) }];
+    if (!isRecord(event.item)) return [];
+    if (event.type === 'item.started') return describeStart(event.item);
+    return event.type === 'item.completed' ? describeEnd(event.item) : [];
+  },
+
   parse(stdout, stderr, exitCode) {
     let text = '';
     let error = '';
     let sessionId: string | null = null;
     let usage = EMPTY_USAGE;
     for (const line of stdout.split(/\r?\n/)) {
-      const event = parseLine(line);
+      const event = parseJsonLine(line);
       if (!event) continue;
       const item = event.item as Record<string, unknown> | undefined;
       if (event.type === 'thread.started' && typeof event.thread_id === 'string') sessionId = event.thread_id;
@@ -50,17 +61,6 @@ export const codex: EngineAdapter = {
     };
   },
 };
-
-function parseLine(line: string): Record<string, unknown> | null {
-  const s = line.trim();
-  if (!s.startsWith('{')) return null;
-  try {
-    const v: unknown = JSON.parse(s);
-    return v && typeof v === 'object' ? (v as Record<string, unknown>) : null;
-  } catch {
-    return null;
-  }
-}
 
 /** Codex counts cached input inside input_tokens; split it out so cache reads are reported separately. */
 function toUsage(raw: unknown) {
@@ -95,9 +95,45 @@ export function rolloutContext(threadId: string, sessionsDir = CODEX_SESSIONS): 
   for (const line of lines) {
     if (!line.includes('"token_count"')) continue;
     // {"type":"event_msg","payload":{"type":"token_count","info":{"last_token_usage":{...}}}} (verified on 0.164.0)
-    const payload = parseLine(line)?.payload as { info?: { last_token_usage?: { input_tokens?: number } } } | undefined;
+    const payload = parseJsonLine(line)?.payload as
+      { info?: { last_token_usage?: { input_tokens?: number } } } | undefined;
     const last = payload?.info?.last_token_usage;
     if (typeof last?.input_tokens === 'number') return last.input_tokens;
   }
   return undefined;
+}
+
+function describeStart(item: Record<string, unknown>): TerminalLine[] {
+  if (item.type === 'command_execution') return [{ kind: TERMINAL_KIND.shell, text: String(item.command ?? '') }];
+  if (item.type === 'mcp_tool_call')
+    return [{ kind: TERMINAL_KIND.tool, text: `${String(item.server)} ${String(item.tool)}` }];
+  return [];
+}
+
+function describeEnd(item: Record<string, unknown>): TerminalLine[] {
+  switch (item.type) {
+    case 'agent_message':
+      return [{ kind: TERMINAL_KIND.text, text: String(item.text ?? '') }];
+    case 'reasoning':
+      return [{ kind: TERMINAL_KIND.thinking, text: String(item.text ?? '') }];
+    case 'command_execution':
+      return [
+        {
+          kind: item.exit_code ? TERMINAL_KIND.error : TERMINAL_KIND.output,
+          text: String(item.aggregated_output ?? ''),
+        },
+      ];
+    case 'file_change': {
+      const changes = Array.isArray(item.changes) ? item.changes.filter(isRecord) : [];
+      return changes.map((c) => ({ kind: TERMINAL_KIND.tool, text: `${String(c.kind)} ${String(c.path)}` }));
+    }
+    case 'web_search':
+      return [{ kind: TERMINAL_KIND.tool, text: `web_search ${String(item.query ?? '')}` }];
+    case 'mcp_tool_call':
+      return isRecord(item.error) ? [{ kind: TERMINAL_KIND.error, text: String(item.error.message ?? '') }] : [];
+    case 'error':
+      return [{ kind: TERMINAL_KIND.error, text: String(item.message ?? '') }];
+    default:
+      return [];
+  }
 }

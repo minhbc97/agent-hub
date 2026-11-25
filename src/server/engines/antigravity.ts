@@ -1,10 +1,12 @@
+import { TERMINAL_KIND } from '../../shared/contracts.ts';
+import { isRecord, parseJsonLine } from './json.ts';
 import { EMPTY_USAGE, q, type EngineAdapter } from './types.ts';
 
 /** Antigravity stream-json accepts prompts on stdin and resumes by conversation id. */
 export const antigravity: EngineAdapter = {
   cumulativeUsage: true,
   formatInput: (prompt) => `${JSON.stringify({ event: 'user', message: { content: prompt } })}\n`,
-  isTurnOver: (stdout) => stdout.split(/\r?\n/).some((line) => parseLine(line)?.event === 'result'),
+  isTurnOver: (stdout) => stdout.split(/\r?\n/).some((line) => parseJsonLine(line)?.event === 'result'),
 
   command(agent, { resumeId, extraDirs }) {
     const parts = [agent.command.trim() || 'agy', '--input-format', 'stream-json', '--output-format', 'stream-json'];
@@ -15,10 +17,16 @@ export const antigravity: EngineAdapter = {
     return parts.join(' ');
   },
 
+  // shortcut: only the answer is shown, since the CLI's other events have not been probed; add them once they are.
+  describe(event) {
+    if (event.event !== 'result' || !isRecord(event.result)) return [];
+    return [{ kind: TERMINAL_KIND.text, text: String(event.result.response ?? '') }];
+  },
+
   parse(stdout, stderr, exitCode) {
     let result: Record<string, unknown> | null = null;
     for (const line of stdout.split(/\r?\n/)) {
-      const event = parseLine(line);
+      const event = parseJsonLine(line);
       if (event?.event === 'result' && isRecord(event.result)) result = event.result;
     }
     if (!result) {
@@ -38,19 +46,6 @@ export const antigravity: EngineAdapter = {
     };
   },
 };
-
-function parseLine(line: string): Record<string, unknown> | null {
-  try {
-    const value: unknown = JSON.parse(line);
-    return isRecord(value) ? value : null;
-  } catch {
-    return null;
-  }
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
 
 function toUsage(raw: unknown) {
   const usage = isRecord(raw) ? raw : {};

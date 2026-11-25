@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { AgentAvatar, UserAvatar } from '@/components/shared';
+import { AgentAvatar, SectionTitle, UserAvatar } from '@/components/shared';
 
 interface Link {
   a: string;
@@ -97,7 +97,7 @@ export function AgentMap() {
   return (
     <Card className="mb-6 gap-0 p-0">
       <div className="flex flex-wrap items-baseline justify-between gap-2 border-b px-5 py-3">
-        <h2 className="font-medium">{t('agents.map.title')}</h2>
+        <SectionTitle>{t('agents.map.title')}</SectionTitle>
         <p className="text-xs text-muted-foreground">
           {h.ws.settings.routing === ROUTING.mesh ? t('agents.map.routingMesh') : t('agents.map.routingStar')}
         </p>
@@ -115,10 +115,10 @@ export function AgentMap() {
                 x2={q.x}
                 y2={q.y}
                 vectorEffect="non-scaling-stroke"
-                strokeWidth={count ? Math.min(1.5 + count / 3, 6) : 1.5}
+                strokeWidth={count ? Math.min(1.5 + count / 6, 4) : 1.5}
                 strokeDasharray={!count && link.workflows.size ? '6 4' : undefined}
                 className={cn(
-                  count ? 'stroke-primary' : link.workflows.size ? 'stroke-primary/60' : 'stroke-border',
+                  count ? 'stroke-primary-ink' : link.workflows.size ? 'stroke-primary-ink' : 'stroke-border',
                   !link.isAllowed && count > 0 && 'stroke-warning',
                 )}
               />
@@ -136,7 +136,7 @@ export function AgentMap() {
                   <Button
                     variant="outline"
                     size="xs"
-                    className="absolute -translate-1/2 rounded-full tabular-nums"
+                    className="absolute -translate-1/2 rounded-full bg-card tabular-nums dark:bg-card dark:hover:bg-muted"
                     style={{ left: `${(p.x + q.x) / 2}%`, top: `${(p.y + q.y) / 2}%` }}
                     aria-label={t('agents.map.linkLabel', { a: nameOf(link.a), b: nameOf(link.b) })}
                   >
@@ -189,11 +189,11 @@ export function AgentMap() {
       </div>
       <div className="flex flex-wrap gap-x-5 gap-y-1 border-t px-5 py-3 text-xs text-muted-foreground">
         <span className="flex items-center gap-2">
-          <span className="w-5 border-t-2 border-primary" />
+          <span className="w-5 border-t-2 border-primary-ink" />
           {t('agents.map.legendMessages')}
         </span>
         <span className="flex items-center gap-2">
-          <span className="w-5 border-t-2 border-dashed border-primary/60" />
+          <span className="w-5 border-t-2 border-dashed border-primary-ink" />
           {t('agents.map.legendWorkflow')}
         </span>
         <span className="flex items-center gap-2">

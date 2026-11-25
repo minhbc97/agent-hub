@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { InputGroup, InputGroupAddon, InputGroupInput } from '@/components/ui/input-group';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
@@ -13,7 +14,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { TaskChanges } from '@/components/TaskChanges';
 import { t } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
-import { Avatar, Field, PageHeading, TASK_TONE, label, type Tone } from '@/components/shared';
+import { Markdown } from '@/components/Markdown';
+import { Avatar, Caption, Field, PageHeading, TASK_TONE, UserAvatar, label, type Tone } from '@/components/shared';
 
 /** Select value meaning "no filter" / "no choice" (Radix Select cannot use an empty string). */
 const ANY = 'all';
@@ -30,11 +32,11 @@ const BOARD_STATUSES = [
 
 /** Workflow steps have no fixed meaning, so they cycle through the chart palette. */
 const STEP_TONES: Tone[] = [
-  { column: 'border-chart-1 bg-chart-1/5', dot: 'bg-chart-1' },
-  { column: 'border-chart-3 bg-chart-3/5', dot: 'bg-chart-3' },
-  { column: 'border-chart-4 bg-chart-4/5', dot: 'bg-chart-4' },
-  { column: 'border-chart-5 bg-chart-5/5', dot: 'bg-chart-5' },
-  { column: 'border-chart-2 bg-chart-2/5', dot: 'bg-chart-2' },
+  { dot: 'bg-chart-1' },
+  { dot: 'bg-chart-3' },
+  { dot: 'bg-chart-4' },
+  { dot: 'bg-chart-5' },
+  { dot: 'bg-chart-2' },
 ];
 
 export function TasksPage() {
@@ -89,21 +91,23 @@ export function TasksPage() {
         subtitle={t('tasks.trackWorkFromStartToFinish')}
         action={
           <Button onClick={() => setCreate(true)}>
-            <Plus size={16} />
+            <Plus />
             {t('tasks.newTask')}
           </Button>
         }
       />
       <div className="mb-5 flex flex-wrap items-center gap-2">
-        <div className="relative">
-          <Search className="absolute top-2.5 left-2.5 text-muted-foreground" size={15} />
-          <Input
+        <InputGroup className="w-56">
+          <InputGroupAddon>
+            <Search />
+          </InputGroupAddon>
+          <InputGroupInput
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder={t('tasks.searchTasks')}
-            className="w-56 pl-8"
+            aria-label={t('tasks.searchTasks')}
           />
-        </div>
+        </InputGroup>
         <Select value={wf} onValueChange={setWf}>
           <SelectTrigger className="w-48">
             <SelectValue placeholder={t('workflows.allWorkflows')} />
@@ -149,11 +153,11 @@ export function TasksPage() {
         <Tabs value={mode} onValueChange={setMode} className="ml-auto">
           <TabsList>
             <TabsTrigger value={VIEW.board}>
-              <Columns3 size={14} />
+              <Columns3 />
               {t('tasks.board')}
             </TabsTrigger>
             <TabsTrigger value={VIEW.list}>
-              <List size={14} />
+              <List />
               {t('tasks.list')}
             </TabsTrigger>
           </TabsList>
@@ -176,15 +180,15 @@ export function TasksPage() {
                   if (taskId && statuses.length === 1) void moveTask(taskId, statuses[0]!);
                   setDraggedId(null);
                 }}
-                className={cn('flex min-h-0 flex-col rounded-lg border-t-2 p-2.5', tone.column)}
+                className="flex min-h-0 min-w-0 flex-col rounded-xl bg-muted p-2.5 dark:bg-subtle"
               >
                 <header className="flex items-center gap-2 px-1 pb-3" title={hint}>
                   <span className={cn('size-2 rounded-full', tone.dot)} />
-                  <h2 className="truncate text-xs font-semibold tracking-wider">{title}</h2>
+                  <h2 className="truncate text-sm font-semibold">{title}</h2>
                   <span className="ml-auto text-xs text-muted-foreground tabular-nums">{group.length}</span>
                 </header>
-                <div className="min-h-0 flex-1 scrollbar-thin overflow-y-auto overscroll-contain pr-1">
-                  <div className="grid content-start gap-2">
+                <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1">
+                  <div className="grid grid-cols-1 content-start gap-2">
                     {group.map((task) => (
                       <TaskCard
                         key={task.id}
@@ -222,7 +226,7 @@ export function TasksPage() {
             >
               <span className="font-mono text-muted-foreground">{task.key}</span>
               <span className="truncate">{task.title}</span>
-              <span className="flex items-center gap-2 text-xs font-semibold tracking-wider">
+              <span className="flex items-center gap-2 text-xs font-medium">
                 <span className={cn('size-2 rounded-full', TASK_TONE[task.status].dot)} />
                 {t(`tasks.code.${task.status}`)}
               </span>
@@ -260,20 +264,26 @@ function TaskCard({
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
       onClick={open}
-      className="h-auto w-full cursor-grab flex-col items-stretch gap-0 bg-card p-3 text-left font-normal whitespace-normal hover:border-primary/40 active:cursor-grabbing"
+      className="h-auto w-full cursor-grab flex-col items-stretch gap-0 bg-card p-3 text-left font-normal whitespace-normal hover:border-input active:cursor-grabbing dark:bg-card dark:hover:bg-accent"
     >
       <div className="flex items-center justify-between text-xs text-muted-foreground">
         <span className="font-mono">{task.key}</span>
-        <MoreHorizontal size={15} />
+        <MoreHorizontal />
       </div>
-      <div className="mt-2 leading-5 font-medium">{task.title}</div>
+      <div className="mt-2 leading-5 font-medium wrap-anywhere">{task.title}</div>
       <div className="mt-3 flex items-center gap-1.5">
-        <Badge variant="outline" className="max-w-32 truncate">
-          {h.workflows.find((w) => w.id === task.workflowId)?.name || t('tasks.taskLabel')}
+        <Badge variant="secondary" className="min-w-0 shrink justify-start">
+          <span className="truncate">
+            {h.workflows.find((w) => w.id === task.workflowId)?.name || t('tasks.taskLabel')}
+          </span>
         </Badge>
-        <div className="ml-auto flex items-center gap-1.5 text-xs text-muted-foreground">
+        <div className="ml-auto flex shrink-0 items-center gap-1.5 text-xs text-muted-foreground">
           {h.agentById(task.assigneeId)?.name || (task.assigneeId === USER_ID ? t('common.you') : '—')}
-          <Avatar agent={h.agentById(task.assigneeId)} size={20} />
+          {task.assigneeId === USER_ID ? (
+            <UserAvatar size={20} />
+          ) : (
+            task.assigneeId && <Avatar agent={h.agentById(task.assigneeId)} size={20} />
+          )}
         </div>
       </div>
     </Button>
@@ -302,12 +312,12 @@ function TaskSheet({ task, close }: { task: Task | null; close: () => void }) {
           <div className="min-h-0 flex-1 overflow-y-auto">
             <div className="grid gap-5 px-4 py-5">
               <div>
-                <h3 className="mb-2 text-xs font-medium text-muted-foreground">{t('common.description')}</h3>
-                <p className="leading-6 whitespace-pre-wrap">{task.body || t('tasks.noDescription')}</p>
+                <Caption className="mb-2">{t('common.description')}</Caption>
+                <Markdown text={task.body || t('tasks.noDescription')} className="text-sm/6" />
               </div>
               {wf && (
                 <div>
-                  <h3 className="mb-2 text-xs font-medium text-muted-foreground">{t('tasks.workflowProgress')}</h3>
+                  <Caption className="mb-2">{t('tasks.workflowProgress')}</Caption>
                   <div className="space-y-2">
                     {wf.steps.map((s, i) => (
                       <div key={s.id} className="flex items-center gap-2 text-sm">
@@ -328,8 +338,10 @@ function TaskSheet({ task, close }: { task: Task | null; close: () => void }) {
               )}
               {task.result && (
                 <div>
-                  <h3 className="mb-2 text-xs font-medium text-muted-foreground">{t('tasks.latestResult')}</h3>
-                  <Card className="p-3 leading-6 whitespace-pre-wrap">{task.result}</Card>
+                  <Caption className="mb-2">{t('tasks.latestResult')}</Caption>
+                  <Card className="p-3">
+                    <Markdown text={task.result} className="text-sm/6" />
+                  </Card>
                 </div>
               )}
               <TaskChanges key={task.id} task={task} />
@@ -338,14 +350,14 @@ function TaskSheet({ task, close }: { task: Task | null; close: () => void }) {
                   <p className="text-sm text-warning">{waitingText(task, h.workflows)}</p>
                 )}
               <div>
-                <h3 className="mb-2 text-xs font-medium text-muted-foreground">{t('inbox.relatedConversation')}</h3>
+                <Caption className="mb-2">{t('inbox.relatedConversation')}</Caption>
                 {messages.length ? (
                   messages.map((m) => (
                     <div key={m.id} className="border-t py-2 text-sm">
                       <span className="font-medium">
                         {h.agentById(m.fromId)?.name || (m.fromId === USER_ID ? t('common.you') : t('common.hub'))}
                       </span>
-                      <p className="mt-1 whitespace-pre-wrap">{m.body}</p>
+                      <Markdown text={m.body} className="mt-1" />
                     </div>
                   ))
                 ) : (
@@ -359,7 +371,7 @@ function TaskSheet({ task, close }: { task: Task | null; close: () => void }) {
           <div className="flex shrink-0 flex-wrap items-center gap-2 border-t bg-popover p-4">
             {task.status === TASK_STATUS.todo && (
               <Button size="sm" onClick={() => h.attempt(() => api.startTask(task.id), t('tasks.taskStarted'))}>
-                <Zap size={14} />
+                <Zap />
                 {t('common.start')}
               </Button>
             )}
@@ -430,7 +442,7 @@ function TaskSheet({ task, close }: { task: Task | null; close: () => void }) {
                 if (await h.attempt(() => api.deleteTask(task.id), t('tasks.taskDeleted'))) close();
               }}
             >
-              <Trash2 size={14} />
+              <Trash2 />
               {t('common.delete')}
             </Button>
           </div>

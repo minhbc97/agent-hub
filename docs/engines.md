@@ -9,6 +9,8 @@ Mỗi engine là một adapter trong `src/server/engines/`, cài đặt interfac
 | `parse(stdout, stderr, exitCode)` | có | Trả về `{ text, sessionId, usage, isError }`. |
 | `cumulativeUsage` | không | `true` khi CLI báo token cộng dồn cả session khi resume; runner tự trừ phần đã lưu. |
 | `afterTurn(agent)` | không | Xoá file mà `command` tạo cho lượt; chạy dù lượt kết thúc thế nào. |
+| `live` | không | CLI nhận thêm tin qua stdin khi đang chạy (chỉ Claude): cách mã hoá tin, sự kiện báo đã đọc và báo xong lượt. |
+| `describe(event)` | không | Đổi một sự kiện JSON của stdout thành các dòng dễ đọc cho tab Terminal; không có thì stdout hiện nguyên văn. |
 | `isTurnOver(stdout)` | không | `true` khi stdout cho thấy lượt đã xong; CLI không thoát sau 10 giây thì runner kill và coi lượt là thành công. |
 
 Runner chạy lệnh bằng `spawn(cmd, { shell: true, cwd })` với biến môi trường `HUB_OUTBOX`, `HUB_AGENT`, `HUB_URL`.
@@ -20,12 +22,16 @@ Kết quả dò output của từng CLI: [cli-probe.md](cli-probe.md).
 ## Claude Code
 
 ```
-claude -p --output-format json [--model <m>] [--resume <session>] --add-dir <outbox>
+claude -p --input-format stream-json --output-format stream-json --verbose --replay-user-messages
+       [--model <m>] [--resume <session>] --add-dir <outbox>
        --disallowedTools "Bash(git push:*)" "Bash(git merge:*)" "Bash(git rebase:*)" <tham số thêm>
 ```
 
-- Output: một object JSON có `result`, `session_id`, `is_error`, `total_cost_usd`,
-  `usage.{input_tokens, output_tokens, cache_creation_input_tokens, cache_read_input_tokens}` (đã kiểm với 2.1.328).
+- Output: JSONL; sự kiện `type: "result"` (không chắc là dòng cuối) có `result`, `session_id`, `is_error`, `total_cost_usd`,
+  `usage.{input_tokens, output_tokens, cache_creation_input_tokens, cache_read_input_tokens}` (đã kiểm với 2.1.329).
+- Stdin giữ mở tới khi có `result` và mọi tin đã được đọc. Tin gửi giữa lượt được đọc sau bước đang chạy; sự kiện
+  `isReplay` cùng `uuid` báo đã đọc. Tin đến đúng lúc xong lượt sinh thêm một `result` (token cộng lại,
+  `total_cost_usd` đã là tổng).
 - Tham số mặc định: `--permission-mode acceptEdits`.
 - `acceptEdits` chỉ tự duyệt sửa file và lệnh đọc. Đã thử trên 2.1.329: `git status` chạy được, `npm test` và
   `git add` bị từ chối. Ô **Lệnh được phép** của agent (mặc định trống) thêm `--allowedTools "Bash(<lệnh>:*)"`; engine dự

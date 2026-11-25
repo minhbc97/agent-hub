@@ -1,3 +1,4 @@
+import type { TerminalLine } from '../../shared/contracts.ts';
 import type { Agent } from '../db.ts';
 
 interface TurnUsage {
@@ -17,6 +18,14 @@ export interface TurnResult {
   isError: boolean;
 }
 
+/** How a CLI takes further messages on stdin while it works on a turn. */
+export interface LiveProtocol {
+  encode(id: string, text: string): string;
+  /** Id of the message this event says the CLI has read. */
+  readId(event: Record<string, unknown>): string | undefined;
+  isResult(event: Record<string, unknown>): boolean;
+}
+
 export interface EngineAdapter {
   /** Shell command line for one turn. The prompt itself goes to stdin. */
   command(agent: Agent, opts: { resumeId: string | null; extraDirs: string[] }): string;
@@ -24,6 +33,8 @@ export interface EngineAdapter {
   run?: (agent: Agent, prompt: string, signal: AbortSignal) => Promise<TurnResult>;
   /** Convert the hub prompt to the CLI's stdin protocol when it is not plain text. */
   formatInput?: (prompt: string) => string;
+  /** Set when the running turn can be handed more messages; the prompt then goes through it too. */
+  live?: LiveProtocol;
   parse(stdout: string, stderr: string, exitCode: number | null): TurnResult;
   /** Remove what `command` left on disk for the turn. Runs however the turn ended. */
   afterTurn?: (agent: Agent) => void;
@@ -31,6 +42,8 @@ export interface EngineAdapter {
   cumulativeUsage?: boolean;
   /** True once stdout shows the turn finished, so a CLI that then fails to exit can be ended instead of timing out. */
   isTurnOver?: (stdout: string) => boolean;
+  /** Readable lines for one JSON event of stdout; none hides it. Without this, stdout is shown as it is. */
+  describe?: (event: Record<string, unknown>) => TerminalLine[];
 }
 
 export const EMPTY_USAGE: TurnUsage = {

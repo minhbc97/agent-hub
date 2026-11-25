@@ -6,6 +6,7 @@ import { createAgent, deleteAgent, getAgent, listAgents, listRuns, updateAgent }
 import { isAgentRunning, sendFromUser, tick } from '../bus.ts';
 import { emit } from '../events.ts';
 import { resetSession, stopTurn } from '../runner.ts';
+import { terminalOutput } from '../terminal.ts';
 import { on } from '../http/router.ts';
 
 on('GET', '/api/workspaces/:ws/agents', (_q, _r, p) => listAgents(needWorkspace(p.ws!).id));
@@ -81,3 +82,9 @@ on('POST', '/api/agents/:id/test', (_q, _r, p) => {
 });
 
 on('GET', '/api/agents/:id/runs', (_q, _r, p) => listRuns(needAgent(p.id!).id));
+
+/** `?run=<id>&after=<seq>`: only the entries after the ones the page already has. */
+on('GET', '/api/agents/:id/terminal', (req, _r, p) => {
+  const query = new URL(req.url ?? '/', 'http://localhost').searchParams;
+  return terminalOutput(needAgent(p.id!).id, query.get('run') ?? '', Number(query.get('after')) || 0);
+});

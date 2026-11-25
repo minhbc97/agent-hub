@@ -9,7 +9,7 @@ import './index.css';
 
 createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
+    <ThemeProvider disableTransitionOnChange attribute="class" defaultTheme="dark" enableSystem={false}>
       <TooltipProvider>
         <HubProvider>
           <App />

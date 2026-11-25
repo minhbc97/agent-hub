@@ -48,7 +48,7 @@
     "typecheck": "tsc -p tsconfig.app.json && tsc -p tsconfig.node.json",
     "format": "eslint --fix && prettier --write .",
     "demo:pm-be": "tsx scripts/demo-pm-be.ts",
-    "test": "tsx scripts/test-provider-engines.ts && tsx scripts/test-workflow.ts && tsx scripts/test-task-branch.ts && tsx scripts/test-usage.ts",
+    "test": "tsx scripts/test-provider-engines.ts && tsx scripts/test-workflow.ts && tsx scripts/test-task-branch.ts && tsx scripts/test-usage.ts && tsx scripts/test-terminal.ts && tsx scripts/test-markdown.ts",
     "lint": "eslint --max-warnings 0",
     "check": "npm run format && npm run lint && npm run typecheck",
     "prepublishOnly": "npm run lint && npm run typecheck && npm test && npm run build"

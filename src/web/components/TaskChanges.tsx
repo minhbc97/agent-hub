@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { ChevronRight, Copy } from 'lucide-react';
 import { toast } from 'sonner';
 import { api, type FileChange, type Task, type TaskChanges as Changes } from '@/lib/api';
+import { Caption } from '@/components/shared';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { t } from '@/lib/i18n';
@@ -36,9 +37,7 @@ export function TaskChanges({ task, className }: { task: Task; className?: strin
     );
   return (
     <section className={className}>
-      <h3 className="mb-2 text-xs font-medium text-muted-foreground">
-        {t('tasks.codeChanges', { count: changes.files.length })}
-      </h3>
+      <Caption className="mb-2">{t('tasks.codeChanges', { count: changes.files.length })}</Caption>
       {changes.files.length > 0 && (
         <>
           <div className="divide-y overflow-hidden rounded-lg border">

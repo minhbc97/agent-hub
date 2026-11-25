@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ArrowDown, ArrowLeft, ArrowUp, CalendarSearch, Plus, Save, Trash2, X } from 'lucide-react';
+import { ArrowDown, ArrowUp, CalendarSearch, Plus, Save, Trash2, X } from 'lucide-react';
 import { useHub } from '@/lib/hub';
 import { api, TRIGGER_KIND, USER_ID, type WorkflowInput } from '@/lib/api';
 import { Button } from '@/components/ui/button';
@@ -7,10 +7,9 @@ import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { i18n, t } from '@/lib/i18n';
-import { ConfirmButton, Field, uid } from '@/components/shared';
+import { ConfirmButton, Field, PageHeading, SectionTitle, SwitchField, uid } from '@/components/shared';
 
 type Step = WorkflowInput['steps'][number];
 type Trigger = WorkflowInput['trigger'];
@@ -49,16 +48,12 @@ export function WorkflowEditor({
 
   return (
     <div className="-mx-7 -mt-7 flex min-h-[calc(100vh-4.5rem)] flex-1 flex-col">
-      <header className="sticky top-0 z-20 flex shrink-0 items-center gap-3 border-b bg-background px-7 py-3">
-        <Button variant="ghost" size="sm" onClick={close}>
-          <ArrowLeft />
-          {t('common.backToList')}
-        </Button>
-        <div className="min-w-0 flex-1">
-          <h1 className="truncate text-lg font-semibold">{id ? form.name : t('workflows.newWorkflow')}</h1>
-          <p className="text-xs text-muted-foreground">{t('workflows.editorDescription')}</p>
-        </div>
-      </header>
+      <PageHeading
+        variant="bar"
+        title={id ? form.name : t('workflows.newWorkflow')}
+        subtitle={t('workflows.editorDescription')}
+        back={{ label: t('common.backToList'), onClick: close }}
+      />
       <div className="min-h-0 flex-1 overflow-y-auto px-7 py-5">
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
           <div className="grid gap-4">
@@ -76,9 +71,9 @@ export function WorkflowEditor({
             </Card>
 
             <Card className="p-4">
-              <div className="mb-4 flex justify-between">
+              <div className="flex items-start justify-between">
                 <div>
-                  <h3 className="font-medium">{t('workflows.steps')}</h3>
+                  <SectionTitle>{t('workflows.steps')}</SectionTitle>
                   <p className="text-xs text-muted-foreground">{t('workflows.stepsDescription')}</p>
                 </div>
                 <Button
@@ -169,10 +164,11 @@ export function WorkflowEditor({
                       </Field>
                     </div>
                     <div className="mt-3 flex items-center gap-3">
-                      <label className="flex items-center gap-2 text-sm">
-                        <Switch checked={s.approval} onCheckedChange={(v) => changeStep(i, { approval: v })} />
-                        {t('inbox.needsYourReview')}
-                      </label>
+                      <SwitchField
+                        label={t('inbox.needsYourReview')}
+                        checked={s.approval}
+                        onChange={(v) => changeStep(i, { approval: v })}
+                      />
                       {s.approval && (
                         <Select value={s.onReject || s.id} onValueChange={(v) => changeStep(i, { onReject: v })}>
                           <SelectTrigger className="w-52" aria-label={t('workflows.returnToStepIfRejected')}>
@@ -196,7 +192,7 @@ export function WorkflowEditor({
 
           <aside className="grid content-start gap-4 lg:sticky lg:top-5 lg:self-start">
             <Card className="grid gap-3 p-4">
-              <h3 className="font-medium">{t('workflows.trigger')}</h3>
+              <SectionTitle>{t('workflows.trigger')}</SectionTitle>
               <Field label={t('workflows.mode')}>
                 <Select
                   value={form.trigger.kind}
@@ -250,10 +246,11 @@ export function WorkflowEditor({
                   onChange={(e) => changeTrigger({ body: e.target.value })}
                 />
               </Field>
-              <label className="flex items-center gap-2 text-sm">
-                <Switch checked={form.enabled} onCheckedChange={(v) => setForm({ ...form, enabled: v })} />
-                {t('workflows.enabled')}
-              </label>
+              <SwitchField
+                label={t('workflows.enabled')}
+                checked={form.enabled}
+                onChange={(v) => setForm({ ...form, enabled: v })}
+              />
             </Card>
           </aside>
         </div>

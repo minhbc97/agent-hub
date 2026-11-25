@@ -19,11 +19,10 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { t } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
-import { ConfirmButton, Field, FolderField, PageHeading } from '@/components/shared';
+import { ConfirmButton, Field, FolderField, PageHeading, SectionTitle, SwitchField } from '@/components/shared';
 
 export function SettingsPage() {
   const h = useHub();
@@ -188,24 +187,21 @@ export function SettingsPage() {
                     const isPair = (p: [string, string]) => p.includes(a.name) && p.includes(b.name);
                     const checked = directPairs.some(isPair);
                     return (
-                      <label
+                      <SwitchField
                         key={pair.join(':')}
-                        className="flex items-center gap-2 rounded-sm border px-3 py-2 text-sm"
-                      >
-                        <Switch
-                          size="sm"
-                          checked={checked}
-                          onCheckedChange={() => {
-                            const next = checked ? directPairs.filter((p) => !isPair(p)) : [...directPairs, pair];
-                            h.attempt(() =>
-                              api.updateWorkspace(ws.id, {
-                                settings: { directPairs: next },
-                              }),
-                            );
-                          }}
-                        />
-                        {a.name} <ArrowLeftRight size={14} aria-hidden="true" /> {b.name}
-                      </label>
+                        size="sm"
+                        className="rounded-sm border px-3 py-2"
+                        checked={checked}
+                        onChange={() => {
+                          const next = checked ? directPairs.filter((p) => !isPair(p)) : [...directPairs, pair];
+                          h.attempt(() => api.updateWorkspace(ws.id, { settings: { directPairs: next } }));
+                        }}
+                        label={
+                          <>
+                            {a.name} <ArrowLeftRight className="size-3.5" aria-hidden="true" /> {b.name}
+                          </>
+                        }
+                      />
                     );
                   }),
                 )}
@@ -276,7 +272,7 @@ function SettingsCard({
           {icon}
         </span>
         <div>
-          <h2 className="font-medium">{title}</h2>
+          <SectionTitle>{title}</SectionTitle>
           <p className="text-sm text-muted-foreground">{description}</p>
         </div>
       </header>

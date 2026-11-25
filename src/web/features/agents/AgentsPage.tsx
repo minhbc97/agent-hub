@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import {
-  ArrowLeft,
   Bot,
   Check,
   ChevronsUpDown,
@@ -11,6 +10,7 @@ import {
   RotateCcw,
   Settings2,
   Square,
+  SquareTerminal,
   Trash2,
 } from 'lucide-react';
 import { PAGE, useHub, agentState } from '@/lib/hub';
@@ -24,6 +24,7 @@ import {
   ISOLATIONS,
   RESET_POLICIES,
   RESET_POLICY,
+  RUN_STATUS,
   workTokens,
   type Agent,
   type EngineInfo,
@@ -40,14 +41,28 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { i18n, t } from '@/lib/i18n';
 import { AgentMap } from './AgentMap';
+import { Markdown } from '@/components/Markdown';
+import { AgentTerminal } from '@/components/AgentTerminal';
 import { EngineSetup } from '@/components/EngineSetup';
-import { Avatar, ConfirmButton, Empty, Field, FolderField, PageHeading, statusDot } from '@/components/shared';
+import {
+  Avatar,
+  Caption,
+  ConfirmButton,
+  Empty,
+  Field,
+  FolderField,
+  PageHeading,
+  SectionTitle,
+  statusDot,
+} from '@/components/shared';
 
 function tokensTodayOf(tokens: TokenTotal[], agentId: string): number {
   const total = tokens.find((x) => x.agentId === agentId);
@@ -74,7 +89,7 @@ export function AgentsPage({ openCreate = false }: { openCreate?: boolean }) {
               setOpen(true);
             }}
           >
-            <Plus size={16} />
+            <Plus />
             {t('agents.addAgent')}
           </Button>
         }
@@ -86,12 +101,19 @@ export function AgentsPage({ openCreate = false }: { openCreate?: boolean }) {
           <AgentMap />
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {h.agents.map((a) => (
-              <Card key={a.id} className="p-4">
+              <Card key={a.id} className="relative gap-0 p-4 transition-colors hover:bg-accent/40">
                 <div className="flex items-center gap-3">
-                  <Avatar agent={a} size={42} />
+                  <Avatar agent={a} size={40} />
                   <div className="min-w-0">
                     <div className="truncate font-medium">
-                      {a.name} {a.isOrchestrator && <Badge variant="secondary">{t('agents.orchestrator')}</Badge>}
+                      {/* The link covers the whole card; the buttons below sit above it. */}
+                      <a
+                        href={`#/${PAGE.agents}/${a.id}`}
+                        className="outline-none after:absolute after:inset-0 after:rounded-xl focus-visible:after:ring-2 focus-visible:after:ring-ring/50"
+                      >
+                        {a.name}
+                      </a>{' '}
+                      {a.isOrchestrator && <Badge variant="secondary">{t('agents.orchestrator')}</Badge>}
                     </div>
                     <div className="text-xs text-muted-foreground">{engineLine(a)}</div>
                   </div>
@@ -106,7 +128,7 @@ export function AgentsPage({ openCreate = false }: { openCreate?: boolean }) {
                     {tokensTodayOf(h.tokens, a.id).toLocaleString()} {t('agents.tokensToday')}
                   </span>
                 </div>
-                <div className="mt-3 flex gap-2">
+                <div className="relative z-10 mt-3 flex gap-2">
                   <Button
                     size="sm"
                     variant="outline"
@@ -783,6 +805,13 @@ function ModelPicker({
   );
 }
 
+const RUN_DOT = {
+  [RUN_STATUS.running]: 'bg-info',
+  [RUN_STATUS.ok]: 'bg-success',
+  [RUN_STATUS.failed]: 'bg-destructive',
+} as const;
+const TAB = { overview: 'overview', terminal: 'terminal' } as const;
+
 export function AgentDetail({ id }: { id: string }) {
   const h = useHub();
   const a = h.agentById(id);
@@ -795,6 +824,7 @@ export function AgentDetail({ id }: { id: string }) {
     // The status changes when a turn starts or ends.
   }, [id, a?.status]);
   const [isEditing, setEditing] = useState(false);
+  const [tab, setTab] = useState<string>(TAB.overview);
   if (!a) return <div>{t('errors.agentNotFound')}</div>;
   const state = agentState(a, h.messages);
   const stats = [
@@ -804,116 +834,140 @@ export function AgentDetail({ id }: { id: string }) {
   ];
   return (
     <>
-      <Button
-        variant="ghost"
-        size="sm"
-        className="-ml-2.5 font-normal text-muted-foreground"
-        onClick={() => (location.hash = `/${PAGE.agents}`)}
-      >
-        <ArrowLeft />
-        {t('agents.title')}
-      </Button>
-      <header className="mt-3 mb-6 flex items-start gap-4">
-        <Avatar agent={a} size={56} />
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <h1 className="text-2xl font-semibold tracking-tight">{a.name}</h1>
+      <PageHeading
+        title={a.name}
+        subtitle={`${engineLine(a)} · ${t(`agents.isolationMode.${a.isolation}`)}`}
+        back={{ label: t('agents.backToAgents'), onClick: () => (location.hash = `/${PAGE.agents}`) }}
+        media={<Avatar agent={a} size={48} />}
+        badges={
+          <>
             {a.isOrchestrator && <Badge variant="secondary">{t('agents.orchestrator')}</Badge>}
             <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
               <span className={cn('size-2 rounded-full', statusDot[state])} />
               {t(`agents.state.${state}`)}
             </span>
-          </div>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {engineLine(a)} · {t(`agents.isolationMode.${a.isolation}`)}
-          </p>
-        </div>
-        <div className="flex shrink-0 gap-2">
-          {a.status === AGENT_STATUS.working && (
-            <Button variant="destructive" onClick={() => h.attempt(() => api.stopAgent(a.id), t('agents.turnStopped'))}>
-              <Square />
-              {t('agents.stopTurn')}
+          </>
+        }
+        action={
+          <>
+            {a.status === AGENT_STATUS.working && (
+              <Button
+                variant="destructive"
+                onClick={() => h.attempt(() => api.stopAgent(a.id), t('agents.turnStopped'))}
+              >
+                <Square />
+                {t('agents.stopTurn')}
+              </Button>
+            )}
+            <Button variant="outline" onClick={() => h.attempt(() => api.testAgent(a.id), t('agents.testRunQueued'))}>
+              <Play />
+              {t('agents.testRun')}
             </Button>
-          )}
-          <Button variant="outline" onClick={() => h.attempt(() => api.testAgent(a.id), t('agents.testRunQueued'))}>
-            <Play />
-            {t('agents.testRun')}
-          </Button>
-          <Button
-            variant="outline"
-            onClick={() => h.attempt(() => api.newSession(a.id), t('agents.newSessionCreated'))}
-          >
-            <RotateCcw />
-            {t('agents.newSession')}
-          </Button>
-          <Button onClick={() => setEditing(true)}>{t('common.configure')}</Button>
-        </div>
-      </header>
-      <div className="mb-6 grid grid-cols-3 gap-3">
-        <Card className="col-span-2 grid grid-cols-2 gap-6 p-5">
-          <div className="min-w-0">
-            <h2 className="text-xs text-muted-foreground">{t('agents.role')}</h2>
-            <p className={cn('mt-1.5 line-clamp-6 text-sm whitespace-pre-wrap', !a.role && 'text-muted-foreground')}>
-              {a.role || t('agents.noRoleDescription')}
-            </p>
-          </div>
-          <div className="min-w-0">
-            <h2 className="text-xs text-muted-foreground">{t('agents.goal')}</h2>
-            <p className={cn('mt-1.5 line-clamp-6 text-sm whitespace-pre-wrap', !a.goal && 'text-muted-foreground')}>
-              {a.goal || t('agents.noGoal')}
-            </p>
-          </div>
-        </Card>
-        <Card className="grid gap-3 p-5">
-          {stats.map((stat) => (
-            <div key={stat.label} className="flex items-baseline justify-between gap-3 text-sm">
-              <span className="text-muted-foreground">{stat.label}</span>
-              <span className="font-medium tabular-nums">{stat.value}</span>
-            </div>
-          ))}
-        </Card>
-      </div>
-      {a.handoff && (
-        <Card className="mb-6 p-5">
-          <h2 className="text-xs text-muted-foreground">{t('agents.handoffNote')}</h2>
-          <p className="mt-1.5 text-sm whitespace-pre-wrap">{a.handoff}</p>
-        </Card>
-      )}
-      <h2 className="mb-3 text-base font-semibold">{t('agents.runHistory')}</h2>
+            <Button
+              variant="outline"
+              onClick={() => h.attempt(() => api.newSession(a.id), t('agents.newSessionCreated'))}
+            >
+              <RotateCcw />
+              {t('agents.newSession')}
+            </Button>
+            <Button onClick={() => setEditing(true)}>{t('common.configure')}</Button>
+          </>
+        }
+      />
       <AgentEditor open={isEditing} close={() => setEditing(false)} agent={a} />
-      <Card className="overflow-hidden">
-        <div className="grid grid-cols-[1.5fr_repeat(6,100px)] gap-2 bg-muted/40 p-3 text-xs text-muted-foreground">
-          <span>{t('agents.runs')}</span>
-          <span>{t('agents.input')}</span>
-          <span>{t('agents.output')}</span>
-          <span>{t('agents.cacheWrites')}</span>
-          <span>{t('agents.cacheReads')}</span>
-          <span>{t('agents.context')}</span>
-          <span>{t('agents.cost')}</span>
-        </div>
-        {runs.length ? (
-          runs.map((r) => (
-            <details key={r.id} className="border-t">
-              <summary className="grid cursor-pointer grid-cols-[1.5fr_repeat(6,100px)] gap-2 p-3 text-sm">
-                <span>
-                  {new Date(r.startedAt).toLocaleString(i18n.resolvedLanguage || 'en')} · {r.status}
-                </span>
-                <span>{r.inputTokens}</span>
-                <span>{r.outputTokens}</span>
-                <span>{r.cacheWriteTokens}</span>
-                <span>{r.cacheReadTokens}</span>
-                <span>{r.contextTokens || ''}</span>
-                <span>${r.costUsd.toFixed(4)}</span>
-              </summary>
-              <pre className="mx-3 mb-3 max-h-96 overflow-auto rounded-sm bg-muted p-3 text-xs whitespace-pre-wrap">
-                {r.output}
-              </pre>
-            </details>
-          ))
-        ) : (
-          <p className="p-5 text-sm text-muted-foreground">{t('agents.noRuns')}</p>
-        )}
-      </Card>
+      <Tabs value={tab} onValueChange={setTab}>
+        <TabsList className="mb-4">
+          <TabsTrigger value={TAB.overview}>{t('agents.overview')}</TabsTrigger>
+          <TabsTrigger value={TAB.terminal}>
+            <SquareTerminal />
+            {t('agents.terminal.title')}
+          </TabsTrigger>
+        </TabsList>
+        <TabsContent value={TAB.overview}>
+          <div className="mb-6 grid grid-cols-3 gap-3">
+            <Card className="col-span-2 grid grid-cols-2 gap-6 p-5">
+              <div className="min-w-0">
+                <Caption>{t('agents.role')}</Caption>
+                <p
+                  className={cn('mt-1.5 line-clamp-6 text-sm whitespace-pre-wrap', !a.role && 'text-muted-foreground')}
+                >
+                  {a.role || t('agents.noRoleDescription')}
+                </p>
+              </div>
+              <div className="min-w-0">
+                <Caption>{t('agents.goal')}</Caption>
+                <p
+                  className={cn('mt-1.5 line-clamp-6 text-sm whitespace-pre-wrap', !a.goal && 'text-muted-foreground')}
+                >
+                  {a.goal || t('agents.noGoal')}
+                </p>
+              </div>
+            </Card>
+            <Card className="grid gap-3 p-5">
+              {stats.map((stat) => (
+                <div key={stat.label} className="flex items-baseline justify-between gap-3 text-sm">
+                  <span className="text-muted-foreground">{stat.label}</span>
+                  <span className="font-medium tabular-nums">{stat.value}</span>
+                </div>
+              ))}
+            </Card>
+          </div>
+          {a.handoff && (
+            <Card className="mb-6 gap-0 p-5">
+              <Caption>{t('agents.handoffNote')}</Caption>
+              <Markdown text={a.handoff} className="mt-1.5 text-sm/6" />
+            </Card>
+          )}
+          <SectionTitle className="mb-3">{t('agents.runHistory')}</SectionTitle>
+          <Card className="gap-0 p-0">
+            <div className="grid grid-cols-[1.5fr_repeat(6,100px)] gap-2 bg-muted/40 p-3 text-xs text-muted-foreground">
+              <span>{t('agents.runs')}</span>
+              <span>{t('agents.input')}</span>
+              <span>{t('agents.output')}</span>
+              <span>{t('agents.cacheWrites')}</span>
+              <span>{t('agents.cacheReads')}</span>
+              <span>{t('agents.context')}</span>
+              <span>{t('agents.cost')}</span>
+            </div>
+            {runs.length ? (
+              runs.map((r) => (
+                <Collapsible key={r.id} className="border-t">
+                  <CollapsibleTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      className="grid h-auto w-full grid-cols-[1.5fr_repeat(6,100px)] justify-items-start gap-2 rounded-none p-3 font-normal tabular-nums"
+                    >
+                      <span className="flex items-center gap-2">
+                        <span className={cn('size-2 rounded-full', RUN_DOT[r.status])} />
+                        {new Date(r.startedAt).toLocaleString(i18n.resolvedLanguage || 'en')}
+                        <span className="text-muted-foreground">{t(`agents.runStatus.${r.status}`)}</span>
+                      </span>
+                      <span>{r.inputTokens}</span>
+                      <span>{r.outputTokens}</span>
+                      <span>{r.cacheWriteTokens}</span>
+                      <span>{r.cacheReadTokens}</span>
+                      <span>{r.contextTokens || ''}</span>
+                      <span>${r.costUsd.toFixed(4)}</span>
+                    </Button>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <pre className="mx-3 mb-3 max-h-96 overflow-auto rounded-sm bg-muted p-3 text-xs whitespace-pre-wrap">
+                      {r.output}
+                    </pre>
+                  </CollapsibleContent>
+                </Collapsible>
+              ))
+            ) : (
+              <p className="p-5 text-sm text-muted-foreground">{t('agents.noRuns')}</p>
+            )}
+          </Card>
+        </TabsContent>
+        <TabsContent value={TAB.terminal}>
+          <Card className="h-[calc(100vh-18rem)] min-h-80 gap-0 overflow-hidden p-0">
+            <AgentTerminal key={a.id} agent={a} />
+          </Card>
+        </TabsContent>
+      </Tabs>
     </>
   );
 }

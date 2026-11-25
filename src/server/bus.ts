@@ -43,7 +43,7 @@ import {
 } from './db.ts';
 import { emit } from './events.ts';
 import { DomainError } from './domain-error.ts';
-import { outboxDir, resetSession, runTurn } from './runner.ts';
+import { outboxDir, resetSession, runTurn, steerTurn } from './runner.ts';
 import { agentAsks, agentDone, tickSchedules } from './workflow.ts';
 import { parseTaskReply } from './engines/openrouter.ts';
 import { taskBranch } from './task-branch.ts';
@@ -57,7 +57,8 @@ const PARSE_GRACE_MS = 30_000;
 /** Outbox messages are short JSON; anything bigger is rejected unread so it cannot balloon the hub's memory. */
 const MAX_OUTBOX_FILE_BYTES = 256 * 1024;
 
-const running = new Set<string>();
+/** Agents in a turn, with the messages that turn works on. */
+const running = new Map<string, Message[]>();
 
 // ---------------------------------------------------------------- outbox
 
@@ -389,7 +390,11 @@ function dispatchAll(): void {
 
     let active = team.filter((a) => running.has(a.id)).length;
     for (const agent of team) {
-      if (running.has(agent.id)) continue;
+      const batch = running.get(agent.id);
+      if (batch) {
+        steer(agent, batch);
+        continue;
+      }
       const pending = pendingFor(agent.id);
       if (!pending.length) continue;
 
@@ -404,10 +409,26 @@ function dispatchAll(): void {
       if (active >= ws.settings.maxConcurrent) break;
       active++;
       // OpenRouter turns map one reply to one task, so they stay one message per turn.
-      const batch =
+      const next =
         agent.engine === ENGINE.openrouter ? pending.slice(0, 1) : oneTask(agent, pending).slice(0, MAX_BATCH);
-      start(agent, batch, team, engine);
+      start(agent, next, team, engine);
     }
+  }
+}
+
+/**
+ * What the user writes to a working agent joins its turn instead of waiting for the next one. Mail from agents and
+ * workflows waits, as does work on a task the turn is not about.
+ */
+function steer(agent: Agent, batch: Message[]): void {
+  if (agent.paused) return;
+  for (const message of pendingFor(agent.id)) {
+    if (message.fromId !== USER_ID || message.act !== ACT.request) continue;
+    if (message.taskId && !batch.some((m) => m.taskId === message.taskId)) continue;
+    if (!steerTurn(agent.id, { message, fromName: USER_ID })) return;
+    batch.push(message);
+    setMessageStatus(message.id, MESSAGE_STATUS.running);
+    emit({ type: 'message', workspaceId: agent.workspaceId, id: message.id });
   }
 }
 
@@ -452,7 +473,7 @@ export function pickEngine(agent: Agent): Engine | { hold: string } {
  */
 function start(agent: Agent, batch: Message[], team: Agent[], engine: Engine) {
   const msg = batch[0]!;
-  running.add(agent.id);
+  running.set(agent.id, batch);
   for (const m of batch) {
     setMessageStatus(m.id, MESSAGE_STATUS.running);
     emit({ type: 'message', workspaceId: agent.workspaceId, id: m.id });
@@ -467,18 +488,24 @@ function start(agent: Agent, batch: Message[], team: Agent[], engine: Engine) {
     batch.map((message) => ({ message, fromName: nameOf(message.fromId) })),
     engine,
   )
-    .then(({ run, result }) => {
+    .then(({ run, result, unread }) => {
+      const read = batch.filter((m) => !unread.includes(m.id));
+      // The turn ended before it read them, so they wait for the next one.
+      for (const id of unread) {
+        setMessageStatus(id, MESSAGE_STATUS.queued);
+        emit({ type: 'message', workspaceId: agent.workspaceId, id });
+      }
       // Out of quota is not the work failing: the mail waits for the reset (or the fallback) instead.
       const retryAt = result.isError && FALLBACK_ENGINES.includes(engine) ? quotaRetryAt(result.text) : undefined;
       if (retryAt !== undefined) {
         blockEngine(engine, `${engine} quota reached`, retryAt);
-        for (const m of batch) {
+        for (const m of read) {
           setMessageStatus(m.id, MESSAGE_STATUS.queued, { runId: run.id });
           emit({ type: 'message', workspaceId: agent.workspaceId, id: m.id });
         }
         return;
       }
-      for (const m of batch)
+      for (const m of read)
         setMessageStatus(m.id, result.isError ? MESSAGE_STATUS.failed : MESSAGE_STATUS.delivered, { runId: run.id });
       const task = msg.taskId ? getTask(msg.taskId) : undefined;
       const openRouterTaskReply =
@@ -504,7 +531,7 @@ function start(agent: Agent, batch: Message[], team: Agent[], engine: Engine) {
         else if (agentDone(task, agent.id, openRouterTaskReply.body))
           reportToDelegator(task, agent, openRouterTaskReply.body, msg.id);
       }
-      if (result.isError) for (const m of batch) blockTaskOnFailure(m, agent.id, result.text);
+      if (result.isError) for (const m of read) blockTaskOnFailure(m, agent.id, result.text);
     })
     .catch((err) => {
       const reason = String(err?.message ?? err);

@@ -253,6 +253,48 @@ export interface Run {
   sessionId: string | null;
 }
 
+export const TERMINAL_KIND = {
+  /** A CLI session started; text is the model when the CLI says. */
+  start: 'start',
+  /** A message handed to the agent for this turn. */
+  input: 'input',
+  text: 'text',
+  thinking: 'thinking',
+  /** A shell command; `tool` is any other call (reading, editing, searching). */
+  shell: 'shell',
+  tool: 'tool',
+  output: 'output',
+  error: 'error',
+} as const;
+export type TerminalKind = ValueOf<typeof TERMINAL_KIND>;
+
+export interface TerminalLine {
+  kind: TerminalKind;
+  text: string;
+}
+
+export interface TerminalEntry extends TerminalLine {
+  /** Grows by one per entry of the run, so a reader can ask only for what it has not seen. */
+  seq: number;
+  at: string;
+}
+
+/** Entries kept per turn, on the server and on the page. */
+export const TERMINAL_MAX_ENTRIES = 500;
+
+/** What an agent's current turn (or, when idle, its last one) printed. */
+export interface TerminalOutput {
+  runId: string | null;
+  status: RunStatus | null;
+  /** Folder the agent works in; empty when not known. */
+  cwd: string;
+  startedAt: string | null;
+  endedAt: string | null;
+  /** Oldest entries no longer kept, because the turn printed more than the buffer holds. */
+  droppedEntries: number;
+  entries: TerminalEntry[];
+}
+
 export interface EngineModel {
   id: string;
   label: string;

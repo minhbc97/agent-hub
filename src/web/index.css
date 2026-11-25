@@ -46,6 +46,9 @@
  * - Warm neutral surfaces (stone hue ~60), one action color: honey.
  * - Status colors: success (mint), warning (honey), danger, info. Never decorative.
  * - Agent identity comes from each agent's tint (avatar ring, mention chips), not from UI chrome.
+ * - Surfaces step up in lightness: sidebar < page < card < popover. A divider is `border`; a control's edge is `input`.
+ * - Honey fills with `primary`; text, icons and lines in honey use `primary-ink` (contrast on light surfaces).
+ * - Contrast floor: text 4.5:1, control edges, focus and meaningful icons 3:1.
  * - Density: 13-14px body, 32px controls, 8px base radius.
  */
 
@@ -61,6 +64,8 @@
   --color-popover: var(--popover);
   --color-popover-foreground: var(--popover-foreground);
   --color-primary: var(--primary);
+  --color-primary-ink: var(--primary-ink);
+  --color-overlay: var(--overlay);
   --color-primary-foreground: var(--primary-foreground);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
@@ -76,6 +81,7 @@
   --color-warning: var(--warning);
   --color-info: var(--info);
   --color-subtle: var(--subtle);
+  --color-scrollbar: var(--scrollbar);
 
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);
@@ -120,28 +126,33 @@
 :root {
   --app-min-width: 1280px;
   --radius: 0.5rem;
-  --background: oklch(0.985 0.003 75);
+  --background: oklch(0.965 0.003 75);
   --foreground: oklch(0.2 0.01 60);
   --card: oklch(1 0 0);
   --card-foreground: var(--foreground);
   --popover: oklch(1 0 0);
   --popover-foreground: var(--foreground);
   --primary: oklch(0.82 0.16 85);
+  /* Honey fills; on a light surface its text, icons and thin lines need this darker shade to be seen. */
+  --primary-ink: oklch(0.5 0.115 75);
   --primary-foreground: oklch(0.2 0.03 60);
-  --secondary: oklch(0.955 0.005 75);
+  --secondary: oklch(0.93 0.005 75);
   --secondary-foreground: var(--foreground);
-  --muted: oklch(0.955 0.005 75);
-  --muted-foreground: oklch(0.5 0.01 60);
-  --accent: oklch(0.945 0.008 75);
+  --muted: oklch(0.94 0.004 75);
+  --muted-foreground: oklch(0.45 0.01 60);
+  --accent: oklch(0.92 0.007 75);
   --accent-foreground: var(--foreground);
-  --subtle: oklch(0.97 0.004 75);
+  --subtle: oklch(0.955 0.004 75);
+  --overlay: oklch(0.2 0.01 60 / 40%);
   --destructive: oklch(0.5 0.19 27);
   --success: oklch(0.48 0.12 155);
   --warning: oklch(0.48 0.12 75);
   --info: oklch(0.48 0.12 245);
-  --border: oklch(0.91 0.006 75);
-  --input: oklch(0.72 0.006 75);
-  --ring: oklch(0.78 0.15 85);
+  --border: oklch(0.87 0.006 75);
+  --input: oklch(0.62 0.008 75);
+  --ring: oklch(0.6 0.13 75);
+  --scrollbar: oklch(0.2 0.01 60 / 28%);
+  --scrollbar-hover: oklch(0.2 0.01 60 / 52%);
   --chart-1: oklch(0.82 0.16 85);
   --chart-2: oklch(0.6 0.14 155);
   --chart-3: oklch(0.6 0.13 245);
@@ -163,11 +174,11 @@
   --office-leaf-dark: oklch(0.5 0.13 155);
   --office-pot: oklch(0.66 0.13 42);
   --office-ink: oklch(0.2 0.01 60);
-  --sidebar: oklch(0.97 0.004 75);
+  --sidebar: oklch(0.935 0.004 75);
   --sidebar-foreground: var(--foreground);
   --sidebar-primary: var(--primary);
   --sidebar-primary-foreground: var(--primary-foreground);
-  --sidebar-accent: oklch(0.93 0.008 75);
+  --sidebar-accent: oklch(0.885 0.007 75);
   --sidebar-accent-foreground: var(--foreground);
   --sidebar-border: var(--border);
   --sidebar-ring: var(--ring);
@@ -175,28 +186,32 @@
 
 /* Dark (default): warm charcoal, like an office after hours */
 .dark {
-  --background: oklch(0.175 0.006 60);
+  --background: oklch(0.185 0.003 75);
   --foreground: oklch(0.95 0.004 75);
-  --card: oklch(0.205 0.007 60);
+  --card: oklch(0.225 0.004 75);
   --card-foreground: var(--foreground);
-  --popover: oklch(0.22 0.008 60);
+  --popover: oklch(0.26 0.004 75);
   --popover-foreground: var(--foreground);
   --primary: oklch(0.83 0.16 85);
+  --primary-ink: oklch(0.83 0.16 85);
   --primary-foreground: oklch(0.2 0.03 60);
-  --secondary: oklch(0.25 0.008 60);
+  --secondary: oklch(0.295 0.005 75);
   --secondary-foreground: var(--foreground);
-  --muted: oklch(0.25 0.008 60);
-  --muted-foreground: oklch(0.68 0.01 70);
-  --accent: oklch(0.26 0.009 60);
+  --muted: oklch(0.285 0.005 75);
+  --muted-foreground: oklch(0.73 0.008 75);
+  --accent: oklch(0.315 0.006 75);
   --accent-foreground: var(--foreground);
-  --subtle: oklch(0.195 0.007 60);
-  --destructive: oklch(0.68 0.19 25);
+  --subtle: oklch(0.205 0.004 75);
+  --overlay: oklch(0.08 0 0 / 60%);
+  --destructive: oklch(0.73 0.16 25);
   --success: oklch(0.76 0.15 155);
   --warning: oklch(0.83 0.16 85);
   --info: oklch(0.72 0.12 245);
-  --border: oklch(1 0 0 / 9%);
-  --input: oklch(1 0 0 / 13%);
+  --border: oklch(1 0 0 / 14%);
+  --input: oklch(1 0 0 / 36%);
   --ring: oklch(0.83 0.16 85 / 70%);
+  --scrollbar: oklch(1 0 0 / 22%);
+  --scrollbar-hover: oklch(1 0 0 / 42%);
   --chart-1: oklch(0.83 0.16 85);
   --chart-2: oklch(0.76 0.15 155);
   --chart-3: oklch(0.72 0.12 245);
@@ -217,11 +232,11 @@
   --office-leaf-dark: oklch(0.56 0.14 155);
   --office-pot: oklch(0.64 0.13 42);
   --office-ink: oklch(0.14 0.02 265);
-  --sidebar: oklch(0.155 0.006 60);
+  --sidebar: oklch(0.145 0.003 75);
   --sidebar-foreground: var(--foreground);
   --sidebar-primary: var(--primary);
   --sidebar-primary-foreground: var(--primary-foreground);
-  --sidebar-accent: oklch(0.235 0.008 60);
+  --sidebar-accent: oklch(0.26 0.005 75);
   --sidebar-accent-foreground: var(--foreground);
   --sidebar-border: oklch(1 0 0 / 7%);
   --sidebar-ring: var(--ring);
@@ -247,29 +262,36 @@
   [role='button']:not(:disabled) {
     cursor: pointer;
   }
+  /* One scrollbar everywhere. The standard properties would switch the rounded ::-webkit-scrollbar off, so they are
+     only for browsers without it (Firefox). */
+  @supports not selector(::-webkit-scrollbar) {
+    * {
+      scrollbar-width: thin;
+      scrollbar-color: var(--scrollbar) transparent;
+    }
+  }
+  ::-webkit-scrollbar {
+    width: 0.75rem;
+    height: 0.75rem;
+  }
+  ::-webkit-scrollbar-track,
+  ::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    border: 3px solid transparent;
+    border-radius: 9999px;
+    background: var(--scrollbar) content-box;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: var(--scrollbar-hover);
+  }
   ::selection {
     @apply bg-primary text-primary-foreground;
   }
 }
 
 @layer utilities {
-  .scrollbar-thin {
-    scrollbar-width: thin;
-    scrollbar-color: var(--border) transparent;
-  }
-  .scrollbar-thin::-webkit-scrollbar {
-    width: 0.5rem;
-    height: 0.5rem;
-  }
-  .scrollbar-thin::-webkit-scrollbar-track {
-    background: transparent;
-  }
-  .scrollbar-thin::-webkit-scrollbar-thumb {
-    border: 2px solid transparent;
-    border-radius: 9999px;
-    background: var(--border);
-    background-clip: content-box;
-  }
   .text-balance {
     text-wrap: balance;
   }

@@ -5,6 +5,7 @@ import type {
   Run,
   Task,
   TaskChanges,
+  TerminalOutput,
   TokenTotal,
   UsageReport,
   Workflow,
@@ -32,6 +33,8 @@ export {
   ROUTING,
   RUN_STATUS,
   TASK_STATUS,
+  TERMINAL_KIND,
+  TERMINAL_MAX_ENTRIES,
   TRIGGER_KIND,
   USAGE_STATUS,
   USER_ID,
@@ -51,6 +54,9 @@ export type {
   Task,
   TaskChanges,
   TaskStatus,
+  TerminalEntry,
+  TerminalKind,
+  TerminalOutput,
   TokenTotal,
   EngineUsage,
   UsageReport,
@@ -101,6 +107,9 @@ export const api = {
   stopAgent: (id: string) => call('POST', `/api/agents/${id}/stop`),
   testAgent: (id: string) => call<Message>('POST', `/api/agents/${id}/test`),
   runs: (id: string) => call<Run[]>('GET', `/api/agents/${id}/runs`),
+
+  terminal: (id: string, runId: string, afterSeq: number) =>
+    call<TerminalOutput>('GET', `/api/agents/${id}/terminal?run=${runId}&after=${afterSeq}`),
 
   messages: (ws: string) => call<Message[]>('GET', `/api/workspaces/${ws}/messages`),
   send: (

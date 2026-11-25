@@ -1,7 +1,8 @@
 import { EventEmitter } from 'node:events';
 
 export interface HubEvent {
-  type: 'message' | 'agent' | 'run' | 'task' | 'workflow';
+  /** `terminal`: agent `id` printed something; nothing stored changed. */
+  type: 'message' | 'agent' | 'run' | 'task' | 'workflow' | 'terminal';
   workspaceId: string;
   id?: string;
 }

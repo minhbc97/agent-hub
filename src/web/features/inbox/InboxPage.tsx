@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import {
-  ArrowLeft,
   ArrowRight,
   Bot,
   Check,
@@ -11,6 +10,7 @@ import {
   MessagesSquare,
   RotateCcw,
   Search,
+  SquareTerminal,
   Send,
   Zap,
 } from 'lucide-react';
@@ -35,9 +35,12 @@ import { Input } from '@/components/ui/input';
 import { InputGroup, InputGroupAddon, InputGroupInput } from '@/components/ui/input-group';
 import { i18n, t } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
-import { AgentAvatar, Avatar, UserAvatar, label } from '@/components/shared';
+import { AgentAvatar, Avatar, PageHeading, SectionTitle, UserAvatar, label } from '@/components/shared';
 import { TaskChanges } from '@/components/TaskChanges';
+import { Markdown } from '@/components/Markdown';
 import { Composer } from '@/components/Composer';
+import { AgentTerminal } from '@/components/AgentTerminal';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 /** Only acts that change what the reader should do get a badge; plain chat stays unlabeled. */
 const notableAct: Partial<Record<Message['act'], { key: string; variant: 'warning' | 'success' | 'secondary' }>> = {
@@ -76,6 +79,29 @@ function dayLabel(iso: string): string {
   if (day.toDateString() === today.toDateString()) return t('inbox.today');
   if (day.toDateString() === yesterday.toDateString()) return t('inbox.yesterday');
   return day.toLocaleDateString(locale(), { weekday: 'long', day: 'numeric', month: 'long' });
+}
+
+const TERMINAL_KEY = 'agent-hub.inbox-terminal';
+const TERMINAL_CLOSED = 'closed';
+
+/** Whether the terminal shows beside the chat; remembered on this device. */
+function useTerminalPane(): [boolean, () => void] {
+  const [isOpen, setOpen] = useState(() => {
+    try {
+      return localStorage.getItem(TERMINAL_KEY) !== TERMINAL_CLOSED;
+    } catch {
+      return true;
+    }
+  });
+  const toggle = () => {
+    setOpen(!isOpen);
+    try {
+      localStorage.setItem(TERMINAL_KEY, isOpen ? TERMINAL_CLOSED : 'open');
+    } catch {
+      /* storage unavailable */
+    }
+  };
+  return [isOpen, toggle];
 }
 
 export function InboxPage({ filter, setFilter }: { filter: string; setFilter: (s: string) => void }) {
@@ -130,6 +156,15 @@ export function InboxPage({ filter, setFilter }: { filter: string; setFilter: (s
   }, [filter]);
 
   const isNeeds = filter === INBOX_CHANNEL.needs;
+  const [isTerminalOpen, toggleTerminal] = useTerminalPane();
+  // A thread shows its own agent. The team channel follows whoever works until the reader picks one.
+  const [pickedId, setPickedId] = useState<string | null>(null);
+  const isTeam = filter === INBOX_CHANNEL.team;
+  const terminalAgent = isTeam
+    ? (h.agentById(pickedId) ??
+      h.agents.find((a) => a.status === AGENT_STATUS.working) ??
+      h.agents.find((a) => a.isOrchestrator))
+    : (selectedAgent ?? h.agentById(selectedTask?.assigneeId));
   return (
     <div className="flex h-full min-h-0">
       <ChannelList filter={filter} setFilter={setFilter} needsCount={pending.count} query={query} setQuery={setQuery} />
@@ -140,59 +175,91 @@ export function InboxPage({ filter, setFilter }: { filter: string; setFilter: (s
           agent={selectedAgent}
           task={selectedTask}
           onClose={() => setFilter(INBOX_CHANNEL.team)}
+          terminal={terminalAgent && { isOpen: isTerminalOpen, onToggle: toggleTerminal }}
         />
-        <div
-          ref={scroller}
-          onScroll={(e) => {
-            const el = e.currentTarget;
-            atBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < STICK_TO_BOTTOM_PX;
-          }}
-          className="min-h-0 flex-1 overflow-auto px-6 py-5"
-        >
-          <div className="flex min-h-full w-full flex-col">
-            {isNeeds ? (
-              <NeedsList tasks={pending.tasks} questions={pending.messages} />
-            ) : (
-              <>
-                {items.length === 0 && outgoing.length === 0 && (
-                  <EmptyThread
-                    kind={h.agents.length === 0 ? 'noAgents' : 'conversation'}
-                    onAddAgent={() => navigate(`${PAGE.agents}/new`)}
-                  />
-                )}
-                {items.map((m, i) => (
-                  <div key={m.id}>
-                    {(i === 0 || dayKey(items[i - 1]!.createdAt) !== dayKey(m.createdAt)) && (
-                      <DaySeparator iso={m.createdAt} />
+        <div className="flex min-h-0 flex-1">
+          <div className="flex min-w-0 flex-1 flex-col">
+            <div
+              ref={scroller}
+              onScroll={(e) => {
+                const el = e.currentTarget;
+                atBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < STICK_TO_BOTTOM_PX;
+              }}
+              className="min-h-0 flex-1 overflow-auto px-6 py-5"
+            >
+              <div className="flex min-h-full w-full flex-col">
+                {isNeeds ? (
+                  <NeedsList tasks={pending.tasks} questions={pending.messages} />
+                ) : (
+                  <>
+                    {items.length === 0 && outgoing.length === 0 && (
+                      <EmptyThread
+                        kind={h.agents.length === 0 ? 'noAgents' : 'conversation'}
+                        onAddAgent={() => navigate(`${PAGE.agents}/new`)}
+                      />
                     )}
-                    <MessageRow
-                      message={m}
-                      grouped={continuesGroup(items[i - 1], m)}
-                      showRecipient={!selectedAgent}
-                      isInTaskThread={!!selectedTask}
-                      onOpenTask={(id) => setFilter(TASK_THREAD + id)}
-                      onAnswer={() => setFilter(INBOX_CHANNEL.needs)}
-                    />
-                  </div>
-                ))}
-                {outgoing.map((o) => (
-                  <OutgoingRow key={o.key} message={o} showRecipient={!selectedAgent} />
-                ))}
-                <WorkingLine agentId={selectedAgent?.id} />
-              </>
+                    {items.map((m, i) => (
+                      <div key={m.id}>
+                        {(i === 0 || dayKey(items[i - 1]!.createdAt) !== dayKey(m.createdAt)) && (
+                          <DaySeparator iso={m.createdAt} />
+                        )}
+                        <MessageRow
+                          message={m}
+                          grouped={continuesGroup(items[i - 1], m)}
+                          showRecipient={!selectedAgent}
+                          isInTaskThread={!!selectedTask}
+                          onOpenTask={(id) => setFilter(TASK_THREAD + id)}
+                          onAnswer={() => setFilter(INBOX_CHANNEL.needs)}
+                        />
+                      </div>
+                    ))}
+                    {outgoing.map((o) => (
+                      <OutgoingRow key={o.key} message={o} showRecipient={!selectedAgent} />
+                    ))}
+                    <WorkingLine agentId={selectedAgent?.id} />
+                  </>
+                )}
+              </div>
+            </div>
+            {!isNeeds && h.agents.length > 0 && (
+              <Composer
+                key={filter}
+                fixedRecipient={selectedAgent}
+                taskRecipient={selectedTask ? h.agentById(selectedTask.assigneeId ?? '') : undefined}
+                taskId={selectedTask?.id}
+              />
             )}
           </div>
+          {terminalAgent && isTerminalOpen && (
+            <aside aria-label={t('agents.terminal.title')} className="w-1/2 min-w-0 shrink-0 border-l">
+              <AgentTerminal
+                key={terminalAgent.id}
+                agent={terminalAgent}
+                leading={isTeam && <TerminalAgentSelect agent={terminalAgent} onPick={setPickedId} />}
+              />
+            </aside>
+          )}
         </div>
-        {!isNeeds && h.agents.length > 0 && (
-          <Composer
-            key={filter}
-            fixedRecipient={selectedAgent}
-            taskRecipient={selectedTask ? h.agentById(selectedTask.assigneeId ?? '') : undefined}
-            taskId={selectedTask?.id}
-          />
-        )}
       </section>
     </div>
+  );
+}
+
+function TerminalAgentSelect({ agent, onPick }: { agent: Agent; onPick: (id: string) => void }) {
+  const h = useHub();
+  return (
+    <Select value={agent.id} onValueChange={onPick}>
+      <SelectTrigger size="sm" aria-label={t('agents.terminal.chooseAgent')}>
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        {h.agents.map((a) => (
+          <SelectItem key={a.id} value={a.id}>
+            {a.name}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   );
 }
 
@@ -338,12 +405,14 @@ function ThreadHeader({
   agent,
   task,
   onClose,
+  terminal,
 }: {
   filter: string;
   needsCount: number;
   agent?: Agent;
   task?: Task;
   onClose: () => void;
+  terminal?: { isOpen: boolean; onToggle: () => void };
 }) {
   const [, navigate] = useHashRoute();
   const isNeeds = filter === INBOX_CHANNEL.needs;
@@ -370,24 +439,34 @@ function ThreadHeader({
         ? t('inbox.needsCount', { count: needsCount })
         : t('inbox.allMessagesDetail');
   return (
-    <header className="flex h-16 shrink-0 items-center gap-3 border-b px-6">
-      {task && (
-        <Button variant="ghost" size="icon-sm" aria-label={t('nav.inbox')} onClick={onClose}>
-          <ArrowLeft />
-        </Button>
-      )}
-      {icon}
-      <div className="min-w-0 flex-1">
-        <h1 className="truncate font-semibold">{title}</h1>
-        <p className="truncate text-xs text-muted-foreground">{subtitle}</p>
-      </div>
-      {agent && (
-        <Button variant="outline" size="sm" onClick={() => navigate(`${PAGE.agents}/${agent.id}`)}>
-          <Bot />
-          {t('inbox.viewAgent')}
-        </Button>
-      )}
-    </header>
+    <PageHeading
+      variant="bar"
+      title={title}
+      subtitle={subtitle}
+      media={icon}
+      back={task && { label: t('nav.inbox'), onClick: onClose }}
+      action={
+        <>
+          {terminal && (
+            <Button
+              variant={terminal.isOpen ? 'secondary' : 'outline'}
+              size="sm"
+              aria-pressed={terminal.isOpen}
+              onClick={terminal.onToggle}
+            >
+              <SquareTerminal />
+              {t('agents.terminal.title')}
+            </Button>
+          )}
+          {agent && (
+            <Button variant="outline" size="sm" onClick={() => navigate(`${PAGE.agents}/${agent.id}`)}>
+              <Bot />
+              {t('inbox.viewAgent')}
+            </Button>
+          )}
+        </>
+      }
+    />
   );
 }
 
@@ -442,7 +521,7 @@ function MessageRow({
       {grouped ? (
         <span
           className={cn(
-            'w-8 shrink-0 pt-2 text-[0.65rem] text-muted-foreground opacity-0 group-hover:opacity-100',
+            'w-8 shrink-0 pt-2 text-xs text-muted-foreground opacity-0 group-hover:opacity-100',
             isMine ? 'text-left' : 'text-right',
           )}
         >
@@ -484,7 +563,7 @@ function MessageRow({
         {(m.subject || m.body) && (
           <Bubble isMine={isMine}>
             {m.subject && <div className="font-medium">{m.subject}</div>}
-            {m.body && <p className="whitespace-pre-wrap">{m.body}</p>}
+            {m.body && <Markdown text={m.body} />}
           </Bubble>
         )}
         {m.status === MESSAGE_STATUS.failed && h.agentById(m.toId) && (
@@ -501,7 +580,7 @@ function MessageRow({
           </div>
         )}
         {((task && !isInTaskThread) || isWaitingOnUser) && (
-          <div className="mt-2 flex flex-wrap gap-2">
+          <div className="mt-2 flex max-w-full flex-wrap gap-2">
             {isWaitingOnUser && (
               <Button size="xs" onClick={onAnswer}>
                 <CircleHelp />
@@ -509,9 +588,11 @@ function MessageRow({
               </Button>
             )}
             {task && !isInTaskThread && (
-              <Button variant="outline" size="xs" onClick={() => onOpenTask(task.id)}>
+              <Button variant="outline" size="xs" className="max-w-full" onClick={() => onOpenTask(task.id)}>
                 <List />
-                {task.key} · {task.title}
+                <span className="truncate">
+                  {task.key} · {task.title}
+                </span>
               </Button>
             )}
           </div>
@@ -527,7 +608,7 @@ function MessageHeader({ from, to, time, isMine }: { from: string; to: string | 
       <span className="font-medium">{from}</span>
       {to && (
         <span className="flex items-center gap-1.5 text-muted-foreground">
-          <ArrowRight size={12} />
+          <ArrowRight className="size-3" />
           {to}
         </span>
       )}
@@ -549,8 +630,8 @@ function Bubble({
   return (
     <div
       className={cn(
-        'mt-1 max-w-2xl rounded-2xl px-3.5 py-2 text-sm/6 text-foreground/90',
-        isMine ? 'rounded-tr-sm bg-primary/15' : 'rounded-tl-sm bg-muted/60',
+        'mt-1 max-w-2xl rounded-2xl px-3.5 py-2 text-sm/6 wrap-anywhere',
+        isMine ? 'rounded-tr-sm bg-primary/20 dark:bg-primary/15' : 'rounded-tl-sm bg-muted',
         isPending && 'opacity-70',
       )}
     >
@@ -575,7 +656,7 @@ function OutgoingRow({ message: o, showRecipient }: { message: OutgoingMessage; 
           isMine
         />
         <Bubble isMine isPending>
-          <p className="whitespace-pre-wrap">{o.body}</p>
+          <Markdown text={o.body} />
         </Bubble>
         <span className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground" role="status">
           <Loader2 className="size-3.5 animate-spin" />
@@ -618,8 +699,8 @@ function EmptyThread({ kind, onAddAgent }: { kind: 'needs' | 'noAgents' | 'conve
         : t('inbox.startConversationHint');
   return (
     <div className="flex min-h-72 flex-1 flex-col items-center justify-center text-center">
-      <div className="mb-5 grid size-12 place-items-center rounded-xl bg-muted text-muted-foreground">
-        <Icon size={22} />
+      <div className="mb-5 grid size-12 place-items-center rounded-xl bg-muted text-muted-foreground [&_svg]:size-5">
+        <Icon />
       </div>
       <h2 className="text-lg font-semibold">{title}</h2>
       <p className="mt-2 max-w-sm text-sm/6 text-muted-foreground">{description}</p>
@@ -662,10 +743,10 @@ function NeedsList({ tasks, questions }: { tasks: Task[]; questions: Message[] }
 function NeedsSection({ title, count, children }: { title: string; count: number; children: React.ReactNode }) {
   return (
     <section>
-      <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold">
+      <SectionTitle className="mb-3 flex items-center gap-2">
         {title}
         <Badge variant="secondary">{count}</Badge>
-      </h2>
+      </SectionTitle>
       <div className="grid gap-3">{children}</div>
     </section>
   );
@@ -691,9 +772,9 @@ function NeedTask({ task }: { task: Task }) {
             <Badge variant="outline">{task.key}</Badge>
             <span className="font-medium">{task.title}</span>
           </div>
-          <p className="mt-1 text-sm text-muted-foreground">{reason}</p>
+          <Markdown text={reason} className="mt-1 text-sm/6" />
           {task.result && (
-            <p className="mt-3 line-clamp-6 rounded-lg bg-muted/60 p-3 text-sm/6 whitespace-pre-wrap">{task.result}</p>
+            <Markdown text={task.result} className="mt-3 max-h-60 overflow-y-auto rounded-lg bg-muted p-3 text-sm/6" />
           )}
           {isReview && <TaskChanges task={task} className="mt-3" />}
           {!isReview && !!question?.options.length && (
@@ -772,7 +853,7 @@ function NeedQuestion({ message: m }: { message: Message }) {
             <span className="text-xs text-muted-foreground">{timeOf(m.createdAt)}</span>
           </div>
           {m.subject && <div className="mt-1 font-medium">{m.subject}</div>}
-          <p className="mt-1 text-sm/6 whitespace-pre-wrap text-foreground/90">{m.body}</p>
+          <Markdown text={m.body} className="mt-1 text-sm/6" />
           {m.options.length > 0 && <AnswerOptions options={m.options} onPick={send} />}
           <form className="mt-3 flex gap-2" onSubmit={reply}>
             <Input
@@ -809,7 +890,7 @@ function AnswerOptions({ options, onPick }: { options: string[]; onPick: (option
             await onPick(option);
             setPicked(null);
           }}
-          className="h-auto justify-start gap-3 py-2.5 text-left font-normal whitespace-normal hover:border-primary/60 hover:bg-primary/10"
+          className="h-auto justify-start gap-3 py-2.5 text-left font-normal whitespace-normal hover:border-primary-ink hover:bg-primary/10"
         >
           <span className="grid size-6 shrink-0 place-items-center rounded-md bg-muted text-xs font-semibold">
             {picked === option ? <Loader2 className="size-3.5 animate-spin" /> : OPTION_KEYS[i]}

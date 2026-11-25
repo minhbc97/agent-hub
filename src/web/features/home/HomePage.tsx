@@ -4,7 +4,7 @@ import { PAGE, agentState, useHashRoute, useHub, waitingOnUser } from '@/lib/hub
 import { ACT, AGENT_STATUS, MESSAGE_STATUS, TASK_STATUS, USER_ID, type Agent, type TaskStatus } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Composer } from '@/components/Composer';
-import { AgentAvatar, TASK_TONE } from '@/components/shared';
+import { AgentAvatar, PageHeading, TASK_TONE } from '@/components/shared';
 import { t } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { BookshelfArt, ChairArt, DeskArt, DoorwayArt, LoungeArt, MeetingTableArt, PlantArt } from './office-art';
@@ -46,27 +46,27 @@ export function HomePage({ openAgent, openNeeds }: { openAgent: (id: string) => 
     );
   }, []);
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-4">
-      <div className="flex items-center justify-between gap-4">
-        <h1 className="rounded-md border-2 border-foreground bg-primary px-3 py-0.5 text-sm font-bold tracking-wider text-primary-foreground uppercase comic-shadow-sm">
-          {t('home.office')}
-        </h1>
-        <Button
-          variant="ghost"
-          onClick={openNeeds}
-          className={cn(
-            'h-auto gap-3 rounded-lg border-2 border-foreground px-4 py-2 comic-shadow-sm',
-            needs.count ? '-rotate-1 bg-warning text-background hover:bg-warning/90' : 'bg-card',
-          )}
-        >
-          <CircleHelp />
-          <span className="text-xs font-bold tracking-wider uppercase">{t('inbox.needsYou')}</span>
-          <span className="text-xl font-bold tabular-nums">{needs.count}</span>
-          <span className={cn('text-xs', needs.count ? 'text-background/80' : 'text-muted-foreground')}>
-            {needs.count ? t('home.needsHint') : t('inbox.noPendingItems')}
-          </span>
-        </Button>
-      </div>
+    <div className="flex min-h-0 flex-1 flex-col">
+      <PageHeading
+        title={t('home.office')}
+        action={
+          <Button
+            variant="ghost"
+            onClick={openNeeds}
+            className={cn(
+              'h-auto gap-3 rounded-lg border-2 border-foreground px-4 py-2 comic-shadow-sm',
+              needs.count ? '-rotate-1 bg-warning text-background hover:bg-warning/90' : 'bg-card',
+            )}
+          >
+            <CircleHelp />
+            <span className="text-xs font-bold tracking-wider uppercase">{t('inbox.needsYou')}</span>
+            <span className="text-xl font-bold tabular-nums">{needs.count}</span>
+            <span className={cn('text-xs', needs.count ? 'text-background' : 'text-muted-foreground')}>
+              {needs.count ? t('home.needsHint') : t('inbox.noPendingItems')}
+            </span>
+          </Button>
+        }
+      />
       {/* Keep the whole floor visible on desktop; smaller screens can scroll the plan. */}
       <div className="min-h-0 flex-1 overflow-hidden pr-1.5 pb-1.5 max-lg:overflow-y-auto [@media(max-height:760px)]:overflow-y-auto">
         <div className="relative grid h-full min-h-full grid-cols-[22rem_0.75rem_minmax(0,1fr)] grid-rows-[minmax(13rem,0.9fr)_0.75rem_minmax(14rem,1.1fr)] rounded-2xl border-4 border-office-ink bg-office-wall p-3 comic-shadow">
@@ -113,7 +113,7 @@ export function HomePage({ openAgent, openNeeds }: { openAgent: (id: string) => 
         </div>
       </div>
       {lead && (
-        <div {...{ [MAIL_ANCHOR]: USER_ID }}>
+        <div className="mt-4" {...{ [MAIL_ANCHOR]: USER_ID }}>
           <Composer
             key={lead.id}
             fixedRecipient={lead}

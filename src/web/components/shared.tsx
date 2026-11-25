@@ -1,5 +1,5 @@
 import { useId, useState } from 'react';
-import { FolderOpen, Sparkles, UserRound } from 'lucide-react';
+import { ArrowLeft, FolderOpen, Sparkles, UserRound } from 'lucide-react';
 import { toast } from 'sonner';
 import { createAvatar } from '@dicebear/core';
 import { micah } from '@dicebear/collection';
@@ -10,6 +10,7 @@ import { t } from '@/lib/i18n';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -38,16 +39,16 @@ export const statusDot: Record<AgentState, string> = {
   paused: 'bg-muted-foreground',
 };
 
-export type Tone = { column: string; dot: string };
+export type Tone = { dot: string };
 
 /** Each status keeps one color across the board, the list and the task sheet. */
 export const TASK_TONE: Record<TaskStatus, Tone> = {
-  todo: { column: 'border-muted-foreground/50 bg-muted/40', dot: 'bg-muted-foreground' },
-  doing: { column: 'border-info bg-info/5', dot: 'bg-info' },
-  review: { column: 'border-warning bg-warning/5', dot: 'bg-warning' },
-  blocked: { column: 'border-destructive bg-destructive/5', dot: 'bg-destructive' },
-  done: { column: 'border-success bg-success/5', dot: 'bg-success' },
-  archived: { column: 'border-muted-foreground/30 bg-muted/20', dot: 'bg-muted-foreground/50' },
+  todo: { dot: 'bg-muted-foreground' },
+  doing: { dot: 'bg-info' },
+  review: { dot: 'bg-warning' },
+  blocked: { dot: 'bg-destructive' },
+  done: { dot: 'bg-success' },
+  archived: { dot: 'bg-muted-foreground' },
 };
 export const uid = () => crypto.randomUUID();
 
@@ -70,7 +71,7 @@ export function Avatar({ agent, size = 32 }: { agent?: Pick<Agent, 'name' | 'ava
     return (
       <div
         style={{ width: size, height: size }}
-        className="flex items-center justify-center rounded-full bg-primary/15 text-primary"
+        className="flex items-center justify-center rounded-full bg-primary/15 text-primary-ink"
       >
         <Sparkles size={size * 0.5} />
       </div>
@@ -123,23 +124,86 @@ export function AgentAvatar({
   );
 }
 
+/** The header of every page: back, picture, title and actions share one row. `bar` is for panes that scroll under it. */
 export function PageHeading({
   title,
   subtitle,
+  back,
+  media,
+  badges,
   action,
+  variant = 'page',
 }: {
   title: string;
   subtitle?: string;
+  back?: { label: string; onClick: () => void };
+  media?: React.ReactNode;
+  badges?: React.ReactNode;
   action?: React.ReactNode;
+  variant?: 'page' | 'bar';
+}) {
+  const isBar = variant === 'bar';
+  return (
+    <header
+      className={cn(
+        'flex shrink-0 items-center gap-3',
+        isBar ? 'sticky top-0 z-20 h-16 border-b bg-background px-7' : 'mb-6 min-h-12',
+      )}
+    >
+      {back && (
+        <Button
+          variant="ghost"
+          size="icon"
+          className="-ml-2 shrink-0"
+          aria-label={back.label}
+          title={back.label}
+          onClick={back.onClick}
+        >
+          <ArrowLeft />
+        </Button>
+      )}
+      {media}
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2">
+          <h1 className={cn('truncate font-semibold tracking-tight', isBar ? 'text-lg' : 'text-2xl')}>{title}</h1>
+          {badges}
+        </div>
+        {subtitle && <p className={cn('truncate text-muted-foreground', isBar ? 'text-xs' : 'mt-0.5')}>{subtitle}</p>}
+      </div>
+      {action && <div className="flex shrink-0 items-center gap-2">{action}</div>}
+    </header>
+  );
+}
+
+/** Title of a block inside a page. */
+export function SectionTitle({ className, children }: { className?: string; children: React.ReactNode }) {
+  return <h2 className={cn('text-base font-semibold', className)}>{children}</h2>;
+}
+
+/** Small caption over a value or text block. */
+export function Caption({ className, children }: { className?: string; children: React.ReactNode }) {
+  return <h3 className={cn('text-xs font-medium text-muted-foreground', className)}>{children}</h3>;
+}
+
+/** A switch with its text; the whole row toggles it. */
+export function SwitchField({
+  label,
+  checked,
+  onChange,
+  size,
+  className,
+}: {
+  label: React.ReactNode;
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+  size?: 'sm' | 'default';
+  className?: string;
 }) {
   return (
-    <div className="mb-6 flex items-start justify-between gap-4">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
-        {subtitle && <p className="mt-1 text-muted-foreground">{subtitle}</p>}
-      </div>
-      {action}
-    </div>
+    <Label className={cn('font-normal', className)}>
+      <Switch size={size} checked={checked} onCheckedChange={onChange} />
+      {label}
+    </Label>
   );
 }
 

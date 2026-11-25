@@ -15,8 +15,8 @@ export default [
       'better-tailwindcss/enforce-consistent-line-wrapping': 'off',
       // html font-size is 14px (index.css); the default 16 would suggest px->rem swaps that change layout.
       'better-tailwindcss/enforce-canonical-classes': ['warn', { rootFontSize: 14 }],
-      // sonner's hook class, not a Tailwind utility.
-      'better-tailwindcss/no-unknown-classes': ['error', { ignore: ['^toaster$'] }],
+      // sonner's hook class and the theme class (index.css), not Tailwind utilities.
+      'better-tailwindcss/no-unknown-classes': ['error', { ignore: ['^toaster$', '^dark$'] }],
     },
   },
   {

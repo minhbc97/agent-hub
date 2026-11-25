@@ -16,7 +16,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { i18n, t } from '@/lib/i18n';
-import { Empty, PageHeading, uid } from '@/components/shared';
+import { Empty, PageHeading, SectionTitle, uid } from '@/components/shared';
 import { WorkflowEditor } from './WorkflowEditor';
 
 function createWorkflowTemplates() {
@@ -131,12 +131,12 @@ export function WorkflowsPage() {
           </Button>
         }
       />
-      <h2 className="mb-3 font-medium">{t('workflows.startFromATemplate')}</h2>
+      <SectionTitle className="mb-3">{t('workflows.startFromATemplate')}</SectionTitle>
       <div className="mb-7 grid gap-3 md:grid-cols-3">
         {createWorkflowTemplates().map((x) => (
-          <Card key={x.name} className="p-4">
-            <div className="mb-3 grid size-9 place-items-center rounded-lg bg-primary/10 text-primary">
-              <x.icon size={17} />
+          <Card key={x.name} className="items-start gap-0 p-4">
+            <div className="mb-3 grid size-9 place-items-center rounded-lg bg-primary/15 text-primary-ink [&_svg]:size-4.5">
+              <x.icon />
             </div>
             <div className="font-medium">{x.name}</div>
             <p className="mt-1 min-h-10 text-sm text-muted-foreground">{x.description}</p>
@@ -146,35 +146,35 @@ export function WorkflowsPage() {
           </Card>
         ))}
       </div>
-      <h2 className="mb-3 font-medium">
+      <SectionTitle className="mb-3">
         {t('workflows.yourWorkflows')} <span className="text-muted-foreground">{h.workflows.length}</span>
-      </h2>
+      </SectionTitle>
       {h.workflows.length === 0 ? (
         <Empty icon={<WorkflowIcon />} title={t('workflows.noWorkflowsYet')} body={t('workflows.emptyDescription')} />
       ) : (
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           {h.workflows.map((w) => (
-            <Card key={w.id} className="p-4">
-              <div className="flex justify-between gap-2">
-                <div>
+            <Card key={w.id} className="gap-0 p-4">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0 wrap-anywhere">
                   <div className="font-medium">{w.name}</div>
                   <p className="mt-1 text-sm text-muted-foreground">{w.description}</p>
                 </div>
-                <Badge variant={w.enabled ? 'secondary' : 'outline'}>
+                <Badge variant={w.enabled ? 'success' : 'outline'}>
                   {w.enabled ? t('workflows.enabled') : t('workflows.disabled')}
                 </Badge>
               </div>
-              <div className="mt-4 flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
+              <div className="my-4 flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
                 {w.steps.map((step, index) => (
                   <Fragment key={step.id}>
-                    {index > 0 && <ArrowRight size={12} aria-hidden="true" />}
+                    {index > 0 && <ArrowRight className="size-3" aria-hidden="true" />}
                     <span>{step.name}</span>
                   </Fragment>
                 ))}
               </div>
-              <div className="mt-4 flex items-center justify-between border-t pt-3">
+              <div className="mt-auto flex items-center justify-between border-t pt-3">
                 <span className="text-xs text-muted-foreground">
-                  <Clock3 size={13} className="mr-1 inline" />
+                  <Clock3 className="mr-1 inline size-3.5" />
                   {w.trigger.kind === TRIGGER_KIND.manual ? t('workflows.manual') : w.trigger.cron}
                 </span>
                 <div className="flex gap-1">

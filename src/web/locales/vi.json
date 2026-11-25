@@ -1,5 +1,27 @@
 {
   "agents": {
+    "runStatus": { "running": "Đang chạy", "ok": "Xong", "failed": "Lỗi" },
+    "backToAgents": "Danh sách agent",
+    "overview": "Tổng quan",
+    "terminal": {
+      "title": "Terminal",
+      "ended": {
+        "ok": "Lượt xong sau {{duration}}",
+        "failed": "Lượt lỗi sau {{duration}}"
+      },
+      "chooseAgent": "Chọn agent để xem terminal",
+      "readOnly": "Chỉ đọc",
+      "emptyHint": "Khi agent chạy lượt đầu tiên, output sẽ hiện ở đây.",
+      "waiting": "Đang chờ output…",
+      "started": "Bắt đầu phiên · {{model}}",
+      "jumpToLatest": "Xuống mới nhất",
+      "dropped": "Đã ẩn {{count}} dòng cũ hơn",
+      "status": {
+        "running": "Đang chạy",
+        "ok": "Lượt gần nhất",
+        "failed": "Lượt gần nhất bị lỗi"
+      }
+    },
     "addAgent": "Thêm agent",
     "addFirstAgentDescription": "Thêm một agent để bắt đầu giao việc.",
     "agentCreated": "Đã tạo agent",
@@ -238,6 +260,8 @@
     "working": "Đang làm việc…"
   },
   "inbox": {
+    "joinsTurnHint": "Gửi vào lượt đang chạy",
+    "nextTurnHint": "Chờ lượt sau",
     "sending": "Đang gửi…",
     "otherAnswer": "Hoặc trả lời theo cách khác…",
     "pickOption": "Chọn một phương án",

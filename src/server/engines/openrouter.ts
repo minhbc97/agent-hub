@@ -1,4 +1,5 @@
 import type { Agent } from '../db.ts';
+import { isRecord } from './json.ts';
 import { EMPTY_USAGE, type EngineAdapter, type TurnResult } from './types.ts';
 
 const CHAT_COMPLETIONS_URL = 'https://openrouter.ai/api/v1/chat/completions';
@@ -95,10 +96,6 @@ function errorMessage(payload: unknown): string {
 
 function failure(text: string): TurnResult {
   return { text, sessionId: null, usage: EMPTY_USAGE, isError: true };
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 function numberValue(value: unknown): number {

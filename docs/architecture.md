@@ -29,6 +29,8 @@ Phụ thuộc một chiều: `routes` → logic (`bus`, `workflow`, `runner`) �
 | `src/server/api/validation.ts` | Kiểm tra input ở biên (tên agent, settings, workflow...). |
 | `src/server/bus.ts` | Hàng đợi, quét outbox, routing, loop guard, lý do giữ tin, khôi phục sau restart, thử lại. |
 | `src/server/runner.ts` | Chạy một lượt: dựng lệnh, tạo worktree nếu cần, timeout, kill cây tiến trình, lưu `runs`, chính sách reset session. |
+| `src/server/live-input.ts` | Stdin của lượt đang chạy: gửi thêm tin, theo dõi tin đã đọc, đóng khi xong. |
+| `src/server/terminal.ts` | Output của lượt gần nhất từng agent cho tab Terminal: bộ đệm có giới hạn, che token/mật khẩu. |
 | `src/server/engines/` | Adapter theo CLI (`claude`, `codex`, `custom`) và `catalog.ts` (tên, lệnh mặc định, model, kiểm tra PATH). |
 | `src/server/workflow.ts` | Engine task / workflow: bắt đầu bước, agent báo xong, duyệt / trả lại, trả lời, lịch cron. |
 | `src/server/preamble.ts` | Lời dặn lượt đầu của session: vai trò, mục tiêu, team, cách dùng outbox, quy tắc. |
@@ -54,6 +56,10 @@ Phụ thuộc một chiều: `routes` → logic (`bus`, `workflow`, `runner`) �
 4. Hết lượt, bus quét outbox của agent đó, gắn các tin mới với tin vừa xử lý (`parentId`) rồi gọi `tick()`.
 
 Mỗi agent chỉ chạy một lượt một lúc (`running` trong bộ nhớ).
+
+Tin `request` của **người dùng** gửi cho agent Claude đang chạy được chuyển thẳng vào lượt đó (`steerTurn`), trừ khi agent
+tạm dừng hoặc tin thuộc task khác. Tin mang mã ngẫu nhiên riêng của lượt, chỉ có trong prompt, để agent không nhầm chữ
+trong file với tin của người. CLI kết thúc mà chưa đọc thì tin về `queued`. Engine khác thì tin chờ lượt sau.
 
 ## Giao thức outbox
 
@@ -157,7 +163,8 @@ Giới hạn đã biết: hub bị kill đột ngột thì tiến trình CLI con
 ## Realtime
 
 `GET /api/events` là Server-Sent Events. Server phát `{type, workspaceId, id?}` (`message`, `task`, `agent`, `run`,
-`workflow`) mỗi khi dữ liệu đổi; UI nhận rồi tải lại phần liên quan. Ping mỗi 25 giây để giữ kết nối.
+`workflow`) mỗi khi dữ liệu đổi; UI nhận rồi tải lại phần liên quan. Riêng `terminal` báo agent vừa in output, chỉ
+khung Terminal đang mở (Hộp thư, trang agent) mới tải phần chưa có. Ping mỗi 25 giây để giữ kết nối.
 
 ## Test
 

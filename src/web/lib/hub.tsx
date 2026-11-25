@@ -46,7 +46,11 @@ interface Hub {
   /** Sends as the user with an optimistic row; resolves false when the send failed. */
   sendMessage: (input: SendInput) => Promise<boolean>;
   agentById: (id: string | null | undefined) => Agent | undefined;
+  /** Call back when an agent printed something; returns the unsubscribe function. */
+  onTerminalOutput: (listener: TerminalListener) => () => void;
 }
+
+type TerminalListener = (agentId: string) => void;
 
 const Ctx = createContext<Hub | null>(null);
 const WS_KEY = 'agent-hub.workspace';
@@ -70,6 +74,7 @@ export function HubProvider({ children }: { children: ReactNode }) {
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
   const [tokens, setTokens] = useState<TokenTotal[]>([]);
   const [outgoing, setOutgoing] = useState<OutgoingMessage[]>([]);
+  const terminalListeners = useRef(new Set<TerminalListener>());
   const wsRef = useRef(wsId);
   wsRef.current = wsId;
 
@@ -142,7 +147,13 @@ export function HubProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let pending: number | undefined;
     const es = new EventSource('/api/events');
-    es.onmessage = () => {
+    es.onmessage = (message: MessageEvent<string>) => {
+      const event = JSON.parse(message.data) as { type: string; id?: string };
+      // Output is streamed several times a second and changes nothing the hub data holds.
+      if (event.type === 'terminal') {
+        for (const listener of terminalListeners.current) listener(event.id ?? '');
+        return;
+      }
       clearTimeout(pending);
       pending = window.setTimeout(() => reload().catch(() => {}), 120);
     };
@@ -151,6 +162,11 @@ export function HubProvider({ children }: { children: ReactNode }) {
       es.close();
     };
   }, [reload]);
+
+  const onTerminalOutput = useCallback((listener: TerminalListener) => {
+    terminalListeners.current.add(listener);
+    return () => void terminalListeners.current.delete(listener);
+  }, []);
 
   const attempt = useCallback(
     async <T,>(fn: () => Promise<T>, ok?: string) => {
@@ -205,6 +221,7 @@ export function HubProvider({ children }: { children: ReactNode }) {
       outgoing,
       sendMessage,
       agentById: (id) => (id ? byId.get(id) : undefined),
+      onTerminalOutput,
     };
   }, [
     ready,
@@ -221,6 +238,7 @@ export function HubProvider({ children }: { children: ReactNode }) {
     attempt,
     outgoing,
     sendMessage,
+    onTerminalOutput,
   ]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

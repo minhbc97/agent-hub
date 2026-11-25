@@ -1,14 +1,13 @@
 import { useState, type FormEvent } from 'react';
 import { Send, Zap } from 'lucide-react';
 import { useHub } from '@/lib/hub';
-import type { Agent } from '@/lib/api';
+import { AGENT_STATUS, ENGINE, type Agent } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { t } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
-import { Avatar } from '@/components/shared';
+import { Avatar, SwitchField } from '@/components/shared';
 
 /** In an agent's channel the recipient is that agent; in a task thread it starts at the task's assignee. */
 export function Composer({
@@ -32,6 +31,16 @@ export function Composer({
       fixedRecipient?.id ?? taskRecipient?.id ?? h.agents.find((a) => a.isOrchestrator)?.id ?? h.agents[0]?.id ?? '',
   );
   const to = fixedRecipient?.id ?? recipient;
+  const recipientAgent = h.agentById(to);
+  // Only Claude's CLI takes messages while it works; the others start their next turn with them.
+  const joinsTurn =
+    (recipientAgent?.activeEngine ?? recipientAgent?.engine) === ENGINE.claude && !recipientAgent?.paused;
+  const hint =
+    recipientAgent?.status !== AGENT_STATUS.working
+      ? t('inbox.sendHint')
+      : joinsTurn
+        ? t('inbox.joinsTurnHint')
+        : t('inbox.nextTurnHint');
   const send = async (e: FormEvent) => {
     e.preventDefault();
     if (!body.trim() || !h.ws || !to) return;
@@ -79,12 +88,19 @@ export function Composer({
               </SelectContent>
             </Select>
           )}
-          <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <Switch size="sm" checked={urgent} onCheckedChange={setUrgent} />
-            <Zap size={13} />
-            {t('inbox.urgent')}
-          </label>
-          <span className="ml-auto text-xs text-muted-foreground">{t('inbox.sendHint')}</span>
+          <SwitchField
+            size="sm"
+            className="gap-1.5 text-xs text-muted-foreground"
+            checked={urgent}
+            onChange={setUrgent}
+            label={
+              <>
+                <Zap className="size-3.5" />
+                {t('inbox.urgent')}
+              </>
+            }
+          />
+          <span className="ml-auto text-xs text-muted-foreground">{hint}</span>
           <Button size="sm" disabled={!body.trim() || !to}>
             <Send />
             {t('common.send')}
