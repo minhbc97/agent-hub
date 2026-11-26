@@ -1,7 +1,7 @@
 import { ISOLATION, RESET_POLICY, AGENT_STATUS, RUN_STATUS, TASK_STATUS, type Engine } from '../shared/contracts.ts';
 import { spawn, execFileSync } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import {
   DATA_DIR,
@@ -33,7 +33,7 @@ import { hasGitHead, isWorktreeOf, worktreesBase } from './git.ts';
 import { emit } from './events.ts';
 import { liveInput, type LiveInput } from './live-input.ts';
 import { openTerminal, type TerminalWriter } from './terminal.ts';
-import { enterTask, leaveTask } from './task-branch.ts';
+import { enterTask, leaveTask, saveInterrupted } from './task-branch.ts';
 import { formatIncoming, preamble, type Brief } from './preamble.ts';
 import { isTaskBrief, taskBrief } from './workflow.ts';
 
@@ -485,9 +485,83 @@ interface ExecOut {
 }
 
 const IS_WINDOWS = process.platform === 'win32';
-const livePids = new Set<number>();
+/** Shell pid of each running CLI, with when it was started. */
+const livePids = new Map<number, number>();
 // CLIs run outside the hub's process group, so the terminal's Ctrl+C does not reach them.
-process.on('exit', () => livePids.forEach(killTree));
+process.on('exit', () => livePids.forEach((_, pid) => killTree(pid)));
+/**
+ * On disk because Windows can end the hub without running 'exit' (tsx watch restart, Task Manager). The job object
+ * then ends the shell, but the CLI under it keeps running.
+ */
+const PIDS_FILE = join(DATA_DIR, 'agent-pids.json');
+const PROCESS_QUERY_TIMEOUT_MS = 15_000;
+/** A CLI starts within this time of its shell; a later child of the same pid belongs to a process that reused it. */
+const CLI_START_WINDOW_MS = 60_000;
+
+function savePids(): void {
+  try {
+    writeFileSync(PIDS_FILE, JSON.stringify([...livePids]));
+  } catch (err) {
+    console.error('could not record running agent CLIs', err);
+  }
+}
+
+/** [pid, parent pid, start time in ms] of processes whose parent is in `parents` (kept after the parent exits). */
+function childrenOf(parents: number[]): [number, number, number][] {
+  const filter = parents.map((p) => `ParentProcessId=${p}`).join(' OR ');
+  const script = `Get-CimInstance Win32_Process -Filter "${filter}" | ForEach-Object { '{0} {1} {2}' -f $_.ProcessId, $_.ParentProcessId, ([DateTimeOffset]$_.CreationDate).ToUnixTimeMilliseconds() }`;
+  try {
+    const out = execFileSync('powershell', ['-NoProfile', '-NonInteractive', '-Command', script], {
+      encoding: 'utf8',
+      timeout: PROCESS_QUERY_TIMEOUT_MS,
+      windowsHide: true,
+    });
+    return out
+      .split(/\r?\n/)
+      .map((line) => line.trim().split(' ').map(Number))
+      .filter((n): n is [number, number, number] => n.length === 3 && n.every(Number.isFinite));
+  } catch (err) {
+    console.error('could not list processes left by the previous hub', err);
+    return [];
+  }
+}
+
+/**
+ * Ends the CLIs a hard-stopped hub left running. They would keep editing worktrees and writing outboxes for turns the
+ * new hub no longer tracks, so their work would reach no task. Only a process started under a recorded shell right
+ * after that shell started is ended, so a pid the system has since reused is never touched.
+ * shortcut: Windows only; elsewhere the signal handlers end CLIs and only SIGKILL leaves them. Extend if that is seen.
+ */
+export function endOrphanedCLIs(): void {
+  if (!IS_WINDOWS) return;
+  let saved: unknown;
+  try {
+    saved = JSON.parse(readFileSync(PIDS_FILE, 'utf8'));
+  } catch {
+    return; // first start, or nothing was recorded
+  }
+  const shells = new Map(
+    (Array.isArray(saved) ? saved : []).filter(
+      (e): e is [number, number] => Array.isArray(e) && e.length === 2 && e.every(Number.isInteger),
+    ),
+  );
+  if (shells.size)
+    for (const [pid, parent, startedAt] of childrenOf([...shells.keys()])) {
+      const shellStart = shells.get(parent)!;
+      if (startedAt >= shellStart - 1000 && startedAt <= shellStart + CLI_START_WINDOW_MS) killTree(pid);
+    }
+  savePids();
+}
+
+/** After a restart, keeps on its task what an interrupted turn left in the agent's worktree. */
+export async function saveInterruptedWork(message: Message): Promise<void> {
+  const agent = getAgent(message.toId);
+  const task = message.taskId ? getTask(message.taskId) : undefined;
+  const ws = agent && getWorkspace(agent.workspaceId);
+  if (!agent || !task || !ws || agent.isolation !== ISOLATION.worktree || task.assigneeId !== agent.id) return;
+  const cwd = resolve(worktreesBase(ws), agent.name);
+  if (existsSync(cwd)) await saveInterrupted(cwd, agent.name, task);
+}
 
 /** Time a CLI gets to exit by itself after reporting its turn finished. */
 const TURN_EXIT_GRACE_MS = 10_000;
@@ -515,7 +589,8 @@ function exec(
       // Its own process group, so killTree can end everything the CLI started.
       detached: !IS_WINDOWS,
     });
-    if (child.pid) livePids.add(child.pid);
+    if (child.pid) livePids.set(child.pid, Date.now());
+    savePids();
     let stdout = '';
     let stderr = '';
     let timedOut = false;
@@ -551,6 +626,7 @@ function exec(
       clearTimeout(graceTimer);
       stop.removeEventListener('abort', onStop);
       if (child.pid) livePids.delete(child.pid);
+      savePids();
     };
     child.on('error', (e) => {
       release();

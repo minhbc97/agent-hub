@@ -147,4 +147,61 @@ await settle();
 assert.equal(db.getTask(plain.id)!.status, TASK_STATUS.done);
 assert.equal(await taskChanges(repo, db.getTask(plain.id)!), null);
 
+// A lead sending a finished task to QA hands QA the task, so QA's folder holds the developer's code.
+const lead = db.createAgent({ ...fake, name: 'lead', isOrchestrator: true });
+const handed = wfe.startTask(
+  db.createTask({
+    workspaceId: ws.id,
+    title: 'handed',
+    body: '[write handed.txt]',
+    assigneeId: dev.id,
+    createdBy: lead.id,
+  }),
+);
+await settle();
+assert.equal(db.getTask(handed.id)!.status, TASK_STATUS.done);
+const { outboxDir } = await import('../src/server/runner.ts');
+writeFileSync(
+  resolve(outboxDir(lead.id), 'qa.json'),
+  JSON.stringify({ to: 'reviewer', act: 'request', task: handed.key, body: 'check it [list]' }),
+);
+await settle();
+assert.equal(db.getTask(handed.id)!.status, TASK_STATUS.done, 'QA finishing closes the task again');
+assert.match(db.getTask(handed.id)!.result, /reviewer sees .*handed\.txt/);
+
+// After a restart, what an interrupted turn left in a folder on the task's code is kept on the task.
+const { enterTask } = await import('../src/server/task-branch.ts');
+const interruptedTurn = (title: string, agent: typeof dev, tree: string) => {
+  const task = db.createTask({ workspaceId: ws.id, title, assigneeId: agent.id, status: TASK_STATUS.doing });
+  db.createMessage({
+    workspaceId: ws.id,
+    fromId: lead.id,
+    toId: agent.id,
+    act: 'request',
+    body: title,
+    taskId: task.id,
+    status: MESSAGE_STATUS.running,
+  });
+  return { task, tree };
+};
+const kept = interruptedTurn('kept', dev, devTree);
+await enterTask(repo, devTree, 'dev', kept.task);
+writeFileSync(resolve(devTree, 'half.txt'), 'half\n');
+// A folder that left the task's commit is not saved onto it.
+const reviewerTree = resolve(trees, 'reviewer');
+const moved = interruptedTurn('moved', reviewer, reviewerTree);
+await enterTask(repo, reviewerTree, 'reviewer', moved.task);
+git(reviewerTree, 'checkout', '-q', '--detach', git(repo, 'rev-list', '--max-parents=0', 'HEAD'));
+writeFileSync(resolve(reviewerTree, 'stray.txt'), 'stray\n');
+bus.startBus(60_000);
+for (let i = 0; i < 100 && !(await taskChanges(repo, db.getTask(kept.task.id)!))?.files.length; i++)
+  await new Promise((r) => setTimeout(r, 100));
+bus.stopBus();
+assert.deepEqual(
+  (await taskChanges(repo, db.getTask(kept.task.id)!))!.files.map((f) => f.path),
+  ['half.txt'],
+);
+assert.deepEqual((await taskChanges(repo, db.getTask(moved.task.id)!))!.files, []);
+assert.equal(db.getTask(kept.task.id)!.status, TASK_STATUS.blocked, 'the interrupted task still waits for a retry');
+
 console.log('task branch test: PASS');

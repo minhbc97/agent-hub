@@ -46,7 +46,15 @@ import {
 } from './db.ts';
 import { emit } from './events.ts';
 import { DomainError } from './domain-error.ts';
-import { OPEN_TASK, dropSession, outboxDir, runTurn, steerTurn } from './runner.ts';
+import {
+  OPEN_TASK,
+  dropSession,
+  endOrphanedCLIs,
+  outboxDir,
+  runTurn,
+  saveInterruptedWork,
+  steerTurn,
+} from './runner.ts';
 import { agentAsks, agentDone, tickSchedules } from './workflow.ts';
 import { parseTaskReply } from './engines/openrouter.ts';
 import { taskBranch } from './task-branch.ts';
@@ -143,6 +151,8 @@ function scanOutbox(agent: Agent, parentId: string | null): OutboxResult {
       }
       // Mail to the human ends a chain, so only agent recipients can be stopped by the loop guard.
       const stopped = v.toId !== USER_ID && loopHold;
+      if (taskId && !v.newTask && !stopped && v.act === ACT.request && v.toId !== USER_ID)
+        handOver(taskId, agent, v.toId);
       const msg = createMessage({
         workspaceId: ws.id,
         fromId: agent.id,
@@ -388,6 +398,7 @@ export function sendFromUser(
  * Runs from a timer and from promise callbacks, so an error must not escape: it would kill the process.
  */
 export function tick(): void {
+  if (isRecovering) return;
   try {
     dispatchAll();
   } catch (err) {
@@ -587,15 +598,31 @@ export function isBusy(): boolean {
 
 export const isAgentRunning = (agentId: string) => running.has(agentId);
 
-/** After a crash or restart nothing is running: requeue interrupted work. */
-function recover() {
+/**
+ * A lead sending an existing task to another agent (e.g. QA to check it) hands that agent the task, so its worktree
+ * gets the task's code. Workflow tasks move by their steps instead.
+ */
+function handOver(taskId: string, from: Agent, toId: string) {
+  const task = getTask(taskId);
+  if (!task || task.workflowId || task.assigneeId === toId || task.status === TASK_STATUS.archived) return;
+  if (!from.isOrchestrator && task.createdBy !== from.id) return;
+  updateTask(task.id, { assigneeId: toId, status: TASK_STATUS.doing, waitingReason: '' });
+  emit({ type: 'task', workspaceId: task.workspaceId, id: task.id });
+}
+
+/** After a crash or restart nothing is running: end what the old hub left running and keep its unsaved work. */
+async function recover() {
+  endOrphanedCLIs();
   for (const ws of listWorkspaces()) {
     for (const a of listAgents(ws.id)) {
       if (a.status === AGENT_STATUS.working)
         updateAgent(a.id, { status: a.paused ? AGENT_STATUS.paused : AGENT_STATUS.idle });
     }
   }
-  for (const m of failInterrupted()) blockTaskOnFailure(m, m.toId, m.holdReason ?? '');
+  const interrupted = failInterrupted();
+  for (const m of interrupted)
+    await saveInterruptedWork(m).catch((err: unknown) => console.error('could not save interrupted work', err));
+  for (const m of interrupted) blockTaskOnFailure(m, m.toId, m.holdReason ?? '');
 }
 
 /** Human asks to run a failed message again (after a crash, timeout or CLI error). */
@@ -619,11 +646,19 @@ export function retryMessage(id: string): Message {
 
 let timer: NodeJS.Timeout | null = null;
 
+/** No turn starts until recovery has saved what interrupted turns left in their worktrees. */
+let isRecovering = false;
+
 export function startBus(intervalMs = 3000) {
   if (timer) return;
-  recover();
-  tick();
   timer = setInterval(tick, intervalMs);
+  isRecovering = true;
+  void recover()
+    .catch((err: unknown) => console.error('recovery after restart failed', err))
+    .finally(() => {
+      isRecovering = false;
+      tick();
+    });
 }
 
 export function stopBus() {

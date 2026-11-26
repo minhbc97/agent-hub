@@ -117,6 +117,18 @@ export async function leaveTask(cwd: string, agentName: string, task: Task): Pro
   return null;
 }
 
+/**
+ * After a restart: saves what an interrupted turn left in the folder, as the end of the turn would have. Only when the
+ * folder still sits on the task's code; otherwise the turn may not have entered the task, and moving the ref to
+ * this HEAD could pull another task's code in. The next turn's enterTask keeps such leftovers aside.
+ */
+export async function saveInterrupted(cwd: string, agentName: string, task: Task): Promise<boolean> {
+  const tip = await commitOf(cwd, refOf(taskBranch(task)));
+  if (!tip || (await commitOf(cwd, 'HEAD')) !== tip) return false;
+  await leaveTask(cwd, agentName, task);
+  return true;
+}
+
 /** What the task changed so far, or null when it has no code of its own (no worktree agent worked on it). */
 export async function taskChanges(repo: string, task: Task): Promise<TaskChanges | null> {
   const branch = taskBranch(task);
