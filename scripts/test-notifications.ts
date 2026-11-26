@@ -86,6 +86,17 @@ assert.deepEqual(
   kinds(empty, snapshot([message({ status: MESSAGE_STATUS.held, holdReason: 'claude quota reached' })])),
   [NOTIFICATION_KIND.quotaHold],
 );
+assert.deepEqual(
+  kinds(
+    empty,
+    snapshot([message({ status: MESSAGE_STATUS.held, holdReason: 'Claude usage at 92% (pause limit 90%)' })]),
+  ),
+  [NOTIFICATION_KIND.quotaHold],
+);
+assert.deepEqual(
+  kinds(empty, snapshot([message({ status: MESSAGE_STATUS.held, holdReason: 'turn limit per hour reached' })])),
+  [],
+);
 
 const userMessage = message({ fromId: USER_ID, toId: agentId, status: MESSAGE_STATUS.failed });
 assert.deepEqual(kinds(empty, snapshot([userMessage])), []);

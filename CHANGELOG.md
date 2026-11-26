@@ -8,6 +8,7 @@ the project uses [Semantic Versioning](https://semver.org/).
 ### Added
 
 - Choose MCP servers per Claude and Codex agent, and add servers from the hub.
+- Select MCP servers for regular Claude runs as well as lean runs.
 - In-app guides with coachmarks, a getting-started list and tips for each agent.
 - System notifications for important changes while the hub tab is out of view.
 - An npm update notice with a copyable command to run the latest version.
@@ -16,10 +17,6 @@ the project uses [Semantic Versioning](https://semver.org/).
 
 - Page, list and guide transitions are smoother.
 - Claude agents can run `git push`, `git merge` or `git rebase` when that exact command is listed in Allowed commands.
-
-### Fixed
-
-- MCP selection now applies to regular Claude runs as well as lean runs.
 
 ## [0.3.0] - 2026-11-25
 

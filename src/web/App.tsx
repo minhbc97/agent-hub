@@ -34,7 +34,7 @@ import { GettingStarted } from '@/features/guide/GettingStarted';
 import { AgentAvatar } from '@/components/shared';
 import { WorkspaceForm, WorkspaceMenu } from '@/components/WorkspaceMenu';
 import { MOTION } from '@/lib/motion';
-import { markSeen, useSeen } from '@/lib/coachmarks';
+import { markSeen, UPDATE_SEEN_PREFIX, useSeen } from '@/lib/coachmarks';
 import { toast } from 'sonner';
 import { NOTIFICATION_ROUTE } from '@/lib/notifications';
 import { useSystemNotifications } from '@/lib/useSystemNotifications';
@@ -233,7 +233,7 @@ function AppHeader() {
   const { i18n: activeI18n } = useTranslation();
   const hasSeen = useSeen();
   const latestVersion = h.meta?.latestVersion;
-  const updateId = latestVersion ? `update.${latestVersion}` : null;
+  const updateId = latestVersion ? `${UPDATE_SEEN_PREFIX}${latestVersion}` : null;
   const shouldShowUpdate = !!updateId && !hasSeen(updateId);
   const updateCommand = 'npx @minhbc/agent-hub@latest';
   const copyUpdateCommand = () =>

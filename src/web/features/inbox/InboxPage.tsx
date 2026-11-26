@@ -141,9 +141,15 @@ export function InboxPage({ filter, setFilter }: { filter: string; setFilter: (s
 
   const scroller = useRef<HTMLDivElement>(null);
   const atBottom = useRef(true);
+  const currentFilter = useRef(filter);
   useEffect(() => {
     const el = scroller.current;
-    if (el && atBottom.current) el.scrollTop = el.scrollHeight;
+    const didChangeFilter = currentFilter.current !== filter;
+    currentFilter.current = filter;
+    if (el && (atBottom.current || didChangeFilter)) {
+      el.scrollTop = el.scrollHeight;
+      atBottom.current = true;
+    }
   }, [items.length, filter]);
   // Your own send always scrolls to it, wherever you were reading.
   useEffect(() => {
@@ -153,11 +159,6 @@ export function InboxPage({ filter, setFilter }: { filter: string; setFilter: (s
       el.scrollTop = el.scrollHeight;
     }
   }, [outgoing.length]);
-  // Switching channel always starts at the newest message.
-  useEffect(() => {
-    atBottom.current = true;
-  }, [filter]);
-
   const isNeeds = filter === INBOX_CHANNEL.needs;
   const [isTerminalOpen, toggleTerminal] = useTerminalPane();
   // A thread shows its own agent. The team channel follows whoever works until the reader picks one.
@@ -183,6 +184,7 @@ export function InboxPage({ filter, setFilter }: { filter: string; setFilter: (s
         <div className="flex min-h-0 flex-1">
           <div className="flex min-w-0 flex-1 flex-col">
             <div
+              key={filter}
               ref={scroller}
               onScroll={(e) => {
                 const el = e.currentTarget;

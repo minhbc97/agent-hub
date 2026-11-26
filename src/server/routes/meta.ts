@@ -8,7 +8,7 @@ import { checkForUpdate, currentVersion, getLatestVersion } from '../update-chec
 import { on } from '../http/router.ts';
 
 on('GET', '/api/meta', async () => {
-  await checkForUpdate();
+  void checkForUpdate();
   return {
     version: currentVersion,
     latestVersion: getLatestVersion(),

@@ -1,6 +1,7 @@
 import { useEffect, useSyncExternalStore } from 'react';
 
 const SEEN_KEY = 'agent-hub.guides-seen';
+export const UPDATE_SEEN_PREFIX = 'update.';
 
 /** Ids of coachmarks, tips and the getting-started list the user closed; remembered on this device. */
 let seen = readSeen();
@@ -41,9 +42,10 @@ export function markSeen(id: string) {
 
 /** Shows every coachmark, tip and the getting-started list again. */
 export function resetSeen() {
-  seen = new Set();
+  seen = new Set([...seen].filter((id) => id.startsWith(UPDATE_SEEN_PREFIX)));
   try {
-    localStorage.removeItem(SEEN_KEY);
+    if (seen.size) localStorage.setItem(SEEN_KEY, JSON.stringify([...seen]));
+    else localStorage.removeItem(SEEN_KEY);
   } catch {
     // See markSeen.
   }

@@ -48,7 +48,7 @@ export interface SystemNotification {
 
 export const MAX_NOTIFICATION_TEXT_LENGTH = 120;
 
-const QUOTA_REASON = /quota|rate limit|turn limit/i;
+const QUOTA_REASON = /\bquota reached\b|\busage at \d+% \(pause limit \d+%\)/i;
 const USER_MESSAGE_ACTS = new Set<Message['act']>([ACT.reply, ACT.inform, ACT.done]);
 
 function shortText(value: string): string {

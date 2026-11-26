@@ -100,6 +100,8 @@ The hub runs commands on your machine, so:
 The automatic external connection is the background npm version check, disabled with `AGENT_HUB_NO_UPDATE_CHECK=1`.
 OpenRouter agents make API requests when configured.
 
+Known gap: Claude's `--disallowedTools` block matches command prefixes, so a form like `git -C dir push` is not caught.
+
 ## Platform support
 
 Tested on Windows 11. macOS and Linux should work but are not tested yet; reports are welcome. The folder picker on

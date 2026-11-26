@@ -172,8 +172,16 @@ export function HubProvider({ children }: { children: ReactNode }) {
   // Server pushes "something changed"; coalesce bursts into one reload.
   useEffect(() => {
     let pending: number | undefined;
+    let hasConnected = false;
     const pendingWorkspaceIds = new Set<string>();
     const es = new EventSource('/api/events');
+    es.onopen = () => {
+      if (!hasConnected) {
+        hasConnected = true;
+        return;
+      }
+      void reload();
+    };
     es.onmessage = (message: MessageEvent<string>) => {
       const event = JSON.parse(message.data) as { type: string; id?: string; workspaceId?: string };
       // Output is streamed several times a second and changes nothing the hub data holds.
@@ -196,7 +204,7 @@ export function HubProvider({ children }: { children: ReactNode }) {
       clearTimeout(pending);
       es.close();
     };
-  }, [queryClient]);
+  }, [queryClient, reload]);
 
   const onTerminalOutput = useCallback((listener: TerminalListener) => {
     terminalListeners.current.add(listener);

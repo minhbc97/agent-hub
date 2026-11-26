@@ -94,6 +94,8 @@ Hub chạy lệnh trên máy bạn, nên:
 Kết nối tự động ra ngoài là kiểm tra phiên bản npm chạy nền; tắt bằng `AGENT_HUB_NO_UPDATE_CHECK=1`. Agent OpenRouter
 gọi API khi được cấu hình.
 
+Hạn chế đã biết: `--disallowedTools` của Claude chặn theo tiền tố lệnh, nên dạng như `git -C dir push` chưa bị chặn.
+
 ## Nền tảng
 
 Đã chạy trên Windows 11. macOS và Linux chưa thử, rất mong được báo lỗi. Hộp chọn thư mục trên Linux cần `zenity` hoặc

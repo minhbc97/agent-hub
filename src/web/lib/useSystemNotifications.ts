@@ -111,7 +111,6 @@ export function useSystemNotifications(onNavigate: (route: string) => void) {
       const notification = new Notification(title, {
         body: details.join('\n'),
         icon: NOTIFICATION_ICON,
-        tag: `agent-hub-${workspace.id}`,
       });
       notification.onclick = () => {
         window.focus();
