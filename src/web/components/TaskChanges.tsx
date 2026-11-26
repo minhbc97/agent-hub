@@ -1,34 +1,32 @@
-import { useEffect, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { COACHMARK, Coachmark } from './Coachmark';
 import { ChevronRight, Copy } from 'lucide-react';
 import { toast } from 'sonner';
-import { api, type FileChange, type Task, type TaskChanges as Changes } from '@/lib/api';
+import { api, type FileChange, type Task } from '@/lib/api';
 import { Caption } from '@/components/shared';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { t } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
+import { useHub } from '@/lib/hub';
+import { qk } from '@/lib/query';
 
 /** The code a task changed and how to merge it; renders nothing for a task without code of its own. */
 export function TaskChanges({ task, className }: { task: Task; className?: string }) {
-  const [changes, setChanges] = useState<Changes | null>(null);
-  const [error, setError] = useState('');
-  useEffect(() => {
-    let isCurrent = true;
-    api
-      .taskChanges(task.id)
-      .then((next) => {
-        if (!isCurrent) return;
-        setChanges(next);
-        setError('');
-      })
-      .catch((e: Error) => isCurrent && setError(e.message));
-    return () => {
-      isCurrent = false;
-    };
-    // updatedAt moves whenever a step hands in its work.
-  }, [task.id, task.updatedAt]);
-  if (error) return <p className={cn('text-sm text-destructive', className)}>{error}</p>;
+  const { ws } = useHub();
+  const changesQuery = useQuery({
+    queryKey: qk.taskChanges(ws?.id ?? '', task.id, task.updatedAt),
+    queryFn: () => api.taskChanges(task.id),
+    enabled: !!ws,
+    staleTime: Infinity,
+  });
+  const changes = changesQuery.data;
+  if (changesQuery.error)
+    return (
+      <p className={cn('text-sm text-destructive', className)}>
+        {changesQuery.error instanceof Error ? changesQuery.error.message : String(changesQuery.error)}
+      </p>
+    );
   if (!changes) return null;
   const mergeCommand = `git merge ${changes.branch}`;
   const copy = () =>

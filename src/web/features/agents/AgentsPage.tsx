@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import {
   Bot,
   Check,
@@ -14,6 +15,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import { PAGE, useHub, agentState } from '@/lib/hub';
+import { qk } from '@/lib/query';
 import {
   AGENT_STATUS,
   api,
@@ -308,25 +310,21 @@ function AgentEditor({
   // Functional update: the engine picker sets two fields in one event.
   const set = <K extends keyof AgentForm>(k: K, x: AgentForm[K]) => setV((cur) => ({ ...cur, [k]: x }));
   // null until known. Git is only needed for worktree isolation; offices that are not code use the shared folder.
-  const [hasGit, setHasGit] = useState<boolean | null>(null);
   const [isAddingMcp, setIsAddingMcp] = useState(false);
   const wsId = h.ws?.id;
+  const workspaceGitQuery = useQuery({
+    queryKey: qk.workspaceGit(wsId ?? ''),
+    queryFn: () => api.workspaceGit(wsId ?? ''),
+    enabled: open && !!wsId,
+    staleTime: Infinity,
+  });
   useEffect(() => {
-    if (!open || !wsId) return;
-    let isCurrent = true;
-    api
-      .workspaceGit(wsId)
-      .then(({ hasGit: found }) => {
-        if (!isCurrent) return;
-        setHasGit(found);
-        // Only a new agent's default follows the folder; an existing agent keeps what it was saved with.
-        if (!agent) setV((cur) => ({ ...cur, isolation: found ? ISOLATION.worktree : ISOLATION.shared }));
-      })
-      .catch(() => setHasGit(null));
-    return () => {
-      isCurrent = false;
-    };
-  }, [open, wsId, agent]);
+    const hasGit = workspaceGitQuery.data?.hasGit;
+    if (!open || agent || hasGit === undefined) return;
+    // Only a new agent's default follows the folder; an existing agent keeps what it was saved with.
+    setV((cur) => ({ ...cur, isolation: hasGit ? ISOLATION.worktree : ISOLATION.shared }));
+  }, [open, agent, workspaceGitQuery.data]);
+  const hasGit = workspaceGitQuery.data?.hasGit ?? null;
   const suggestedIsolation = hasGit === false ? ISOLATION.shared : ISOLATION.worktree;
   const engineInfo = h.meta?.engines.find((e) => e.id === v.engine);
   // OpenRouter and custom commands keep no session, so there is nothing to rotate.
@@ -851,14 +849,13 @@ const TAB = { overview: 'overview', terminal: 'terminal' } as const;
 export function AgentDetail({ id }: { id: string }) {
   const h = useHub();
   const a = h.agentById(id);
-  const [runs, setRuns] = useState<Awaited<ReturnType<typeof api.runs>>>([]);
-  useEffect(() => {
-    api
-      .runs(id)
-      .then(setRuns)
-      .catch(() => setRuns([]));
-    // The status changes when a turn starts or ends.
-  }, [id, a?.status]);
+  const runsQuery = useQuery({
+    queryKey: qk.runs(h.ws?.id ?? '', id),
+    queryFn: () => api.runs(id),
+    enabled: !!h.ws,
+    staleTime: Infinity,
+  });
+  const runs = runsQuery.data ?? [];
   const [isEditing, setEditing] = useState(false);
   const [tab, setTab] = useState<string>(TAB.overview);
   if (!a) return <div>{t('errors.agentNotFound')}</div>;

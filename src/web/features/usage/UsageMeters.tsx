@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Gauge, RefreshCw } from 'lucide-react';
-import { USAGE_STATUS, api, type EngineUsage, type UsageReport, type UsageWindow } from '@/lib/api';
+import { USAGE_STATUS, api, type EngineUsage, type UsageWindow } from '@/lib/api';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -9,6 +9,7 @@ import { EngineSetup } from '@/components/EngineSetup';
 import { useHub } from '@/lib/hub';
 import { i18n, t } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
+import { qk } from '@/lib/query';
 
 /** Matches the server cache, so polling never asks the CLIs more than once a minute. */
 const POLL_MS = 60_000;
@@ -20,25 +21,19 @@ const MINUTE_MS = 60_000;
 
 /** Plan limits per engine in the header: one compact meter each, details in a popover. */
 export function UsageMeters() {
-  const [report, setReport] = useState<UsageReport | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [isLoading, setLoading] = useState(false);
-  const load = useCallback(async (refresh: boolean) => {
-    setLoading(true);
-    try {
-      setReport(await api.usage(refresh));
-      setError(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-  useEffect(() => {
-    void load(false);
-    const timer = setInterval(() => void load(false), POLL_MS);
-    return () => clearInterval(timer);
-  }, [load]);
+  const queryClient = useQueryClient();
+  const usageQuery = useQuery({
+    queryKey: qk.usage,
+    queryFn: () => api.usage(),
+    refetchInterval: POLL_MS,
+  });
+  const refreshMutation = useMutation({
+    mutationFn: () => api.usage(true),
+    onSuccess: (report) => queryClient.setQueryData(qk.usage, report),
+  });
+  const report = usageQuery.data ?? null;
+  const error = refreshMutation.error ?? usageQuery.error;
+  const isLoading = usageQuery.isFetching || refreshMutation.isPending;
   const readable = report?.engines.filter((e) => e.status === USAGE_STATUS.ok) ?? [];
   return (
     <Popover>
@@ -75,13 +70,17 @@ export function UsageMeters() {
               size="icon-sm"
               aria-label={t('usage.refresh')}
               disabled={isLoading}
-              onClick={() => void load(true)}
+              onClick={() => refreshMutation.mutate()}
             >
               <RefreshCw className={cn(isLoading && 'animate-spin')} />
             </Button>
           </span>
         </div>
-        {error && <p className="border-b px-4 py-3 text-xs text-destructive">{error}</p>}
+        {error && (
+          <p className="border-b px-4 py-3 text-xs text-destructive">
+            {error instanceof Error ? error.message : String(error)}
+          </p>
+        )}
         {!report && !error && <p className="px-4 py-3 text-xs text-muted-foreground">{t('usage.loading')}</p>}
         {report?.engines.map((engine) => (
           <EngineSection key={engine.engine} engine={engine} />

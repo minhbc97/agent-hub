@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { ArrowDown, ChevronRight, CircleX, MessageSquareText, SquareTerminal } from 'lucide-react';
 import {
   api,
@@ -11,6 +12,7 @@ import {
   type TerminalOutput,
 } from '@/lib/api';
 import { useHub } from '@/lib/hub';
+import { qk } from '@/lib/query';
 import { i18n, t } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -170,10 +172,22 @@ function durationOf(start: string, end: string): string {
 }
 
 function useTerminalOutput({ id, status }: Agent): TerminalOutput | null {
-  const { onTerminalOutput } = useHub();
+  const { onTerminalOutput, ws } = useHub();
+  const terminalQuery = useQuery({
+    queryKey: qk.terminal(ws?.id ?? '', id),
+    queryFn: () => api.terminal(id, '', 0),
+    enabled: !!ws,
+    staleTime: Infinity,
+  });
   const [output, setOutput] = useState<TerminalOutput | null>(null);
   const shown = useRef<TerminalOutput | null>(null);
   useEffect(() => {
+    if (!terminalQuery.data) return;
+    shown.current = terminalQuery.data;
+    setOutput(terminalQuery.data);
+  }, [terminalQuery.data]);
+  useEffect(() => {
+    if (!terminalQuery.isSuccess) return;
     let isCurrent = true;
     let isLoading = false;
     let isStale = false;
@@ -196,7 +210,6 @@ function useTerminalOutput({ id, status }: Agent): TerminalOutput | null {
       } while (isStale);
       isLoading = false;
     };
-    void load();
     const stop = onTerminalOutput((agentId) => {
       if (agentId === id) void load();
     });
@@ -205,6 +218,6 @@ function useTerminalOutput({ id, status }: Agent): TerminalOutput | null {
       stop();
     };
     // The status too: after a hub restart the turn is over without a last output event.
-  }, [id, status, onTerminalOutput]);
-  return output;
+  }, [id, status, onTerminalOutput, terminalQuery.isSuccess]);
+  return output ?? terminalQuery.data ?? null;
 }

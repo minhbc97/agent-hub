@@ -17,4 +17,10 @@ export const qk = {
   tasks: (wsId: string) => ['ws', wsId, 'tasks'] as const,
   workflows: (wsId: string) => ['ws', wsId, 'workflows'] as const,
   tokens: (wsId: string) => ['ws', wsId, 'tokens'] as const,
+  runs: (wsId: string, agentId: string) => ['ws', wsId, 'runs', agentId] as const,
+  workspaceGit: (wsId: string) => ['ws', wsId, 'workspaceGit'] as const,
+  taskChanges: (wsId: string, taskId: string, updatedAt: string) =>
+    ['ws', wsId, 'taskChanges', taskId, updatedAt] as const,
+  terminal: (wsId: string, agentId: string) => ['ws', wsId, 'terminal', agentId] as const,
+  usage: ['usage'] as const,
 };
