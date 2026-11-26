@@ -5,6 +5,17 @@ the project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-11-26
+
+### Fixed
+
+- Answering a blocked task sends the answer to the agent that asked, not to the agent assigned to the task.
+- `npm ci` works again: the lockfile has the `@emnapi` entries it needs.
+
+### Changed
+
+- The README runs the hub with `npx @minhbc/agent-hub@latest`, so npx does not reuse an old cached version.
+
 ## [0.4.0] - 2026-11-26
 
 ### Added
