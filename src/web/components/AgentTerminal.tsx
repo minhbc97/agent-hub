@@ -174,18 +174,16 @@ function durationOf(start: string, end: string): string {
 function useTerminalOutput({ id, status }: Agent): TerminalOutput | null {
   const { onTerminalOutput, ws } = useHub();
   const terminalQuery = useQuery({
-    queryKey: qk.terminal(ws?.id ?? '', id),
+    queryKey: qk.terminal(id),
     queryFn: () => api.terminal(id, '', 0),
     enabled: !!ws,
-    staleTime: Infinity,
   });
-  const [output, setOutput] = useState<TerminalOutput | null>(null);
-  const shown = useRef<TerminalOutput | null>(null);
+  const [output, setOutput] = useState<{ agentId: string; value: TerminalOutput } | null>(null);
+  const shown = useRef<{ agentId: string; value: TerminalOutput | null }>({ agentId: id, value: null });
   useEffect(() => {
-    if (!terminalQuery.data) return;
-    shown.current = terminalQuery.data;
-    setOutput(terminalQuery.data);
-  }, [terminalQuery.data]);
+    shown.current = { agentId: id, value: terminalQuery.data ?? null };
+    setOutput(terminalQuery.data ? { agentId: id, value: terminalQuery.data } : null);
+  }, [id, terminalQuery.data]);
   useEffect(() => {
     if (!terminalQuery.isSuccess) return;
     let isCurrent = true;
@@ -200,13 +198,14 @@ function useTerminalOutput({ id, status }: Agent): TerminalOutput | null {
       isLoading = true;
       do {
         isStale = false;
-        const have = shown.current;
+        const have = shown.current.agentId === id ? shown.current.value : null;
         const next = await api.terminal(id, have?.runId ?? '', have?.entries.at(-1)?.seq ?? 0).catch(() => null);
         if (!isCurrent) return;
         if (!next) continue; // the hub may be restarting; the next event loads again
         const entries = have && have.runId === next.runId ? [...have.entries, ...next.entries] : next.entries;
-        shown.current = { ...next, entries: entries.slice(-TERMINAL_MAX_ENTRIES) };
-        setOutput(shown.current);
+        const value = { ...next, entries: entries.slice(-TERMINAL_MAX_ENTRIES) };
+        shown.current = { agentId: id, value };
+        setOutput({ agentId: id, value });
       } while (isStale);
       isLoading = false;
     };
@@ -219,5 +218,5 @@ function useTerminalOutput({ id, status }: Agent): TerminalOutput | null {
     };
     // The status too: after a hub restart the turn is over without a last output event.
   }, [id, status, onTerminalOutput, terminalQuery.isSuccess]);
-  return output ?? terminalQuery.data ?? null;
+  return (output?.agentId === id ? output.value : null) ?? terminalQuery.data ?? null;
 }

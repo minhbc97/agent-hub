@@ -19,8 +19,8 @@ export const qk = {
   tokens: (wsId: string) => ['ws', wsId, 'tokens'] as const,
   runs: (wsId: string, agentId: string) => ['ws', wsId, 'runs', agentId] as const,
   workspaceGit: (wsId: string) => ['ws', wsId, 'workspaceGit'] as const,
-  taskChanges: (wsId: string, taskId: string, updatedAt: string) =>
-    ['ws', wsId, 'taskChanges', taskId, updatedAt] as const,
-  terminal: (wsId: string, agentId: string) => ['ws', wsId, 'terminal', agentId] as const,
+  // Keep expensive task diffs (keyed by updatedAt) and event-fed terminal streams outside workspace invalidation.
+  taskChanges: (taskId: string, updatedAt: string) => ['taskChanges', taskId, updatedAt] as const,
+  terminal: (agentId: string) => ['terminal', agentId] as const,
   usage: ['usage'] as const,
 };

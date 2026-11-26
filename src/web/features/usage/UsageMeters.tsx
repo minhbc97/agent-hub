@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Gauge, RefreshCw } from 'lucide-react';
 import { USAGE_STATUS, api, type EngineUsage, type UsageWindow } from '@/lib/api';
@@ -31,6 +32,12 @@ export function UsageMeters() {
     mutationFn: () => api.usage(true),
     onSuccess: (report) => queryClient.setQueryData(qk.usage, report),
   });
+  const lastPollSuccess = useRef(usageQuery.dataUpdatedAt);
+  useEffect(() => {
+    if (usageQuery.dataUpdatedAt === lastPollSuccess.current) return;
+    lastPollSuccess.current = usageQuery.dataUpdatedAt;
+    refreshMutation.reset();
+  }, [usageQuery.dataUpdatedAt, refreshMutation.reset]);
   const report = usageQuery.data ?? null;
   const error = refreshMutation.error ?? usageQuery.error;
   const isLoading = usageQuery.isFetching || refreshMutation.isPending;

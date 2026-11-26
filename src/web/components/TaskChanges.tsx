@@ -15,7 +15,7 @@ import { qk } from '@/lib/query';
 export function TaskChanges({ task, className }: { task: Task; className?: string }) {
   const { ws } = useHub();
   const changesQuery = useQuery({
-    queryKey: qk.taskChanges(ws?.id ?? '', task.id, task.updatedAt),
+    queryKey: qk.taskChanges(task.id, task.updatedAt),
     queryFn: () => api.taskChanges(task.id),
     enabled: !!ws,
     staleTime: Infinity,
