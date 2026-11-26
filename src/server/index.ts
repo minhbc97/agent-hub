@@ -5,6 +5,7 @@ import { openDb } from './db.ts';
 import { startBus } from './bus.ts';
 import { handleApi } from './api.ts';
 import { removeAllMcpConfigs } from './engines/claude-mcp.ts';
+import { checkForUpdate } from './update-check.ts';
 
 const PORT = Number(process.env.HUB_PORT ?? 4310);
 const PROD = process.env.NODE_ENV === 'production' || process.argv.includes('--prod');
@@ -71,6 +72,7 @@ openDb();
 removeAllMcpConfigs();
 startBus();
 // Loopback only: the hub runs commands on this machine.
-server.listen(PORT, '127.0.0.1', () =>
-  console.log(`agent-hub ${PROD ? '(prod)' : '(dev)'} on http://127.0.0.1:${PORT}`),
-);
+server.listen(PORT, '127.0.0.1', () => {
+  console.log(`agent-hub ${PROD ? '(prod)' : '(dev)'} on http://127.0.0.1:${PORT}`);
+  void checkForUpdate();
+});

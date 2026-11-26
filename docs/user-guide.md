@@ -20,6 +20,7 @@ ai thì phải ghi vào outbox. Cách này tránh hai agent trả lời qua lạ
 ## 2. Bắt đầu
 
 1. Chạy `npx @minhbc/agent-hub` (hoặc `npm run dev` nếu chạy từ source), mở <http://127.0.0.1:4310>.
+   Hub kiểm tra phiên bản mới trên npm nền và hiện lệnh cập nhật nếu có. Để tắt, đặt `AGENT_HUB_NO_UPDATE_CHECK=1`.
 2. Màn chào: nhập **tên workspace**, **đường dẫn repo** và (tùy chọn) **thư mục worktree**. Nút **Chọn thư mục**
    mở hộp chọn thư mục của hệ điều hành (Windows, macOS; Linux cần `zenity` hoặc `kdialog`), hoặc gõ tay đường dẫn.
 3. Ngay sau khi tạo workspace, popup **Tạo Lead Agent** mở ra và không đóng được cho tới khi tạo xong (xem mục 3).

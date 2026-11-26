@@ -28,6 +28,8 @@ Requires Node.js 24+ and at least one agent CLI installed and signed in:
 npx @minhbc/agent-hub
 ```
 
+The hub checks npm for newer versions in the background and shows an update command when one is available.
+
 Open <http://127.0.0.1:4310>. Create a workspace (name, repo path, optional worktree folder), then create the lead
 agent when prompted. Click **Test run** on an agent to check that it answers in the **Inbox**.
 

@@ -344,6 +344,8 @@ export interface McpServerInput {
 }
 
 export interface Meta {
+  version: string;
+  latestVersion: string | null;
   engines: EngineInfo[];
   isolations: Agent['isolation'][];
   resetPolicies: Agent['resetPolicy'][];

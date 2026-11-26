@@ -162,7 +162,11 @@
   },
   "app": {
     "avatarLicense": "Micah avatars (CC BY 4.0)",
-    "brand": "Agent Hub"
+    "brand": "Agent Hub",
+    "copyUpdateCommand": "Copy update command",
+    "dismissUpdate": "Dismiss update notice",
+    "updateAvailable": "Version {{latest}} is available; you are using {{current}}",
+    "updateRestart": "Stop the hub (Ctrl+C), then restart it with the command above."
   },
   "common": {
     "approve": "Approve",

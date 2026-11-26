@@ -162,7 +162,11 @@
   },
   "app": {
     "avatarLicense": "Avatar Micah (CC BY 4.0)",
-    "brand": "Agent Hub"
+    "brand": "Agent Hub",
+    "copyUpdateCommand": "Chép lệnh cập nhật",
+    "dismissUpdate": "Đóng thông báo cập nhật",
+    "updateAvailable": "Có phiên bản mới {{latest}}, bạn đang dùng {{current}}",
+    "updateRestart": "Tắt hub (Ctrl+C) rồi chạy lại bằng lệnh trên."
   },
   "common": {
     "approve": "Duyệt",

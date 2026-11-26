@@ -2,7 +2,19 @@ import { useState } from 'react';
 import { AnimatePresence, motion, MotionConfig } from 'motion/react';
 import { useTheme } from 'next-themes';
 import { useTranslation } from 'react-i18next';
-import { Bot, House, Inbox, Moon, Plus, Settings, Sun, Workflow as WorkflowIcon, Columns3 } from 'lucide-react';
+import {
+  Bot,
+  House,
+  Inbox,
+  Moon,
+  Plus,
+  Settings,
+  Sun,
+  Workflow as WorkflowIcon,
+  Columns3,
+  Copy,
+  X,
+} from 'lucide-react';
 import { PAGE, useHub, useHashRoute, waitingOnUser } from '@/lib/hub';
 import { AGENT_STATUS } from '@/lib/api';
 import { Button } from '@/components/ui/button';
@@ -22,6 +34,8 @@ import { GettingStarted } from '@/features/guide/GettingStarted';
 import { AgentAvatar } from '@/components/shared';
 import { WorkspaceForm, WorkspaceMenu } from '@/components/WorkspaceMenu';
 import { MOTION } from '@/lib/motion';
+import { markSeen, useSeen } from '@/lib/coachmarks';
+import { toast } from 'sonner';
 
 const THEME = { dark: 'dark', light: 'light' } as const;
 
@@ -204,39 +218,75 @@ function AppHeader() {
   const h = useHub();
   const { theme, setTheme } = useTheme();
   const { i18n: activeI18n } = useTranslation();
+  const hasSeen = useSeen();
+  const latestVersion = h.meta?.latestVersion;
+  const updateId = latestVersion ? `update.${latestVersion}` : null;
+  const shouldShowUpdate = !!updateId && !hasSeen(updateId);
+  const updateCommand = 'npx @minhbc/agent-hub@latest';
+  const copyUpdateCommand = () =>
+    navigator.clipboard.writeText(updateCommand).then(
+      () => toast.success(t('tasks.copied')),
+      (error: unknown) => toast.error(error instanceof Error ? error.message : String(error)),
+    );
   return (
-    <header className="flex h-18 shrink-0 items-center bg-sidebar">
-      <div className="flex w-60 shrink-0 items-center gap-2.5 px-6">
-        <div className="grid size-8 place-items-center rounded-lg bg-primary">
-          <img src="/agent-hub-mark.svg" alt="" aria-hidden="true" className="size-6" />
+    <>
+      <header className="flex h-18 shrink-0 items-center bg-sidebar">
+        <div className="flex w-60 shrink-0 items-center gap-2.5 px-6">
+          <div className="grid size-8 place-items-center rounded-lg bg-primary">
+            <img src="/agent-hub-mark.svg" alt="" aria-hidden="true" className="size-6" />
+          </div>
+          <span className="text-sm font-semibold tracking-tight">{t('app.brand')}</span>
         </div>
-        <span className="text-sm font-semibold tracking-tight">{t('app.brand')}</span>
-      </div>
-      <div className="min-w-0 flex-1 px-7">{h.ws && <WorkspaceMenu />}</div>
-      <div className="flex shrink-0 items-center gap-2 pr-6">
-        <UsageMeters />
-        <Select
-          value={activeI18n.resolvedLanguage?.startsWith('vi') ? 'vi' : 'en'}
-          onValueChange={(language) => void activeI18n.changeLanguage(language)}
-        >
-          <SelectTrigger size="sm" aria-label={t('common.language')}>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="vi">{t('common.languageVi')}</SelectItem>
-            <SelectItem value="en">{t('common.languageEn')}</SelectItem>
-          </SelectContent>
-        </Select>
-        <Button
-          variant="ghost"
-          size="icon"
-          aria-label={t('common.toggleTheme')}
-          onClick={() => setTheme(theme === THEME.dark ? THEME.light : THEME.dark)}
-        >
-          {theme === THEME.dark ? <Sun /> : <Moon />}
-        </Button>
-      </div>
-    </header>
+        <div className="min-w-0 flex-1 px-7">{h.ws && <WorkspaceMenu />}</div>
+        <div className="flex shrink-0 items-center gap-2 pr-6">
+          <UsageMeters />
+          <Select
+            value={activeI18n.resolvedLanguage?.startsWith('vi') ? 'vi' : 'en'}
+            onValueChange={(language) => void activeI18n.changeLanguage(language)}
+          >
+            <SelectTrigger size="sm" aria-label={t('common.language')}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="vi">{t('common.languageVi')}</SelectItem>
+              <SelectItem value="en">{t('common.languageEn')}</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label={t('common.toggleTheme')}
+            onClick={() => setTheme(theme === THEME.dark ? THEME.light : THEME.dark)}
+          >
+            {theme === THEME.dark ? <Sun /> : <Moon />}
+          </Button>
+        </div>
+      </header>
+      {shouldShowUpdate && latestVersion && updateId && (
+        <section className="mx-6 my-3 flex items-center gap-3 border-2 border-foreground bg-card p-3 comic-shadow-sm">
+          <div className="min-w-0 flex-1">
+            <p className="font-semibold">
+              {t('app.updateAvailable', { latest: latestVersion, current: h.meta?.version })}
+            </p>
+            <div className="flex items-center gap-2 text-sm">
+              <code className="truncate font-mono">{updateCommand}</code>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                aria-label={t('app.copyUpdateCommand')}
+                onClick={copyUpdateCommand}
+              >
+                <Copy />
+              </Button>
+            </div>
+            <p className="text-sm text-muted-foreground">{t('app.updateRestart')}</p>
+          </div>
+          <Button variant="ghost" size="icon-sm" aria-label={t('app.dismissUpdate')} onClick={() => markSeen(updateId)}>
+            <X />
+          </Button>
+        </section>
+      )}
+    </>
   );
 }
 
