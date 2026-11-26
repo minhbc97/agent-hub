@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
 import { CircleHelp, Crown, MailOpen, Plus } from 'lucide-react';
+import { AnimatePresence, motion } from 'motion/react';
 import { PAGE, agentState, useHashRoute, useHub, waitingOnUser } from '@/lib/hub';
 import { ACT, AGENT_STATUS, MESSAGE_STATUS, TASK_STATUS, USER_ID, type Agent, type TaskStatus } from '@/lib/api';
 import { Button } from '@/components/ui/button';
@@ -10,6 +11,7 @@ import { t } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { BookshelfArt, ChairArt, DeskArt, DoorwayArt, LoungeArt, MeetingTableArt, PlantArt } from './office-art';
 import { MAIL_ANCHOR, MailFlights } from './MailFlights';
+import { MOTION } from '@/lib/motion';
 
 const BOARD_STATUSES: TaskStatus[] = [
   TASK_STATUS.todo,
@@ -97,9 +99,20 @@ export function HomePage({ openAgent, openNeeds }: { openAgent: (id: string) => 
             <PlantArt className="absolute bottom-3 left-4 size-16" />
             <PlantArt className="absolute right-4 bottom-3 size-14" />
             <div className="grid grid-cols-[repeat(auto-fill,minmax(13rem,1fr))] gap-x-6 gap-y-4 px-14 pb-2">
-              {team.map((a) => (
-                <Desk key={a.id} agent={a} isReceiving={!!arrivals[a.id]} onClick={() => openAgent(a.id)} />
-              ))}
+              <AnimatePresence initial={false}>
+                {team.map((a) => (
+                  <motion.div
+                    key={a.id}
+                    layout
+                    initial={{ opacity: 0, y: MOTION.list.offsetY }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -MOTION.list.offsetY }}
+                    transition={MOTION.list}
+                  >
+                    <Desk agent={a} isReceiving={!!arrivals[a.id]} onClick={() => openAgent(a.id)} />
+                  </motion.div>
+                ))}
+              </AnimatePresence>
               <Button
                 variant="ghost"
                 onClick={() => navigate(`${PAGE.agents}/new`)}

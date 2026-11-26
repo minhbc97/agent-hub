@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { AnimatePresence, motion } from 'motion/react';
 import { createPortal } from 'react-dom';
 import { markSeen, useCoachmark } from '@/lib/coachmarks';
 import { t } from '@/lib/i18n';
@@ -6,6 +7,7 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverAnchor, PopoverContent, PopoverDescription, PopoverTitle } from '@/components/ui/popover';
 import { Avatar } from '@/components/shared';
+import { MOTION } from '@/lib/motion';
 
 /** Every coachmark in the app; its title and body live under `guide.<id>` in the locales. */
 export const COACHMARK = {
@@ -75,7 +77,13 @@ function Spotlight({ rect }: { rect: DOMRect }) {
   const right = rect.right + SPOTLIGHT_PAD;
   const panel = 'pointer-events-none fixed z-50 bg-overlay supports-backdrop-filter:backdrop-blur-xs';
   return createPortal(
-    <div aria-hidden className="motion-safe:animate-in motion-safe:fade-in-0">
+    <motion.div
+      aria-hidden
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={MOTION.coachmark.spotlight}
+    >
       <div className={cn(panel, 'inset-x-0 top-0')} style={{ height: Math.max(0, top) }} />
       <div className={cn(panel, 'inset-x-0 bottom-0')} style={{ top: bottom }} />
       <div className={cn(panel, 'left-0')} style={{ top, height: bottom - top, width: Math.max(0, left) }} />
@@ -84,7 +92,7 @@ function Spotlight({ rect }: { rect: DOMRect }) {
         className="pointer-events-none fixed z-50 rounded-lg ring-2 ring-primary"
         style={{ top, left, width: right - left, height: bottom - top }}
       />
-    </div>,
+    </motion.div>,
     document.body,
   );
 }
@@ -111,7 +119,7 @@ export function Coachmark({
   return (
     <Popover open={isOpen} onOpenChange={(open) => !open && markSeen(key)}>
       {/* Mounts after the bubble (it waits for the first measure), so the bubble sits a layer higher: z-60. */}
-      {rect && <Spotlight rect={rect} />}
+      <AnimatePresence>{rect && <Spotlight key="spotlight" rect={rect} />}</AnimatePresence>
       <PopoverAnchor asChild ref={target}>
         {children}
       </PopoverAnchor>
@@ -127,10 +135,27 @@ export function Coachmark({
         onInteractOutside={(e) => e.preventDefault()}
       >
         {/* Fly-in and float sit on separate elements so one animation does not override the other. */}
-        <span className="motion-safe:animate-fly-in">
-          <GuideMascot className="motion-safe:animate-float" />
-        </span>
-        <div className="relative max-w-80 rounded-xl border-2 border-foreground bg-card px-4 py-3 text-card-foreground comic-shadow motion-safe:animate-bubble-in">
+        <motion.span
+          initial={MOTION.coachmark.characterStart}
+          animate={MOTION.coachmark.characterRest}
+          transition={MOTION.coachmark.character}
+        >
+          <motion.span
+            animate={{
+              y: [0, -MOTION.coachmark.floatDistance, 0],
+              rotate: [0, -MOTION.coachmark.floatRotation, 0],
+            }}
+            transition={MOTION.coachmark.float}
+          >
+            <GuideMascot />
+          </motion.span>
+        </motion.span>
+        <motion.div
+          initial={MOTION.coachmark.bubbleStart}
+          animate={MOTION.coachmark.bubbleRest}
+          transition={MOTION.coachmark.bubble}
+          className="relative max-w-80 rounded-xl border-2 border-foreground bg-card px-4 py-3 text-card-foreground comic-shadow"
+        >
           <span
             aria-hidden
             className="absolute bottom-5 -left-2 size-3.5 rotate-45 border-b-2 border-l-2 border-foreground bg-card"
@@ -149,7 +174,7 @@ export function Coachmark({
               {t('guide.gotIt')}
             </Button>
           </div>
-        </div>
+        </motion.div>
       </PopoverContent>
     </Popover>
   );

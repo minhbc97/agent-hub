@@ -1,4 +1,5 @@
 import { useState, type DragEvent } from 'react';
+import { AnimatePresence, motion } from 'motion/react';
 import { List, MoreHorizontal, Plus, Search, Columns3, Trash2, Zap } from 'lucide-react';
 import { useHub, waitingText } from '@/lib/hub';
 import { api, TASK_STATUS, USER_ID, type Task, type TaskStatus } from '@/lib/api';
@@ -16,6 +17,7 @@ import { t } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { Markdown } from '@/components/Markdown';
 import { Avatar, Caption, Field, PageHeading, TASK_TONE, UserAvatar, label, type Tone } from '@/components/shared';
+import { MOTION } from '@/lib/motion';
 
 /** Select value meaning "no filter" / "no choice" (Radix Select cannot use an empty string). */
 const ANY = 'all';
@@ -189,19 +191,29 @@ export function TasksPage() {
                 </header>
                 <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1">
                   <div className="grid grid-cols-1 content-start gap-2">
-                    {group.map((task) => (
-                      <TaskCard
-                        key={task.id}
-                        task={task}
-                        open={() => setSelectedId(task.id)}
-                        onDragStart={(event) => {
-                          event.dataTransfer.setData('text/task-id', task.id);
-                          event.dataTransfer.effectAllowed = 'move';
-                          setDraggedId(task.id);
-                        }}
-                        onDragEnd={() => setDraggedId(null)}
-                      />
-                    ))}
+                    <AnimatePresence initial={false}>
+                      {group.map((task) => (
+                        <motion.div
+                          key={task.id}
+                          layout
+                          initial={{ opacity: 0, y: MOTION.list.offsetY }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -MOTION.list.offsetY }}
+                          transition={MOTION.list}
+                        >
+                          <TaskCard
+                            task={task}
+                            open={() => setSelectedId(task.id)}
+                            onDragStart={(event) => {
+                              event.dataTransfer.setData('text/task-id', task.id);
+                              event.dataTransfer.effectAllowed = 'move';
+                              setDraggedId(task.id);
+                            }}
+                            onDragEnd={() => setDraggedId(null)}
+                          />
+                        </motion.div>
+                      ))}
+                    </AnimatePresence>
                   </div>
                 </div>
               </section>
@@ -217,26 +229,36 @@ export function TasksPage() {
             <span>{t('workflows.workflow')}</span>
             <span>{t('tasks.assignee')}</span>
           </div>
-          {tasks.map((task) => (
-            <Button
-              key={task.id}
-              variant="ghost"
-              onClick={() => setSelectedId(task.id)}
-              className="grid h-auto w-full grid-cols-[100px_1fr_150px_160px_130px] justify-items-start gap-3 rounded-none border-t px-4 py-3 text-left font-normal"
-            >
-              <span className="font-mono text-muted-foreground">{task.key}</span>
-              <span className="truncate">{task.title}</span>
-              <span className="flex items-center gap-2 text-xs font-medium">
-                <span className={cn('size-2 rounded-full', TASK_TONE[task.status].dot)} />
-                {t(`tasks.code.${task.status}`)}
-              </span>
-              <span className="truncate">{h.workflows.find((w) => w.id === task.workflowId)?.name || '—'}</span>
-              <span>
-                {h.agentById(task.assigneeId)?.name ||
-                  (task.assigneeId === USER_ID ? t('common.you') : t('tasks.unassigned'))}
-              </span>
-            </Button>
-          ))}
+          <AnimatePresence initial={false}>
+            {tasks.map((task) => (
+              <motion.div
+                key={task.id}
+                layout
+                initial={{ opacity: 0, y: MOTION.list.offsetY }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -MOTION.list.offsetY }}
+                transition={MOTION.list}
+              >
+                <Button
+                  variant="ghost"
+                  onClick={() => setSelectedId(task.id)}
+                  className="grid h-auto w-full grid-cols-[100px_1fr_150px_160px_130px] justify-items-start gap-3 rounded-none border-t px-4 py-3 text-left font-normal"
+                >
+                  <span className="font-mono text-muted-foreground">{task.key}</span>
+                  <span className="truncate">{task.title}</span>
+                  <span className="flex items-center gap-2 text-xs font-medium">
+                    <span className={cn('size-2 rounded-full', TASK_TONE[task.status].dot)} />
+                    {t(`tasks.code.${task.status}`)}
+                  </span>
+                  <span className="truncate">{h.workflows.find((w) => w.id === task.workflowId)?.name || '—'}</span>
+                  <span>
+                    {h.agentById(task.assigneeId)?.name ||
+                      (task.assigneeId === USER_ID ? t('common.you') : t('tasks.unassigned'))}
+                  </span>
+                </Button>
+              </motion.div>
+            ))}
+          </AnimatePresence>
         </div>
       )}
       <TaskSheet task={selected} close={() => setSelectedId(null)} />

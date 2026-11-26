@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { AnimatePresence, motion } from 'motion/react';
 import {
   ArrowRight,
   Bot,
@@ -38,6 +39,7 @@ import { cn } from '@/lib/utils';
 import { AgentAvatar, Avatar, PageHeading, SectionTitle, UserAvatar, label } from '@/components/shared';
 import { TaskChanges } from '@/components/TaskChanges';
 import { Markdown } from '@/components/Markdown';
+import { MOTION } from '@/lib/motion';
 import { Composer } from '@/components/Composer';
 import { COACHMARK, Coachmark } from '@/components/Coachmark';
 import { AgentTerminal } from '@/components/AgentTerminal';
@@ -199,24 +201,42 @@ export function InboxPage({ filter, setFilter }: { filter: string; setFilter: (s
                         onAddAgent={() => navigate(`${PAGE.agents}/new`)}
                       />
                     )}
-                    {items.map((m, i) => (
-                      <div key={m.id}>
-                        {(i === 0 || dayKey(items[i - 1]!.createdAt) !== dayKey(m.createdAt)) && (
-                          <DaySeparator iso={m.createdAt} />
-                        )}
-                        <MessageRow
-                          message={m}
-                          grouped={continuesGroup(items[i - 1], m)}
-                          showRecipient={!selectedAgent}
-                          isInTaskThread={!!selectedTask}
-                          onOpenTask={(id) => setFilter(TASK_THREAD + id)}
-                          onAnswer={() => setFilter(INBOX_CHANNEL.needs)}
-                        />
-                      </div>
-                    ))}
-                    {outgoing.map((o) => (
-                      <OutgoingRow key={o.key} message={o} showRecipient={!selectedAgent} />
-                    ))}
+                    <AnimatePresence initial={false}>
+                      {items.map((m, i) => (
+                        <motion.div
+                          key={m.id}
+                          initial={{ opacity: 0, y: MOTION.list.offsetY }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -MOTION.list.offsetY }}
+                          transition={MOTION.list}
+                        >
+                          {(i === 0 || dayKey(items[i - 1]!.createdAt) !== dayKey(m.createdAt)) && (
+                            <DaySeparator iso={m.createdAt} />
+                          )}
+                          <MessageRow
+                            message={m}
+                            grouped={continuesGroup(items[i - 1], m)}
+                            showRecipient={!selectedAgent}
+                            isInTaskThread={!!selectedTask}
+                            onOpenTask={(id) => setFilter(TASK_THREAD + id)}
+                            onAnswer={() => setFilter(INBOX_CHANNEL.needs)}
+                          />
+                        </motion.div>
+                      ))}
+                    </AnimatePresence>
+                    <AnimatePresence initial={false}>
+                      {outgoing.map((o) => (
+                        <motion.div
+                          key={o.key}
+                          initial={{ opacity: 0, y: MOTION.list.offsetY }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -MOTION.list.offsetY }}
+                          transition={MOTION.list}
+                        >
+                          <OutgoingRow message={o} showRecipient={!selectedAgent} />
+                        </motion.div>
+                      ))}
+                    </AnimatePresence>
                     <WorkingLine agentId={selectedAgent?.id} />
                   </>
                 )}

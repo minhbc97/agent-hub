@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { AnimatePresence, motion, MotionConfig } from 'motion/react';
 import { useTheme } from 'next-themes';
 import { useTranslation } from 'react-i18next';
 import { Bot, House, Inbox, Moon, Plus, Settings, Sun, Workflow as WorkflowIcon, Columns3 } from 'lucide-react';
@@ -20,6 +21,7 @@ import { UsageMeters } from '@/features/usage/UsageMeters';
 import { GettingStarted } from '@/features/guide/GettingStarted';
 import { AgentAvatar } from '@/components/shared';
 import { WorkspaceForm, WorkspaceMenu } from '@/components/WorkspaceMenu';
+import { MOTION } from '@/lib/motion';
 
 const THEME = { dark: 'dark', light: 'light' } as const;
 
@@ -36,9 +38,18 @@ export function App() {
   // Pages translate with the plain `t()`, so the root subscribes to language changes and re-renders the tree.
   useTranslation();
   const h = useHub();
-  if (!h.ws) return <Welcome isReady={h.ready} />;
+  if (!h.ws)
+    return (
+      <MotionConfig reducedMotion="user">
+        <Welcome isReady={h.ready} />
+      </MotionConfig>
+    );
   // Remounted per workspace, so filters, drafts and open panels of one never show in another.
-  return <WorkspaceShell key={h.ws.id} />;
+  return (
+    <MotionConfig reducedMotion="user">
+      <WorkspaceShell key={h.ws.id} />
+    </MotionConfig>
+  );
 }
 
 function WorkspaceShell() {
@@ -114,44 +125,51 @@ function WorkspaceShell() {
           <p className="mt-auto px-2 text-xs text-muted-foreground">{t('app.avatarLicense')}</p>
         </aside>
         {/* relative: absolutely positioned descendants (e.g. Radix hidden inputs) must scroll inside main, not stretch the page. */}
-        <main
-          className={cn(
-            'relative min-h-0 min-w-0 flex-1',
-            page === PAGE.home
-              ? 'overflow-hidden max-lg:overflow-auto [@media(max-height:760px)]:overflow-auto'
-              : 'overflow-auto',
-          )}
-        >
-          {page === PAGE.inbox ? (
-            <InboxPage filter={filter} setFilter={setFilter} />
-          ) : (
-            <div
-              className={cn(
-                'flex flex-col p-7',
-                page === PAGE.home || page === PAGE.tasks ? 'h-full min-h-0' : 'min-h-full',
-              )}
-            >
-              {page === PAGE.home ? (
-                <HomePage
-                  openAgent={(id) => openInbox(AGENT_THREAD + id)}
-                  openNeeds={() => openInbox(INBOX_CHANNEL.needs)}
-                />
-              ) : page === PAGE.tasks ? (
-                <TasksPage />
-              ) : page === PAGE.workflows ? (
-                <WorkflowsPage />
-              ) : page === PAGE.agents ? (
-                agentPage ? (
-                  <AgentDetail id={agentPage} />
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.main
+            key={page}
+            initial={{ opacity: 0, y: MOTION.page.offsetY }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -MOTION.page.offsetY }}
+            transition={MOTION.page}
+            className={cn(
+              'relative min-h-0 min-w-0 flex-1',
+              page === PAGE.home
+                ? 'overflow-hidden max-lg:overflow-auto [@media(max-height:760px)]:overflow-auto'
+                : 'overflow-auto',
+            )}
+          >
+            {page === PAGE.inbox ? (
+              <InboxPage filter={filter} setFilter={setFilter} />
+            ) : (
+              <div
+                className={cn(
+                  'flex flex-col p-7',
+                  page === PAGE.home || page === PAGE.tasks ? 'h-full min-h-0' : 'min-h-full',
+                )}
+              >
+                {page === PAGE.home ? (
+                  <HomePage
+                    openAgent={(id) => openInbox(AGENT_THREAD + id)}
+                    openNeeds={() => openInbox(INBOX_CHANNEL.needs)}
+                  />
+                ) : page === PAGE.tasks ? (
+                  <TasksPage />
+                ) : page === PAGE.workflows ? (
+                  <WorkflowsPage />
+                ) : page === PAGE.agents ? (
+                  agentPage ? (
+                    <AgentDetail id={agentPage} />
+                  ) : (
+                    <AgentsPage openCreate={createAgent} />
+                  )
                 ) : (
-                  <AgentsPage openCreate={createAgent} />
-                )
-              ) : (
-                <SettingsPage />
-              )}
-            </div>
-          )}
-        </main>
+                  <SettingsPage />
+                )}
+              </div>
+            )}
+          </motion.main>
+        </AnimatePresence>
       </div>
       {h.ready && !h.agents.some((agent) => agent.isOrchestrator) && <LeadAgentDialog />}
     </div>
