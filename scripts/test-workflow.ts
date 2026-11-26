@@ -244,6 +244,27 @@ assert.equal(db.getMessage(onDone.question.id)!.status, MESSAGE_STATUS.delivered
 assert.equal(db.getMessage(onBlocked.question.id)!.status, MESSAGE_STATUS.held, 'a blocked task still waits');
 for (const { task } of [onDone, onBlocked]) db.deleteTask(task.id);
 
+// The human's answer goes to the agent that asked, even when another agent is assigned the task.
+{
+  const task = db.updateTask(db.createTask({ workspaceId: ws.id, title: 'lead asks', assigneeId: writer.id }).id, {
+    status: TASK_STATUS.blocked,
+  })!;
+  db.createMessage({
+    workspaceId: ws.id,
+    fromId: editor.id,
+    toId: USER_ID,
+    act: 'needs_human',
+    body: 'Which branch?',
+    taskId: task.id,
+    status: MESSAGE_STATUS.held,
+  });
+  wfe.answer(task.id, 'main');
+  const reply = db.listMessages(ws.id).find((m) => m.taskId === task.id && m.fromId === USER_ID)!;
+  assert.equal(reply.toId, editor.id, 'the answer reaches the asking agent, not the assignee');
+  await settle();
+  db.deleteTask(task.id);
+}
+
 // Outbox: an oversized file is rejected unread; a valid file is queued exactly once.
 const { outboxDir } = await import('../src/server/runner.ts');
 const { existsSync, readFileSync, readdirSync, writeFileSync } = await import('node:fs');

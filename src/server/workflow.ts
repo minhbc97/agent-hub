@@ -219,11 +219,15 @@ export function answer(taskId: string, body: string): Task {
   const task = getTask(taskId);
   if (!task) throw new DomainError('errors.taskNotFound');
   if (task.status !== TASK_STATUS.blocked) throw new DomainError('errors.taskNotAwaitingAnswer');
+  let askerId: string | null = null;
   for (const m of listMessages(task.workspaceId, 1000)) {
-    if (m.taskId === task.id && m.act === ACT.needsHuman && m.status === MESSAGE_STATUS.held)
-      setMessageStatus(m.id, MESSAGE_STATUS.delivered);
+    if (m.taskId !== task.id || m.act !== ACT.needsHuman || m.status !== MESSAGE_STATUS.held) continue;
+    setMessageStatus(m.id, MESSAGE_STATUS.delivered);
+    askerId = m.fromId;
   }
-  const agentId = task.assigneeId && task.assigneeId !== USER_ID ? task.assigneeId : null;
+  // The lead may ask about a worker's task; the answer belongs to whoever asked, not the assignee.
+  const assigneeId = task.assigneeId && task.assigneeId !== USER_ID ? task.assigneeId : null;
+  const agentId = askerId && askerId !== USER_ID ? askerId : assigneeId;
   const t = updateTask(task.id, {
     status: agentId ? TASK_STATUS.doing : TASK_STATUS.todo,
     waitingReason: '',
