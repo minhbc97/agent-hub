@@ -566,7 +566,7 @@ function exec(
   });
 }
 
-function killTree(pid: number | undefined): void {
+export function killTree(pid: number | undefined): void {
   if (!pid) return;
   try {
     if (IS_WINDOWS)

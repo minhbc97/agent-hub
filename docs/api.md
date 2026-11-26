@@ -17,6 +17,7 @@ REST JSON tại `http://127.0.0.1:4310/api/...`. Kiểu dữ liệu chi tiết n
 | --- | --- | --- |
 | POST | `/api/folders/pick` | Mở hộp chọn thư mục của hệ điều hành trên máy chạy hub. Trả `{ path }` (`null` nếu huỷ); 501 nếu máy không có hộp chọn (Linux thiếu `zenity`/`kdialog`). |
 | GET | `/api/meta` | Danh sách engine (`id`, `label`, `supported`, `defaultCommand`, `defaultExtraArgs`, `installed`, `models`), isolation, reset policy, settings mặc định. |
+| POST | `/api/mcp-servers` | Thêm MCP server vào cấu hình cấp user của Claude Code và/hoặc Codex qua lệnh `mcp add` của chính CLI. Body: `name`, `transport` (`stdio` hoặc `http`), `command`, `args`, `env` (stdio), `url` (http), `engines`. Hub không lưu cấu hình; giá trị có ký tự đặc biệt của shell bị từ chối. |
 | GET | `/api/usage` | Hạn mức từng engine đọc từ CLI (cửa sổ hạn mức, % đã dùng, giờ reset, trạng thái đăng nhập). Kết quả được cache 1 phút; thêm `?refresh` để đọc lại ngay. |
 
 `installed` là `true` / `false` khi kiểm tra được lệnh trên PATH (`where` / `which`), `null` khi không biết.

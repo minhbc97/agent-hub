@@ -301,6 +301,11 @@ const { allowedCommands } = await import('../src/server/api/validation.ts');
 assert.deepEqual(allowedCommands([' npm  test ', 'npm test', '', 'git commit']), ['npm test', 'git commit']);
 for (const bad of ['npm test" & calc', 'echo $HOME', 'npm test:*', '%PATH%', 'a;b', 'git', 'git -C x push', 'a\nb | c'])
   assert.throws(() => allowedCommands([bad]), bad);
+// A git command the user allowed by name leaves the backstop; the others stay denied.
+db.updateAgent(writer.id, { allowedCommands: ['git merge'] });
+const merging = claude.command(db.getAgent(writer.id)!, { resumeId: null, extraDirs: [] });
+assert.match(merging, /--disallowedTools "Bash\(git push:\*\)" "Bash\(git rebase:\*\)"/);
+assert.doesNotMatch(merging.split('--disallowedTools')[1]!, /git merge/);
 db.updateAgent(writer.id, { allowedCommands: ['npm test', 'git commit'] });
 const allowing = db.getAgent(writer.id)!;
 assert.match(
@@ -639,4 +644,48 @@ assert.equal(rebound, 403, 'foreign Host is refused');
 assert.equal((await fetch(`${base}/api/workspaces`)).status, 200, 'server still alive');
 server.closeAllConnections();
 await new Promise((r) => server.close(r));
+
+// Adding an MCP server: values reach a shell command line, so anything the shell would read is refused.
+const { mcpServerFields } = await import('../src/server/api/validation.ts');
+const { mcpAddArgs } = await import('../src/server/mcp-add.ts');
+const stdioServer = mcpServerFields({
+  name: 'jira',
+  transport: 'stdio',
+  command: 'npx',
+  args: ['-y', ' some pkg ', ''],
+  env: { API_KEY: 'a b+c/=' },
+  engines: ['codex', 'antigravity', 'claude'],
+});
+assert.deepEqual(stdioServer.engines, ['claude', 'codex'], 'only engines with an mcp add');
+assert.deepEqual(stdioServer.args, ['-y', 'some pkg']);
+assert.deepEqual(mcpAddArgs('claude', stdioServer), [
+  ...['mcp', 'add', '--scope', 'user', 'jira', '-e', 'API_KEY=a b+c/=', '--', 'npx', '-y', 'some pkg'],
+]);
+assert.deepEqual(mcpAddArgs('codex', stdioServer), [
+  ...['mcp', 'add', 'jira', '--env', 'API_KEY=a b+c/=', '--', 'npx', '-y', 'some pkg'],
+]);
+const httpServer = mcpServerFields({
+  name: 'linear',
+  transport: 'http',
+  url: 'https://mcp.linear.app/mcp',
+  engines: ['codex'],
+});
+assert.deepEqual(mcpAddArgs('codex', httpServer), ['mcp', 'add', 'linear', '--url', 'https://mcp.linear.app/mcp']);
+const mcpError = (fields: Record<string, unknown>) => {
+  try {
+    mcpServerFields({ name: 'x', transport: 'stdio', command: 'npx', engines: ['claude'], ...fields });
+    return '';
+  } catch (error) {
+    return (error as { key?: string }).key ?? '';
+  }
+};
+assert.equal(mcpError({}), '');
+assert.equal(mcpError({ name: 'a b' }), 'errors.mcpNameFormat');
+assert.equal(mcpError({ command: 'npx & calc' }), 'errors.mcpValueUnsafe');
+assert.equal(mcpError({ args: ['%PATH%'] }), 'errors.mcpValueUnsafe');
+assert.equal(mcpError({ args: ['C:\\dir\\'] }), 'errors.mcpValueUnsafe', 'a trailing backslash would escape the quote');
+assert.equal(mcpError({ env: { KEY: '$(whoami)' } }), 'errors.mcpValueUnsafe');
+assert.equal(mcpError({ env: { 'BAD-KEY': 'x' } }), 'errors.fieldInvalid');
+assert.equal(mcpError({ engines: ['antigravity'] }), 'errors.fieldInvalid');
+assert.equal(mcpError({ transport: 'http', url: 'file:///etc/passwd' }), 'errors.fieldInvalid');
 console.log('workflow test: PASS');

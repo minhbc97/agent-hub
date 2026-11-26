@@ -49,6 +49,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { i18n, t } from '@/lib/i18n';
 import { AgentMap } from './AgentMap';
+import { McpServerDialog } from './McpServerDialog';
 import { Markdown } from '@/components/Markdown';
 import { AgentTerminal } from '@/components/AgentTerminal';
 import { EngineSetup } from '@/components/EngineSetup';
@@ -306,6 +307,7 @@ function AgentEditor({
   const set = <K extends keyof AgentForm>(k: K, x: AgentForm[K]) => setV((cur) => ({ ...cur, [k]: x }));
   // null until known. Git is only needed for worktree isolation; offices that are not code use the shared folder.
   const [hasGit, setHasGit] = useState<boolean | null>(null);
+  const [isAddingMcp, setIsAddingMcp] = useState(false);
   const wsId = h.ws?.id;
   useEffect(() => {
     if (!open || !wsId) return;
@@ -331,7 +333,10 @@ function AgentEditor({
     (e) => e.id !== v.engine && e.supported && e.installed !== false && FALLBACK_ENGINES.includes(e.id),
   );
   // A saved server that is no longer installed stays visible so it can be unpicked.
-  const mcpChoices = [...new Set([...(h.meta?.claudeMcpServers ?? []), ...v.mcpServers])];
+  const mcpInstalled = v.engine === ENGINE.codex ? h.meta?.codexMcpServers : h.meta?.claudeMcpServers;
+  const mcpChoices = [...new Set([...(mcpInstalled ?? []), ...v.mcpServers])];
+  const hasMcpPicker = v.engine === ENGINE.claude || v.engine === ENGINE.codex;
+  const isLeanClaude = v.engine === ENGINE.claude && v.isLean;
   const fields = (
     <div className="grid gap-4 px-6 py-5">
       <Field label={t('common.name')} isRequired>
@@ -541,8 +546,8 @@ function AgentEditor({
           <p className="text-xs/5 text-muted-foreground">{t('agents.leanModeHint')}</p>
         </div>
       )}
-      {v.engine === ENGINE.claude && v.isLean && (
-        <Field label={t('agents.leanMcpServers')}>
+      {hasMcpPicker && (
+        <Field label={t(isLeanClaude ? 'agents.leanMcpServers' : 'agents.mcpServers')}>
           {mcpChoices.length ? (
             <ToggleGroup
               type="multiple"
@@ -560,9 +565,34 @@ function AgentEditor({
               ))}
             </ToggleGroup>
           ) : (
-            <p className="text-xs text-muted-foreground">{t('agents.noMcpServers')}</p>
+            <p className="text-xs text-muted-foreground">
+              {t(v.engine === ENGINE.codex ? 'agents.noCodexMcpServers' : 'agents.noMcpServers')}
+            </p>
           )}
         </Field>
+      )}
+      {hasMcpPicker && !isLeanClaude && (
+        <p className="-mt-2 text-xs/5 text-muted-foreground">
+          {t(v.engine === ENGINE.codex ? 'agents.codexMcpServersHint' : 'agents.mcpServersHint')}
+        </p>
+      )}
+      {hasMcpPicker && (
+        <div className="-mt-2">
+          <Button type="button" variant="outline" size="sm" onClick={() => setIsAddingMcp(true)}>
+            <Plus />
+            {t('agents.addMcpServer')}
+          </Button>
+          {isAddingMcp && (
+            <McpServerDialog
+              open
+              engine={v.engine}
+              onOpenChange={setIsAddingMcp}
+              onAdded={(name, engines) => {
+                if (engines.includes(v.engine)) set('mcpServers', [...new Set([...v.mcpServers, name])]);
+              }}
+            />
+          )}
+        </div>
       )}
     </div>
   );

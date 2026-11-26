@@ -8,13 +8,13 @@ import { mcpToolPrefix, removeMcpConfig, writeMcpConfig } from './claude-mcp.ts'
  * session is compacted, a denied tool cannot.
  * shortcut: prefix rules miss forms like `git -C dir push` or a script that pushes; add a PreToolUse hook if that matters.
  */
-const DENIED_TOOLS = ['Bash(git push:*)', 'Bash(git merge:*)', 'Bash(git rebase:*)'];
+const DENIED_GIT = ['git push', 'git merge', 'git rebase'];
 
 /**
  * Lean start: without the user's plugins, skills, hooks and MCP servers, and with only the file and shell tools.
  * Measured on 2.1.329: the fixed prompt every model call carries drops from ~49k to ~9k tokens.
  */
-const LEAN_ARGS = ['--strict-mcp-config', '--setting-sources', 'project,local', '--tools'];
+const LEAN_ARGS = ['--setting-sources', 'project,local', '--tools'];
 const LEAN_TOOLS = 'Read,Write,Edit,Bash,Glob,Grep';
 /** Loads MCP tool descriptions on demand; without it every model call carries them all (Atlassian: 42k vs 23k tokens). */
 const LEAN_MCP_TOOLS = `${LEAN_TOOLS},ToolSearch`;
@@ -42,16 +42,22 @@ export const claude: EngineAdapter = {
     if (agent.model) parts.push('--model', q(agent.model));
     if (resumeId) parts.push('--resume', q(resumeId));
     for (const d of extraDirs) parts.push('--add-dir', q(d));
-    if (agent.isLean) parts.push(...LEAN_ARGS, agent.mcpServers.length ? LEAN_MCP_TOOLS : LEAN_TOOLS);
+    const hasMcp = agent.mcpServers.length > 0;
+    if (agent.isLean) parts.push(...LEAN_ARGS, hasMcp ? LEAN_MCP_TOOLS : LEAN_TOOLS);
+    // Lean runs load no MCP server unless picked; a normal run loads them all unless some are picked.
+    // Verified on 2.1.329: strict mode also drops plugin servers and claude.ai connectors.
+    if (agent.isLean || hasMcp) parts.push('--strict-mcp-config');
     // Picked servers are the user's explicit choice, so their tools run without a permission prompt headless
     // turns could not answer.
     const allowed = agent.allowedCommands.map((c) => q(`Bash(${c}:*)`));
-    if (agent.isLean && agent.mcpServers.length) {
+    if (hasMcp) {
       parts.push('--mcp-config', q(writeMcpConfig(agent)));
       allowed.push(...agent.mcpServers.map(mcpToolPrefix));
     }
     if (allowed.length) parts.push('--allowedTools', ...allowed);
-    parts.push('--disallowedTools', ...DENIED_TOOLS.map(q));
+    // A deny beats any allow, so a git command the user put in the agent's allowed list leaves the backstop.
+    const denied = DENIED_GIT.filter((c) => !agent.allowedCommands.includes(c));
+    if (denied.length) parts.push('--disallowedTools', ...denied.map((c) => q(`Bash(${c}:*)`)));
     if (agent.extraArgs.trim()) parts.push(agent.extraArgs.trim());
     return parts.join(' ');
   },

@@ -57,7 +57,8 @@ Form **Thêm agent / Cấu hình agent**:
 Tham số mặc định theo engine:
 
 - **Claude Code**: `--permission-mode acceptEdits` (lượt headless không trả lời được hộp thoại xin quyền).
-  Hub luôn thêm `--disallowedTools` chặn `git push`, `git merge`, `git rebase`.
+  Hub luôn thêm `--disallowedTools` chặn `git push`, `git merge`, `git rebase`, trừ lệnh bạn ghi đúng tên vào
+  **Lệnh được phép** của agent đó (vd. `git merge` cho agent làm bước merge).
 - **Codex**: `-c sandbox_mode="workspace-write"`, trên Windows thêm `-c windows.sandbox="unelevated"`
   (xem [engines.md](engines.md#codex)).
 

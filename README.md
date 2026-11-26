@@ -15,7 +15,7 @@ the results or answer when an agent asks you something.
 Each message runs the CLI for one headless turn and resumes the session by id. Agents talk to each other by writing
 JSON files into their own outbox folder. Plain output goes to you only, so two agents can't reply to each other
 forever. Data is a SQLite file on your machine, the server listens on `127.0.0.1` only, and the hub never reads your
-CLI sign-ins. MCP servers you pick for a lean agent are the one exception: their config, tokens included, is copied to a
+CLI sign-ins. MCP servers you pick for a Claude agent are the one exception: their config, tokens included, is copied to a
 private file for the length of each turn.
 
 ## Quick start
@@ -49,8 +49,8 @@ Engines and sessions:
   an agent to a fallback engine until the reset.
 - Before a session gets too long or its cache expires, the agent writes a handoff note and the next session starts
   from that note instead of the full history.
-- Lean mode for Claude agents cuts the per-call baseline from about 49k tokens to about 10k, with MCP servers picked
-  per agent.
+- Lean mode for Claude agents cuts the per-call baseline from about 49k tokens to about 10k.
+- MCP servers are picked per agent for Claude and Codex, so each agent loads only the tools it needs.
 
 Coordination:
 

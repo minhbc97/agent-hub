@@ -21,6 +21,8 @@ import {
   ENGINES,
   FALLBACK_ENGINES,
   ISOLATION,
+  MCP_ENGINES,
+  MCP_TRANSPORT,
   ISOLATIONS,
   RESET_POLICIES,
   ROUTING,
@@ -28,6 +30,7 @@ import {
   USER_ID,
   isSameAgentName,
   type Engine,
+  type McpServerInput,
 } from '../../shared/contracts.ts';
 import { HttpError } from '../http/errors.ts';
 import { str } from '../http/request.ts';
@@ -307,4 +310,56 @@ export function allowedCommands(raw: unknown): string[] {
 export function assertWorktreeRepo(repoPath: string) {
   if (!repoPath) throw new HttpError(400, 'errors.worktreeNeedsRepo');
   if (!hasGitHead(repoPath)) throw new HttpError(400, 'errors.worktreeNeedsGit', { path: repoPath });
+}
+
+const MCP_NAME = /^[A-Za-z0-9_-]{1,64}$/;
+const ENV_NAME = /^[A-Za-z_][A-Za-z0-9_]{0,63}$/;
+const MAX_MCP_ITEMS = 50;
+const MAX_MCP_VALUE = 2000;
+/**
+ * Values go into a shell command line, double-quoted, for `cmd.exe` and `sh` alike (CLI shims on Windows need a shell).
+ * These characters still mean something inside the quotes there, and a trailing backslash would escape the quote.
+ * shortcut: rejects such values instead of escaping them per shell; the user adds those servers with the CLI.
+ */
+const SHELL_UNSAFE = /["%^&|<>!$`\r\n]|\\$/;
+
+function mcpValue(raw: unknown, field: string, isRequired = false): string {
+  const value = str(raw).trim();
+  if (isRequired && !value) throw new HttpError(400, 'errors.fieldInvalid', { field });
+  if (value.length > MAX_MCP_VALUE) throw new HttpError(400, 'errors.fieldInvalid', { field });
+  if (SHELL_UNSAFE.test(value)) throw new HttpError(400, 'errors.mcpValueUnsafe', { field });
+  return value;
+}
+
+export function mcpServerFields(b: Record<string, unknown>): McpServerInput {
+  const name = str(b.name).trim();
+  if (!MCP_NAME.test(name)) throw new HttpError(400, 'errors.mcpNameFormat');
+  const transport = Object.values(MCP_TRANSPORT).find((x) => x === b.transport);
+  if (!transport) throw new HttpError(400, 'errors.fieldInvalid', { field: 'transport' });
+  const engines = Array.isArray(b.engines) ? MCP_ENGINES.filter((e) => (b.engines as unknown[]).includes(e)) : [];
+  if (!engines.length) throw new HttpError(400, 'errors.fieldInvalid', { field: 'engines' });
+  if (transport === MCP_TRANSPORT.http) {
+    const url = mcpValue(b.url, 'url', true);
+    if (!/^https?:\/\//i.test(url) || !URL.canParse(url))
+      throw new HttpError(400, 'errors.fieldInvalid', { field: 'url' });
+    return { name, transport, command: '', args: [], env: {}, url, engines };
+  }
+  const rawArgs = b.args ?? [];
+  if (!Array.isArray(rawArgs) || rawArgs.length > MAX_MCP_ITEMS)
+    throw new HttpError(400, 'errors.fieldInvalid', { field: 'args' });
+  const rawEnv = b.env ?? {};
+  if (typeof rawEnv !== 'object' || rawEnv === null || Array.isArray(rawEnv))
+    throw new HttpError(400, 'errors.fieldInvalid', { field: 'env' });
+  const envEntries = Object.entries(rawEnv);
+  if (envEntries.length > MAX_MCP_ITEMS || envEntries.some(([key]) => !ENV_NAME.test(key)))
+    throw new HttpError(400, 'errors.fieldInvalid', { field: 'env' });
+  return {
+    name,
+    transport,
+    command: mcpValue(b.command, 'command', true),
+    args: rawArgs.map((arg) => mcpValue(arg, 'args')).filter(Boolean),
+    env: Object.fromEntries(envEntries.map(([key, value]) => [key, mcpValue(value, key)])),
+    url: '',
+    engines,
+  };
 }

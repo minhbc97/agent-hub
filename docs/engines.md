@@ -26,6 +26,7 @@ Kết quả dò output của từng CLI: [cli-probe.md](cli-probe.md).
 claude -p --input-format stream-json --output-format stream-json --verbose --replay-user-messages
        [--model <m>] [--resume <session>] --add-dir <outbox>
        --disallowedTools "Bash(git push:*)" "Bash(git merge:*)" "Bash(git rebase:*)" <tham số thêm>
+       # lệnh git nào có trong "Lệnh được phép" của agent (vd. git merge) thì không bị chặn
 ```
 
 - Output: JSONL; sự kiện `type: "result"` (không chắc là dòng cuối) có `result`, `session_id`, `is_error`, `total_cost_usd`,
@@ -46,10 +47,13 @@ claude -p --input-format stream-json --output-format stream-json --verbose --rep
 nền mỗi lần gọi API; chế độ gọn còn khoảng 10k. Agent có chọn MCP thì thêm tool `ToolSearch` để mô tả tool MCP chỉ nạp
 khi cần (đo với Atlassian: 42k còn 23k). Đổi lại agent mất MCP cấp user, trừ server được chọn riêng ở dưới.
 
-**MCP theo agent**: form liệt kê server MCP đọc từ `~/.claude.json` và plugin đã cài. Ở chế độ gọn, server được chọn
+**MCP theo agent**: form liệt kê server MCP đọc từ `~/.claude.json` và plugin đã cài. Server được chọn
 ghi vào `data/mcp/<agentId>.json` rồi truyền qua `--mcp-config`. Cấu hình có thể chứa token nên file chỉ tồn tại trong
 lượt chạy và bị xoá ngay sau đó (còn sót do hub bị kill thì xoá khi khởi động). Tên server giữ dạng `plugin:<plugin>:<server>` giống
 Claude nên dùng lại được đăng nhập OAuth đã có. Connector của claude.ai không truyền qua file được.
+Chế độ gọn mà không chọn server thì không nạp MCP nào. Chế độ thường mà không chọn thì nạp mọi MCP như `claude` chạy tay;
+có chọn thì thêm `--strict-mcp-config` nên chỉ nạp server được chọn (đã thử trên 2.1.329: plugin và connector claude.ai
+cũng bị bỏ).
 
 ## Codex
 
@@ -65,6 +69,10 @@ codex exec --json --skip-git-repo-check [-m <model>]
   `cacheReadTokens`. Đã đối chiếu với `last_token_usage` trong rollout của Codex: khớp.
 - `codex exec resume` **không nhận `--sandbox` và `--add-dir`**, nên thư mục ghi thêm đi qua `-c`, cờ mà cả lượt mới
   lẫn resume đều nhận. Chuỗi TOML dùng nháy đơn (`'...'`) để giữ nguyên dấu `\` của đường dẫn Windows.
+- **MCP theo agent**: form liệt kê các bảng `[mcp_servers.<tên>]` trong `~/.codex/config.toml`. Không chọn thì Codex
+  nạp mọi server. Có chọn thì các server còn lại bị tắt trong lượt bằng `-c mcp_servers.<tên>.enabled=false`; hub không
+  đọc hay chép cấu hình của server. Server do plugin của Codex thêm không tắt được theo cách này (0.164.0 báo
+  `invalid transport`) nên không có trong danh sách và luôn bật.
 - Tham số mặc định: `-c sandbox_mode="workspace-write"` (mặc định của `codex exec` là chỉ đọc, agent không ghi được
   outbox).
 

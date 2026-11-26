@@ -40,6 +40,8 @@ interface Hub {
   tokens: TokenTotal[];
   selectWorkspace: (id: string) => void;
   reload: () => Promise<void>;
+  /** Re-read engines and MCP servers, e.g. after the user added a server to a CLI. */
+  reloadMeta: () => Promise<void>;
   /** Run an API call; on failure show its message as a toast. Returns undefined on error. */
   attempt: <T>(fn: () => Promise<T>, ok?: string) => Promise<T | undefined>;
   outgoing: OutgoingMessage[];
@@ -127,12 +129,11 @@ export function HubProvider({ children }: { children: ReactNode }) {
     setReady(true);
   }, [clearWorkspaceData]);
 
+  const reloadMeta = useCallback(() => api.meta().then(setMeta), []);
+
   useEffect(() => {
-    api
-      .meta()
-      .then(setMeta)
-      .catch(() => {});
-  }, []);
+    reloadMeta().catch(() => {});
+  }, [reloadMeta]);
 
   useEffect(() => {
     try {
@@ -217,6 +218,7 @@ export function HubProvider({ children }: { children: ReactNode }) {
       tokens,
       selectWorkspace,
       reload,
+      reloadMeta,
       attempt,
       outgoing,
       sendMessage,
@@ -235,6 +237,7 @@ export function HubProvider({ children }: { children: ReactNode }) {
     tokens,
     selectWorkspace,
     reload,
+    reloadMeta,
     attempt,
     outgoing,
     sendMessage,

@@ -130,7 +130,10 @@ export interface Agent {
   handoff: string;
   /** Start the CLI without the user's plugins, MCP servers and extra tools (Claude only). */
   isLean: boolean;
-  /** MCP servers a lean Claude agent still loads, by the name Claude gives them (e.g. `plugin:design:atlassian`). */
+  /**
+   * MCP servers the agent loads, by the name its CLI gives them (e.g. `plugin:design:atlassian`). Empty: none in
+   * Claude lean mode, otherwise every server the CLI is configured with.
+   */
   mcpServers: string[];
   /** Shell commands Claude runs without asking, with any arguments (e.g. `npm test`). */
   allowedCommands: string[];
@@ -322,12 +325,32 @@ export interface EngineInfo {
   models: EngineModel[];
 }
 
+/** Engines whose MCP config the hub can add a server to, through the CLI's own `mcp add`. */
+export const MCP_ENGINES: readonly Engine[] = [ENGINE.claude, ENGINE.codex];
+export const MCP_TRANSPORT = { stdio: 'stdio', http: 'http' } as const;
+export type McpTransport = ValueOf<typeof MCP_TRANSPORT>;
+
+/** A server to add to the user-level MCP config of each picked CLI. */
+export interface McpServerInput {
+  name: string;
+  transport: McpTransport;
+  /** stdio only. */
+  command: string;
+  args: string[];
+  env: Record<string, string>;
+  /** http only. */
+  url: string;
+  engines: Engine[];
+}
+
 export interface Meta {
   engines: EngineInfo[];
   isolations: Agent['isolation'][];
   resetPolicies: Agent['resetPolicy'][];
-  /** MCP servers found in the user's Claude Code config and plugins, for the lean-mode picker. */
+  /** MCP servers found in the user's Claude Code config and plugins, for the agent's MCP picker. */
   claudeMcpServers: string[];
+  /** MCP servers declared in the user's Codex config.toml, for the agent's MCP picker. */
+  codexMcpServers: string[];
   defaults: WorkspaceSettings;
 }
 

@@ -137,11 +137,28 @@
     "handoffNote": "Handoff note",
     "leanMcpServers": "MCP servers kept in lean mode",
     "noMcpServers": "No MCP servers found in your Claude Code config or plugins.",
+    "mcpServers": "MCP servers",
+    "mcpServersHint": "Leave empty to load every Claude Code MCP server. Pick servers to load only those (claude.ai connectors are dropped too).",
+    "codexMcpServersHint": "Leave empty to load every Codex MCP server. Pick servers to switch the others in config.toml off for the agent's turns; servers added by Codex plugins stay on.",
+    "noCodexMcpServers": "No MCP servers found in ~/.codex/config.toml.",
     "fallbackEngine": "Fallback engine when out of quota",
     "noFallback": "None, wait for the reset",
     "fallbackEngineHint": "When the main engine runs out of quota, its messages are held and run again at the reset. With a fallback, the agent switches to it right away, carrying its handoff note, and returns to the main engine once that works again.",
     "onFallback": "{{own}} · running on {{fallback}} for now",
-    "fallbackModel": "Fallback model"
+    "fallbackModel": "Fallback model",
+    "addMcpServer": "Add MCP server",
+    "addMcpServerDescription": "The hub runs the picked CLI's mcp add to put the server in its user-level config. The hub keeps no copy of the config or its tokens. Every agent on that CLI, and your own runs of it, will see the server.",
+    "mcpServerAdded": "Added MCP server {{name}}.",
+    "mcpTransport": "Connection",
+    "mcpTransportStdio": "Run a command (stdio)",
+    "mcpTransportHttp": "URL (HTTP)",
+    "mcpUrl": "URL",
+    "mcpLoginHint": "If the server needs an OAuth sign-in, sign in after adding it. Codex: run codex mcp login {{name}}. Claude Code: open claude and type /mcp.",
+    "mcpCommand": "Command",
+    "mcpArgs": "Arguments",
+    "mcpEnv": "Environment variables",
+    "mcpEnvHint": "Arguments: one per line. Environment variables: one KEY=value per line. Tokens here only pass through the mcp add command line; the hub does not store or log them. Values with shell characters (\" % ^ & | < > ! $) need adding with the CLI in a terminal.",
+    "mcpEngines": "Add to"
   },
   "app": {
     "avatarLicense": "Micah avatars (CC BY 4.0)",
@@ -237,7 +254,11 @@
     "workspaceNameRequired": "Workspace name is required.",
     "workspaceNotFound": "Workspace not found.",
     "agentRunningCannotSwitchEngine": "This agent is running. Wait for its turn to finish before switching engine.",
-    "messageNotRetryable": "This message cannot be retried."
+    "messageNotRetryable": "This message cannot be retried.",
+    "mcpNameFormat": "MCP server names use letters, digits, - and _ only, up to 64 characters.",
+    "mcpValueUnsafe": "{{field}} has characters the hub cannot pass safely through a shell (\" % ^ & | < > ! $ or a line break). Add this server with the CLI in a terminal.",
+    "mcpServerExists": "{{engine}} already has an MCP server named {{name}}.",
+    "mcpAddFailed": "{{engine}} could not add the MCP server: {{detail}}"
   },
   "home": {
     "composer": "Brief {{name}}… the lead hands the work to the right agent.",

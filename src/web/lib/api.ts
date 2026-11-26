@@ -1,4 +1,5 @@
 import type {
+  McpServerInput,
   Agent,
   Message,
   Meta,
@@ -27,6 +28,8 @@ export {
   isSameAgentName,
   ISOLATION,
   ISOLATIONS,
+  MCP_ENGINES,
+  MCP_TRANSPORT,
   MESSAGE_STATUS,
   RESET_POLICIES,
   RESET_POLICY,
@@ -43,6 +46,8 @@ export {
 
 export type {
   Engine,
+  McpServerInput,
+  McpTransport,
   AgentStatus,
   Routing,
   Agent,
@@ -88,6 +93,7 @@ export const api = {
   workspaceGit: (ws: string) => call<{ hasGit: boolean }>('GET', `/api/workspaces/${ws}/git`),
   usage: (refresh = false) => call<UsageReport>('GET', refresh ? '/api/usage?refresh' : '/api/usage'),
   pickFolder: () => call<{ path: string | null }>('POST', '/api/folders/pick'),
+  addMcpServer: (server: McpServerInput) => call('POST', '/api/mcp-servers', server),
 
   workspaces: () => call<Workspace[]>('GET', '/api/workspaces'),
   createWorkspace: (w: Partial<Workspace>) => call<Workspace>('POST', '/api/workspaces', w),

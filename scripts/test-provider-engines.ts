@@ -4,7 +4,8 @@ import { ENGINE } from '../src/shared/contracts.ts';
 import { antigravity } from '../src/server/engines/antigravity.ts';
 import { claude } from '../src/server/engines/claude.ts';
 import { mcpToolPrefix } from '../src/server/engines/claude-mcp.ts';
-import { rolloutContext } from '../src/server/engines/codex.ts';
+import { codexMcpArgs, codexMcpServers, rolloutContext } from '../src/server/engines/codex.ts';
+import { q } from '../src/server/engines/types.ts';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -163,7 +164,14 @@ assert.ok(
 const leanCommand = (mcpServers: string[]) =>
   claude.command({ ...agent, isLean: true, mcpServers }, { resumeId: null, extraDirs: [] });
 assert.ok(!leanCommand([]).includes('ToolSearch'));
-assert.ok(leanCommand(['jira']).includes(',ToolSearch --mcp-config'));
+assert.ok(leanCommand(['jira']).includes(',ToolSearch --strict-mcp-config --mcp-config'));
+// A normal run keeps every user server unless some are picked; then only those load.
+const normalCommand = (mcpServers: string[]) =>
+  claude.command({ ...agent, mcpServers }, { resumeId: null, extraDirs: [] });
+assert.ok(!normalCommand([]).includes('--strict-mcp-config'));
+assert.ok(normalCommand(['jira']).includes('--strict-mcp-config --mcp-config'));
+assert.ok(normalCommand(['jira']).includes('mcp__jira'));
+assert.ok(!normalCommand(['jira']).includes('ToolSearch'));
 claude.afterTurn!(agent);
 assert.equal(mcpToolPrefix('plugin:design:google calendar'), 'mcp__plugin_design_google_calendar');
 
@@ -183,5 +191,24 @@ writeFileSync(
 assert.equal(rolloutContext('thread-9', sessionsDir), 4200);
 assert.equal(rolloutContext('thread-missing', sessionsDir), undefined);
 rmSync(sessionsDir, { recursive: true, force: true });
+
+// Codex: servers come from config.toml table headers; picking some switches the rest off for the turn.
+const codexToml = [
+  '[mcp_servers.atlassian]',
+  'url = "https://example.test/mcp"',
+  '[mcp_servers.sonar.env]',
+  'TOKEN = "x"',
+  '[mcp_servers.sonar]',
+  '[mcp_servers."google calendar"]',
+  "  [ mcp_servers.'lint-bot' ]",
+  '[projects.mcp_servers]',
+].join('\n');
+const codexServers = codexMcpServers(codexToml);
+assert.deepEqual(codexServers, ['atlassian', 'sonar', 'google calendar', 'lint-bot']);
+assert.deepEqual(codexMcpArgs([], codexServers), []);
+assert.deepEqual(
+  codexMcpArgs(['atlassian'], codexServers).filter((arg) => arg !== '-c'),
+  ['sonar', '"google calendar"', 'lint-bot'].map((name) => q(`mcp_servers.${name}.enabled=false`)),
+);
 
 console.log('Provider engine checks passed.');

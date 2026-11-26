@@ -5,7 +5,37 @@ import { TERMINAL_KIND, type TerminalLine } from '../../shared/contracts.ts';
 import { isRecord, parseJsonLine } from './json.ts';
 import { EMPTY_USAGE, q, type EngineAdapter } from './types.ts';
 
-const CODEX_SESSIONS = join(process.env.CODEX_HOME ?? join(homedir(), '.codex'), 'sessions');
+const CODEX_HOME = process.env.CODEX_HOME ?? join(homedir(), '.codex');
+const CODEX_SESSIONS = join(CODEX_HOME, 'sessions');
+const CODEX_CONFIG = join(CODEX_HOME, 'config.toml');
+
+/** `[mcp_servers.<name>]` table headers; the name may be bare or quoted. */
+const MCP_SERVER_HEADER = /^\s*\[\s*mcp_servers\.(?:"([^"]+)"|'([^']+)'|([\w-]+))\s*\]/gm;
+
+/**
+ * MCP servers declared in Codex's config.toml. Servers a Codex plugin adds are left out: Codex rejects an
+ * `enabled=false` override for them (verified on 0.164.0), so the hub could not switch them off.
+ * shortcut: reads table headers only, misses servers written as inline tables; parse TOML if users hit that.
+ */
+export function codexMcpServers(toml = readConfig()): string[] {
+  return [...toml.matchAll(MCP_SERVER_HEADER)].map((m) => m[1] ?? m[2] ?? m[3]);
+}
+
+function readConfig(): string {
+  try {
+    return readFileSync(CODEX_CONFIG, 'utf8');
+  } catch {
+    return '';
+  }
+}
+
+/** With servers picked, every other configured one is switched off for the turn; none picked keeps them all. */
+export function codexMcpArgs(picked: string[], configured = codexMcpServers()): string[] {
+  if (!picked.length) return [];
+  return configured
+    .filter((name) => !picked.includes(name))
+    .flatMap((name) => ['-c', q(`mcp_servers.${/^[\w-]+$/.test(name) ? name : JSON.stringify(name)}.enabled=false`)]);
+}
 
 /**
  * Codex headless: `codex exec --json ... -`, prompt on stdin, JSONL events on stdout (verified on 0.164.0).
@@ -22,6 +52,7 @@ export const codex: EngineAdapter = {
     // TOML literal strings ('...') keep Windows backslashes as-is.
     if (extraDirs.length)
       parts.push('-c', q(`sandbox_workspace_write.writable_roots=[${extraDirs.map((d) => `'${d}'`).join(',')}]`));
+    parts.push(...codexMcpArgs(agent.mcpServers));
     if (agent.extraArgs.trim()) parts.push(agent.extraArgs.trim());
     if (resumeId) parts.push('resume', q(resumeId));
     parts.push('-');

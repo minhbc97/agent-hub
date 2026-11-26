@@ -137,11 +137,28 @@
     "handoffNote": "Sổ bàn giao",
     "leanMcpServers": "MCP vẫn bật ở chế độ gọn",
     "noMcpServers": "Không tìm thấy MCP server nào trong cấu hình Claude Code và plugin của bạn.",
+    "mcpServers": "MCP server",
+    "mcpServersHint": "Bỏ trống thì agent nạp mọi MCP server của Claude Code. Chọn server thì agent chỉ nạp các server đó (connector của claude.ai cũng bị bỏ).",
+    "codexMcpServersHint": "Bỏ trống thì agent nạp mọi MCP server của Codex. Chọn server thì các server khác trong config.toml bị tắt cho lượt chạy; server do plugin của Codex thêm vẫn bật.",
+    "noCodexMcpServers": "Không tìm thấy MCP server nào trong ~/.codex/config.toml.",
     "fallbackEngine": "Engine dự phòng khi hết hạn mức",
     "noFallback": "Không có, chờ đến giờ reset",
     "fallbackEngineHint": "Khi engine chính hết hạn mức, tin được giữ lại và tự chạy tiếp lúc reset. Có engine dự phòng thì agent chuyển sang đó ngay, kèm sổ bàn giao, rồi tự quay về engine chính khi dùng lại được.",
     "onFallback": "{{own}} · đang chạy tạm bằng {{fallback}}",
-    "fallbackModel": "Model dự phòng"
+    "fallbackModel": "Model dự phòng",
+    "addMcpServer": "Thêm MCP server",
+    "addMcpServerDescription": "Hub chạy lệnh mcp add của CLI được chọn để thêm server vào cấu hình cấp user. Hub không lưu cấu hình hay token. Mọi agent dùng CLI đó, và cả khi bạn tự chạy CLI, đều thấy server này.",
+    "mcpServerAdded": "Đã thêm MCP server {{name}}.",
+    "mcpTransport": "Kết nối",
+    "mcpTransportStdio": "Chạy lệnh (stdio)",
+    "mcpTransportHttp": "URL (HTTP)",
+    "mcpUrl": "URL",
+    "mcpLoginHint": "Server cần đăng nhập OAuth thì đăng nhập sau khi thêm. Codex: chạy codex mcp login {{name}}. Claude Code: mở claude rồi gõ /mcp.",
+    "mcpCommand": "Lệnh",
+    "mcpArgs": "Tham số",
+    "mcpEnv": "Biến môi trường",
+    "mcpEnvHint": "Tham số: mỗi dòng một tham số. Biến môi trường: mỗi dòng một cặp KEY=value. Token ở đây chỉ đi qua dòng lệnh của mcp add, hub không lưu hay ghi log. Giá trị có ký tự đặc biệt của shell (\" % ^ & | < > ! $) thì thêm bằng CLI trong terminal.",
+    "mcpEngines": "Thêm vào"
   },
   "app": {
     "avatarLicense": "Avatar Micah (CC BY 4.0)",
@@ -237,7 +254,11 @@
     "workspaceNameRequired": "Cần tên workspace.",
     "workspaceNotFound": "Không tìm thấy workspace.",
     "agentRunningCannotSwitchEngine": "Agent đang chạy. Hãy đợi lượt chạy kết thúc rồi đổi engine.",
-    "messageNotRetryable": "Tin này không thể chạy lại."
+    "messageNotRetryable": "Tin này không thể chạy lại.",
+    "mcpNameFormat": "Tên MCP server chỉ gồm chữ, số, - và _, tối đa 64 ký tự.",
+    "mcpValueUnsafe": "{{field}} có ký tự hub không truyền an toàn qua shell được (\" % ^ & | < > ! $ hoặc xuống dòng). Hãy thêm server này bằng CLI trong terminal.",
+    "mcpServerExists": "{{engine}} đã có MCP server tên {{name}}.",
+    "mcpAddFailed": "{{engine}} không thêm được MCP server: {{detail}}"
   },
   "home": {
     "composer": "Giao việc cho {{name}}… Lead Agent sẽ chia cho đúng người.",
