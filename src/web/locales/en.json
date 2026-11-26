@@ -168,6 +168,53 @@
     "updateAvailable": "Version {{latest}} is available; you are using {{current}}",
     "updateRestart": "Stop the hub (Ctrl+C), then restart it with the command above."
   },
+  "notifications": {
+    "settingsTitle": "System notifications",
+    "settingsDescription": "Notify you about new work only while the hub tab is out of view.",
+    "unsupported": "This browser does not support system notifications.",
+    "permissionStatus": "Notification permission: {{status}}",
+    "permission": {
+      "default": "not requested",
+      "granted": "allowed",
+      "denied": "blocked"
+    },
+    "permissionBlocked": "Open this hub page's browser site settings and allow notifications.",
+    "enable": "Enable notifications",
+    "enabled": "Enable system notifications",
+    "sendTest": "Send test",
+    "testTitle": "Agent Hub · test notification",
+    "testBody": "If you can see this, your operating system allows Agent Hub notifications.",
+    "focusAssistHint": "Windows Focus Assist or Do Not Disturb may hide notifications.",
+    "systemTitle": "Agent Hub · {{workspace}}",
+    "batchTitle_one": "{{count}} item needs you · {{workspace}}",
+    "batchTitle_other": "{{count}} items need you · {{workspace}}",
+    "tabTitle_one": "({{count}}) {{workspace}} · Agent Hub",
+    "tabTitle_other": "({{count}}) {{workspace}} · Agent Hub",
+    "waitingCount_one": "{{count}} item is waiting for you.",
+    "waitingCount_other": "{{count}} items are waiting for you.",
+    "unknownAgent": "An agent",
+    "untitled": "Untitled work",
+    "moreItems_one": "+ {{count}} more item",
+    "moreItems_other": "+ {{count}} more items",
+    "items": {
+      "needsHuman": "{{agent}} needs a decision: {{item}}",
+      "taskReview": "{{agent}} submitted a task for review: {{item}}",
+      "taskBlocked": "{{agent}} is blocked on: {{item}}",
+      "taskDone": "{{agent}} completed a task: {{item}}",
+      "agentReply": "{{agent}} replied: {{item}}",
+      "messageFailed": "{{agent}}'s message failed: {{item}}",
+      "quotaHold": "{{agent}} is waiting for quota: {{item}}"
+    },
+    "kind": {
+      "needsHuman": "Agent needs your decision",
+      "taskReview": "Task needs review",
+      "taskBlocked": "Task is blocked",
+      "taskDone": "Task completed",
+      "agentReply": "Agent replied to you",
+      "messageFailed": "Message failed",
+      "quotaHold": "Message waiting for quota"
+    }
+  },
   "common": {
     "approve": "Approve",
     "archive": "Archive",
@@ -574,6 +621,10 @@
     "taskChanges": {
       "title": "Task code",
       "body": "The hub never merges. Review the diff here, and run this git merge in your repo when it looks right."
+    },
+    "notifications": {
+      "title": "Get notified while you work elsewhere",
+      "body": "Allow system notifications to hear when an agent needs a decision or a task changes. Notifications only appear while the hub tab is out of view."
     },
     "tipsTitle": "Tips for this agent",
     "hideTip": "Hide tip",

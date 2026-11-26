@@ -2,6 +2,7 @@ import { EngineSetup } from '@/components/EngineSetup';
 import { useEffect, useState } from 'react';
 import {
   ArrowLeftRight,
+  BellRing,
   CircleCheck,
   CircleHelp,
   CircleX,
@@ -23,6 +24,13 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { t } from '@/lib/i18n';
 import { resetSeen } from '@/lib/coachmarks';
+import { COACHMARK, Coachmark } from '@/components/Coachmark';
+import { NOTIFICATION_KINDS, type NotificationKind } from '@/lib/notifications';
+import {
+  setNotificationKindEnabled,
+  setNotificationsEnabled,
+  useNotificationSettings,
+} from '@/lib/notification-settings';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { ConfirmButton, Field, FolderField, PageHeading, SectionTitle, SwitchField } from '@/components/shared';
@@ -30,6 +38,11 @@ import { ConfirmButton, Field, FolderField, PageHeading, SectionTitle, SwitchFie
 export function SettingsPage() {
   const h = useHub();
   const ws = h.ws;
+  const notificationSettings = useNotificationSettings();
+  const supportsNotifications = typeof window !== 'undefined' && 'Notification' in window;
+  const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>(() =>
+    supportsNotifications ? Notification.permission : 'default',
+  );
   const [form, setForm] = useState<{
     name: string;
     repoPath: string;
@@ -65,6 +78,28 @@ export function SettingsPage() {
         routing: ws.settings.routing,
       });
   }, [ws]);
+  useEffect(() => {
+    if (!supportsNotifications) return;
+    const refreshPermission = () => setNotificationPermission(Notification.permission);
+    window.addEventListener('focus', refreshPermission);
+    return () => window.removeEventListener('focus', refreshPermission);
+  }, [supportsNotifications]);
+
+  const requestNotificationPermission = async () => {
+    try {
+      setNotificationPermission(await Notification.requestPermission());
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : String(error));
+    }
+  };
+
+  const sendTestNotification = () => {
+    if (!supportsNotifications || Notification.permission !== 'granted') return;
+    new Notification(t('notifications.testTitle'), {
+      body: t('notifications.testBody'),
+      icon: '/agent-hub-mark.svg',
+    });
+  };
   if (!ws) return null;
   const directPairs = ws.settings.directPairs;
   const movesFolders = form.repoPath !== ws.repoPath || form.worktreesDir !== ws.worktreesDir;
@@ -243,6 +278,58 @@ export function SettingsPage() {
             <Save />
             {t('settings.saveRouting')}
           </Button>
+        </SettingsCard>
+        <SettingsCard
+          icon={<BellRing />}
+          title={t('notifications.settingsTitle')}
+          description={t('notifications.settingsDescription')}
+        >
+          {!supportsNotifications ? (
+            <p className="text-sm text-muted-foreground">{t('notifications.unsupported')}</p>
+          ) : (
+            <>
+              <p className="text-sm text-muted-foreground">
+                {t('notifications.permissionStatus', {
+                  status: t(`notifications.permission.${notificationPermission}`),
+                })}
+              </p>
+              {notificationPermission === 'denied' && (
+                <p className="text-sm text-muted-foreground">{t('notifications.permissionBlocked')}</p>
+              )}
+              {notificationPermission === 'default' && (
+                <Coachmark id={COACHMARK.notifications}>
+                  <Button variant="outline" className="w-fit" onClick={() => void requestNotificationPermission()}>
+                    {t('notifications.enable')}
+                  </Button>
+                </Coachmark>
+              )}
+              <SwitchField
+                label={t('notifications.enabled')}
+                checked={notificationSettings.enabled}
+                onChange={setNotificationsEnabled}
+              />
+              <div className="grid gap-2 border-l pl-4">
+                {NOTIFICATION_KINDS.map((kind: NotificationKind) => (
+                  <SwitchField
+                    key={kind}
+                    size="sm"
+                    label={t(`notifications.kind.${kind}`)}
+                    checked={notificationSettings.kinds[kind]}
+                    onChange={(checked) => setNotificationKindEnabled(kind, checked)}
+                  />
+                ))}
+              </div>
+              <p className="text-sm text-muted-foreground">{t('notifications.focusAssistHint')}</p>
+              <Button
+                variant="outline"
+                className="w-fit"
+                disabled={notificationPermission !== 'granted'}
+                onClick={sendTestNotification}
+              >
+                {t('notifications.sendTest')}
+              </Button>
+            </>
+          )}
         </SettingsCard>
         <EnginesCard />
         <SettingsCard icon={<Lightbulb />} title={t('guide.settingsTitle')} description={t('guide.settingsHint')}>

@@ -16,6 +16,7 @@ export const COACHMARK = {
   fallbackEngine: 'fallbackEngine',
   terminal: 'terminal',
   taskChanges: 'taskChanges',
+  notifications: 'notifications',
 } as const;
 export type CoachmarkId = (typeof COACHMARK)[keyof typeof COACHMARK];
 

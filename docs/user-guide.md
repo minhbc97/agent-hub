@@ -176,12 +176,28 @@ Kết quả của bước được truyền sang bước sau.
 | Tin agent liên tiếp tối đa | **Loop guard** (mặc định 8), xem dưới. |
 | Routing | *Star*: mọi tin giữa agent đi qua orchestrator. *Mesh*: bật thêm các cặp agent được nhắn thẳng. |
 | Agent CLI trên máy | Danh sách engine và việc lệnh của nó có trên PATH hay không. |
+| Thông báo hệ thống | Xin quyền, bật/tắt toàn bộ và chọn loại sự kiện. Chỉ gửi khi tab hub không được nhìn; Focus Assist hoặc Không làm phiền có thể chặn hiển thị. |
 | Hướng dẫn và mẹo | Hiện lại các bong bóng hướng dẫn, mẹo và danh sách Bắt đầu đã ẩn trên máy này. |
 | Vùng nguy hiểm | Xoá workspace cùng toàn bộ dữ liệu. Không làm được khi có agent đang chạy. |
 
 **Loop guard**: hub đếm số tin agent → agent nối tiếp nhau kể từ lần cuối bạn (hoặc hub) gửi tin. Vượt ngưỡng thì
 tin tiếp theo bị chặn (*gửi thất bại*, lý do "loop guard"), task liên quan chuyển sang *Cần bạn*. Bạn đọc rồi bấm
 **Thử lại** nếu muốn cho chạy tiếp; chuỗi được đếm lại từ đầu.
+
+Thông báo hệ thống chỉ theo dõi workspace đang mở và chỉ hoạt động khi trang hub còn mở; hub không dùng service worker
+hay push. Các loại được bật mặc định trừ thông báo chờ hạn mức:
+
+| Sự kiện | Mặc định | Khi nào báo |
+| --- | --- | --- |
+| Agent cần bạn quyết định | Bật | Agent gửi câu hỏi `needs_human` hoặc việc chờ bạn tăng. |
+| Task chờ duyệt | Bật | Task chuyển sang `review`. |
+| Task bị chặn | Bật | Task chuyển sang `blocked`. |
+| Task hoàn thành | Bật | Task chuyển sang `done`. |
+| Agent trả lời bạn | Bật | Agent gửi `reply`, `inform` hoặc `done` cho bạn. |
+| Tin gửi thất bại | Bật | Tin chuyển sang `failed`. |
+| Tin chờ hạn mức | Tắt | Tin được giữ vì quota hoặc giới hạn lượt. |
+
+Lượt chạy xong không có thông báo riêng vì quá thường xuyên; kết quả cần biết đã có trong tin nhắn hoặc trạng thái task.
 
 ## 8. Token và chi phí
 

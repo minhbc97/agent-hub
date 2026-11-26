@@ -168,6 +168,53 @@
     "updateAvailable": "Có phiên bản mới {{latest}}, bạn đang dùng {{current}}",
     "updateRestart": "Tắt hub (Ctrl+C) rồi chạy lại bằng lệnh trên."
   },
+  "notifications": {
+    "settingsTitle": "Thông báo hệ thống",
+    "settingsDescription": "Chỉ báo khi có việc mới và tab hub không được nhìn.",
+    "unsupported": "Trình duyệt này không hỗ trợ thông báo hệ thống.",
+    "permissionStatus": "Quyền thông báo: {{status}}",
+    "permission": {
+      "default": "chưa hỏi",
+      "granted": "đã cho phép",
+      "denied": "đã bị chặn"
+    },
+    "permissionBlocked": "Mở cài đặt trang của trình duyệt và cho phép thông báo cho trang hub này.",
+    "enable": "Bật thông báo",
+    "enabled": "Bật thông báo hệ thống",
+    "sendTest": "Gửi thử",
+    "testTitle": "Agent Hub · thông báo thử",
+    "testBody": "Nếu thấy thông báo này, hệ điều hành đang cho phép Agent Hub gửi thông báo.",
+    "focusAssistHint": "Focus Assist hoặc Không làm phiền của Windows có thể ẩn thông báo.",
+    "systemTitle": "Agent Hub · {{workspace}}",
+    "batchTitle_one": "{{count}} việc cần bạn · {{workspace}}",
+    "batchTitle_other": "{{count}} việc cần bạn · {{workspace}}",
+    "tabTitle_one": "({{count}}) {{workspace}} · Agent Hub",
+    "tabTitle_other": "({{count}}) {{workspace}} · Agent Hub",
+    "waitingCount_one": "{{count}} việc đang chờ bạn.",
+    "waitingCount_other": "{{count}} việc đang chờ bạn.",
+    "unknownAgent": "Agent",
+    "untitled": "Việc cần bạn",
+    "moreItems_one": "+ {{count}} việc khác",
+    "moreItems_other": "+ {{count}} việc khác",
+    "items": {
+      "needsHuman": "{{agent}} cần bạn quyết định: {{item}}",
+      "taskReview": "{{agent}} gửi task chờ duyệt: {{item}}",
+      "taskBlocked": "{{agent}} đang bị chặn ở task: {{item}}",
+      "taskDone": "{{agent}} đã hoàn thành task: {{item}}",
+      "agentReply": "{{agent}} đã trả lời: {{item}}",
+      "messageFailed": "Tin của {{agent}} gửi thất bại: {{item}}",
+      "quotaHold": "{{agent}} đang chờ hạn mức: {{item}}"
+    },
+    "kind": {
+      "needsHuman": "Agent cần bạn quyết định",
+      "taskReview": "Task chờ duyệt",
+      "taskBlocked": "Task bị chặn",
+      "taskDone": "Task hoàn thành",
+      "agentReply": "Agent trả lời bạn",
+      "messageFailed": "Tin gửi thất bại",
+      "quotaHold": "Tin chờ hạn mức"
+    }
+  },
   "common": {
     "approve": "Duyệt",
     "archive": "Lưu trữ",
@@ -574,6 +621,10 @@
     "taskChanges": {
       "title": "Code của task",
       "body": "Hub không tự merge. Xem diff ở đây, thấy ổn thì tự chạy lệnh git merge này trong repo."
+    },
+    "notifications": {
+      "title": "Bật thông báo khi làm việc ở nơi khác",
+      "body": "Cho phép thông báo hệ thống để biết khi agent cần bạn quyết định hoặc task có thay đổi quan trọng. Thông báo chỉ hiện khi tab hub không được nhìn."
     },
     "tipsTitle": "Mẹo cho agent này",
     "hideTip": "Ẩn mẹo",

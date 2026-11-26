@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { AnimatePresence, motion, MotionConfig } from 'motion/react';
 import { useTheme } from 'next-themes';
 import { useTranslation } from 'react-i18next';
@@ -36,6 +36,8 @@ import { WorkspaceForm, WorkspaceMenu } from '@/components/WorkspaceMenu';
 import { MOTION } from '@/lib/motion';
 import { markSeen, useSeen } from '@/lib/coachmarks';
 import { toast } from 'sonner';
+import { NOTIFICATION_ROUTE } from '@/lib/notifications';
+import { useSystemNotifications } from '@/lib/useSystemNotifications';
 
 const THEME = { dark: 'dark', light: 'light' } as const;
 
@@ -79,6 +81,17 @@ function WorkspaceShell() {
     navigate(PAGE.inbox);
     setFilter(channel);
   };
+  const openNotificationRoute = useCallback(
+    (route: string) => {
+      if (route === NOTIFICATION_ROUTE.tasks) navigate(PAGE.tasks);
+      else if (route === NOTIFICATION_ROUTE.inboxNeeds) openInbox(INBOX_CHANNEL.needs);
+      else if (route === NOTIFICATION_ROUTE.inboxTeam) openInbox(INBOX_CHANNEL.team);
+      else if (route.startsWith(NOTIFICATION_ROUTE.inboxAgentPrefix))
+        openInbox(AGENT_THREAD + route.slice(NOTIFICATION_ROUTE.inboxAgentPrefix.length));
+    },
+    [navigate, openInbox],
+  );
+  useSystemNotifications(openNotificationRoute);
   return (
     <div className="flex h-full min-h-0 min-w-(--app-min-width) flex-col bg-background">
       <AppHeader />
