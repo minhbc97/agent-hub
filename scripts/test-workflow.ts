@@ -476,7 +476,8 @@ db.openDb()
 const idleRuns = db.listRuns(coder.id).length;
 bus.sendFromUser(ws.id, 'coder', 'after a long break');
 await settle();
-assert.equal(db.listRuns(coder.id).length, idleRuns + 2, 'idle session rotated before the turn');
+assert.equal(db.listRuns(coder.id).length, idleRuns + 1, 'idle session rotated without a model call');
+assert.match(db.getAgent(coder.id)!.handoff, /^Written by the hub: the session was idle/, 'the hub writes the note');
 
 // "done" starts a fresh session but keeps the note; other work the agent has begun keeps the session.
 const finish = async (task: string) => {

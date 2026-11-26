@@ -171,8 +171,13 @@ async function takeTurn(
   const sessionEngine = agent.activeEngine ?? agent.engine;
   if (agent.sessionId && sessionEngine !== target)
     agent = { ...agent, ...(await leaveSession(agent, sessionEngine, ws, message.id, stop)) };
-  else if (agent.sessionId && shouldRotate(agent, agent.sessionId))
-    agent = { ...agent, ...(await rotateSession(runsAs(agent, sessionEngine), ws, message.id, stop)) };
+  else if (agent.sessionId) {
+    const rotation = shouldRotate(agent, agent.sessionId);
+    // An idle session has lost its prompt cache: asking it for a note would re-write its whole history at full price.
+    if (rotation === 'idle') agent = { ...agent, ...hubHandoff(agent, ws, 'the session was idle too long') };
+    else if (rotation === 'size')
+      agent = { ...agent, ...(await rotateSession(runsAs(agent, sessionEngine), ws, message.id, stop)) };
+  }
   const activeEngine = target === agent.engine ? null : target;
   if (agent.activeEngine !== activeEngine) updateAgent(agent.id, { activeEngine });
   const current = runsAs({ ...agent, activeEngine }, target);
@@ -267,15 +272,15 @@ function codeTask(agent: Agent, batch: Incoming[]): Task | undefined {
  * Checked before a turn rather than after one, so the outbox of the turn that crossed the limit is delivered
  * without waiting for the handoff note.
  */
-function shouldRotate(agent: Agent, sessionId: string): boolean {
+function shouldRotate(agent: Agent, sessionId: string): 'idle' | 'size' | false {
   const last = lastSessionRun(agent.id, sessionId);
   if (!last?.endedAt) return false;
-  if (Date.now() - Date.parse(last.endedAt) > SESSION_IDLE_ROTATE_MS) return true;
+  if (Date.now() - Date.parse(last.endedAt) > SESSION_IDLE_ROTATE_MS) return 'idle';
   if (agent.resetValue <= 0) return false;
-  if (agent.resetPolicy === RESET_POLICY.turns) return agent.turnsInSession >= agent.resetValue;
+  if (agent.resetPolicy === RESET_POLICY.turns) return agent.turnsInSession >= agent.resetValue && 'size';
   // shortcut: Antigravity only reports usage summed over all model calls, so it sets no contextTokens and is
   // rotated only by idle time or turns; parse its per-call usage to rotate it by size too.
-  return agent.resetPolicy === RESET_POLICY.context && last.contextTokens >= agent.resetValue;
+  return agent.resetPolicy === RESET_POLICY.context && last.contextTokens >= agent.resetValue && 'size';
 }
 
 /**
@@ -301,13 +306,18 @@ type SessionPatch = Pick<Agent, 'sessionId' | 'turnsInSession' | 'handoff'>;
  */
 async function leaveSession(agent: Agent, sessionEngine: Engine, ws: Workspace, messageId: string, stop: AbortSignal) {
   if (!engineBlock(sessionEngine)) return rotateSession(runsAs(agent, sessionEngine), ws, messageId, stop);
+  return hubHandoff(agent, ws, `${sessionEngine} ran out of quota before you could write a note`);
+}
+
+/** Drop the session with a note the hub writes from the agent's recent messages, at no model cost. */
+function hubHandoff(agent: Agent, ws: Workspace, why: string): SessionPatch {
   const names = new Map(listAgents(ws.id).map((a) => [a.id, a.name]));
   const recent = listMessages(ws.id)
     .filter((m) => m.fromId === agent.id || m.toId === agent.id)
     .slice(-HUB_HANDOFF_MESSAGES)
     .map((m) => `- ${names.get(m.fromId) ?? m.fromId} -> ${names.get(m.toId) ?? m.toId}: ${m.body.slice(0, 300)}`);
   const handoff = [
-    `Written by the hub: ${sessionEngine} ran out of quota before you could write a note.`,
+    `Written by the hub: ${why}.`,
     agent.handoff ? `Your previous note:\n${agent.handoff}` : '',
     recent.length ? `Recent messages:\n${recent.join('\n')}` : '',
   ]

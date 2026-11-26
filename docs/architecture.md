@@ -118,10 +118,12 @@ bắt đầu từ `HEAD` của repo, chưa thấy code chưa merge của task kh
 ## Session và sổ bàn giao
 
 - Agent lưu `sessionId` từ output của CLI; lượt sau truyền lại để nối session.
-- Trước mỗi lượt, runner xem lượt cuối của session. Nếu đã nghỉ hơn 60 phút (cache của provider đã hết hạn) hoặc
-  vượt `resetPolicy` (số lượt, hoặc context mặc định 100k token), hub chạy thêm một lượt trên session cũ để agent viết
-  **sổ bàn giao**, lưu vào `agents.handoff`, rồi xoá `sessionId`. Session mới nhận preamble, sổ bàn giao và các task
-  đang mở. Lượt bàn giao hiện trong lịch sử lượt như lượt thường.
+- Trước mỗi lượt, runner xem lượt cuối của session. Nếu vượt `resetPolicy` (số lượt, hoặc context mặc định 100k
+  token), hub chạy thêm một lượt trên session cũ để agent viết **sổ bàn giao**, lưu vào `agents.handoff`, rồi xoá
+  `sessionId`. Lượt bàn giao hiện trong lịch sử lượt như lượt thường.
+- Nếu session đã nghỉ hơn 60 phút, cache của provider đã hết hạn: một lượt bàn giao sẽ phải ghi lại cả lịch sử với giá
+  đầy đủ. Hub bỏ lượt đó, tự viết sổ từ sổ cũ và các tin gần nhất của agent, rồi xoá `sessionId`.
+- Session mới nhận preamble, sổ bàn giao và các task đang mở.
 - Context của lượt lấy từ `usage.iterations` (Claude) hoặc `last_token_usage` trong rollout (Codex). Antigravity chưa
   báo nên chỉ xoay theo lượt hoặc khi nghỉ lâu.
 - Agent gửi `done` thì bỏ session nhưng giữ sổ bàn giao. Session được giữ nếu agent còn task mở đã nhận tin, hoặc task
