@@ -638,12 +638,16 @@ export function setMessageStatus(
     .run(status, extra.runId ?? null, extra.holdReason ?? null, id);
 }
 
-/** The human wrote to an agent: its open questions that are not tied to a task count as answered. */
+/**
+ * The human wrote to an agent: its open questions that no task is waiting on count as answered. A question
+ * whose task already moved on (done, archived, back to work) is answered here too, as the inbox shows it as loose.
+ */
 export function resolveLooseQuestions(workspaceId: string, agentId: string): void {
   openDb()
     .prepare(
       `UPDATE messages SET status = 'delivered', holdReason = NULL WHERE workspaceId = ? AND fromId = ?
-        AND act = 'needs_human' AND status = 'held' AND taskId IS NULL`,
+        AND act = 'needs_human' AND status = 'held'
+        AND (taskId IS NULL OR taskId NOT IN (SELECT id FROM tasks WHERE status IN ('blocked', 'review')))`,
     )
     .run(workspaceId, agentId);
 }

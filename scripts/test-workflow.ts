@@ -223,6 +223,27 @@ const asked = db.createMessage({
 assert.deepEqual(db.getMessage(asked.id)!.options, ['A', 'B']);
 assert.deepEqual(db.getMessage(interrupted.id)!.options, [], 'messages without options read as an empty list');
 
+// Answering a question closes it when no task waits on it, even when it names a task that already finished.
+const askOn = (title: string, status: typeof TASK_STATUS.done | typeof TASK_STATUS.blocked) => {
+  const task = db.updateTask(db.createTask({ workspaceId: ws.id, title }).id, { status })!;
+  const question = db.createMessage({
+    workspaceId: ws.id,
+    fromId: editor.id,
+    toId: USER_ID,
+    act: 'needs_human',
+    body: title,
+    taskId: task.id,
+    status: MESSAGE_STATUS.held,
+  });
+  return { task, question };
+};
+const onDone = askOn('asked on a finished task', TASK_STATUS.done);
+const onBlocked = askOn('asked on a blocked task', TASK_STATUS.blocked);
+bus.sendFromUser(ws.id, editor.id, 'A');
+assert.equal(db.getMessage(onDone.question.id)!.status, MESSAGE_STATUS.delivered, 'question on a done task closes');
+assert.equal(db.getMessage(onBlocked.question.id)!.status, MESSAGE_STATUS.held, 'a blocked task still waits');
+for (const { task } of [onDone, onBlocked]) db.deleteTask(task.id);
+
 // Outbox: an oversized file is rejected unread; a valid file is queued exactly once.
 const { outboxDir } = await import('../src/server/runner.ts');
 const { existsSync, readFileSync, readdirSync, writeFileSync } = await import('node:fs');
