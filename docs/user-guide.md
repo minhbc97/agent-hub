@@ -36,6 +36,15 @@ isolation `shared` thì vẫn sửa chung file.
 nó đang làm gì (task đang làm, đang chờ bạn trả lời, có tin bị giữ, tạm nghỉ hoặc rảnh). Bấm vào bàn để mở kênh nhắn
 với agent đó. Bên phải là giấy note **Cần bạn** và số task theo trạng thái; dưới cùng là ô giao việc thẳng cho Lead Agent.
 
+**Hướng dẫn trong app**:
+
+- Danh sách **Bắt đầu** ở thanh bên tự đánh dấu từng bước theo dữ liệu của workspace: thêm agent, nhắn lead, tạo task,
+  hoàn thành task, tạo quy trình. Xong hết thì tự ẩn; bấm X để ẩn sớm.
+- Lần đầu gặp một tính năng dễ bỏ sót (Cần bạn, chế độ gọn, engine dự phòng, terminal, code của task), một nhân vật bay ra
+  kèm bong bóng thoại giải thích. Mỗi lần chỉ một bong bóng; bấm **Đã hiểu** hoặc **Bỏ qua tất cả**.
+- Trang chi tiết agent có **Mẹo cho agent này**, chỉ gồm mẹo áp dụng được cho cấu hình hiện tại của agent đó.
+- Trạng thái đã xem lưu trong trình duyệt. **Cài đặt → Hướng dẫn và mẹo** để hiện lại tất cả.
+
 ## 3. Agent
 
 Form **Thêm agent / Cấu hình agent**:
@@ -166,6 +175,7 @@ Kết quả của bước được truyền sang bước sau.
 | Tin agent liên tiếp tối đa | **Loop guard** (mặc định 8), xem dưới. |
 | Routing | *Star*: mọi tin giữa agent đi qua orchestrator. *Mesh*: bật thêm các cặp agent được nhắn thẳng. |
 | Agent CLI trên máy | Danh sách engine và việc lệnh của nó có trên PATH hay không. |
+| Hướng dẫn và mẹo | Hiện lại các bong bóng hướng dẫn, mẹo và danh sách Bắt đầu đã ẩn trên máy này. |
 | Vùng nguy hiểm | Xoá workspace cùng toàn bộ dữ liệu. Không làm được khi có agent đang chạy. |
 
 **Loop guard**: hub đếm số tin agent → agent nối tiếp nhau kể từ lần cuối bạn (hoặc hub) gửi tin. Vượt ngưỡng thì

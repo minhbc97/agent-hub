@@ -39,6 +39,7 @@ import { AgentAvatar, Avatar, PageHeading, SectionTitle, UserAvatar, label } fro
 import { TaskChanges } from '@/components/TaskChanges';
 import { Markdown } from '@/components/Markdown';
 import { Composer } from '@/components/Composer';
+import { COACHMARK, Coachmark } from '@/components/Coachmark';
 import { AgentTerminal } from '@/components/AgentTerminal';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
@@ -448,15 +449,17 @@ function ThreadHeader({
       action={
         <>
           {terminal && (
-            <Button
-              variant={terminal.isOpen ? 'secondary' : 'outline'}
-              size="sm"
-              aria-pressed={terminal.isOpen}
-              onClick={terminal.onToggle}
-            >
-              <SquareTerminal />
-              {t('agents.terminal.title')}
-            </Button>
+            <Coachmark id={COACHMARK.terminal}>
+              <Button
+                variant={terminal.isOpen ? 'secondary' : 'outline'}
+                size="sm"
+                aria-pressed={terminal.isOpen}
+                onClick={terminal.onToggle}
+              >
+                <SquareTerminal />
+                {t('agents.terminal.title')}
+              </Button>
+            </Coachmark>
           )}
           {agent && (
             <Button variant="outline" size="sm" onClick={() => navigate(`${PAGE.agents}/${agent.id}`)}>

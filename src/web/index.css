@@ -10,6 +10,43 @@
   --animate-wiggle: wiggle 0.5s ease-in-out infinite;
   --animate-pop: pop 0.35s cubic-bezier(0.3, 1.6, 0.6, 1) both;
   --animate-hop: hop 0.6s ease-out 2;
+  /* Guide coachmark: the character flies in, then its speech bubble pops out after it lands. */
+  --animate-fly-in: fly-in 0.6s cubic-bezier(0.3, 1.4, 0.6, 1) both;
+  --animate-bubble-in: bubble-in 0.3s 0.4s cubic-bezier(0.3, 1.6, 0.6, 1) both;
+  --animate-float: float 2.4s 0.6s ease-in-out infinite;
+
+  @keyframes fly-in {
+    from {
+      transform: translate(-6rem, 4rem) rotate(-35deg) scale(0.3);
+      opacity: 0;
+    }
+    60% {
+      transform: translate(0.5rem, -0.75rem) rotate(8deg) scale(1.08);
+      opacity: 1;
+    }
+    to {
+      transform: none;
+    }
+  }
+  @keyframes bubble-in {
+    from {
+      transform: scale(0.2) translateX(-1.5rem);
+      opacity: 0;
+    }
+    to {
+      transform: none;
+      opacity: 1;
+    }
+  }
+  @keyframes float {
+    0%,
+    100% {
+      transform: translateY(0) rotate(0);
+    }
+    50% {
+      transform: translateY(-5px) rotate(-3deg);
+    }
+  }
 
   @keyframes wiggle {
     0%,

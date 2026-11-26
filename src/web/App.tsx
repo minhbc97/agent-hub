@@ -17,6 +17,7 @@ import { WorkflowsPage } from '@/features/workflows/WorkflowsPage';
 import { AgentsPage, AgentDetail, LeadAgentDialog } from '@/features/agents/AgentsPage';
 import { SettingsPage } from '@/features/settings/SettingsPage';
 import { UsageMeters } from '@/features/usage/UsageMeters';
+import { GettingStarted } from '@/features/guide/GettingStarted';
 import { AgentAvatar } from '@/components/shared';
 import { WorkspaceForm, WorkspaceMenu } from '@/components/WorkspaceMenu';
 
@@ -109,6 +110,7 @@ function WorkspaceShell() {
               </div>
             </>
           )}
+          <GettingStarted />
           <p className="mt-auto px-2 text-xs text-muted-foreground">{t('app.avatarLicense')}</p>
         </aside>
         {/* relative: absolutely positioned descendants (e.g. Radix hidden inputs) must scroll inside main, not stretch the page. */}

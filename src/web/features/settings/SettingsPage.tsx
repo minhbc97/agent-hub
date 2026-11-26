@@ -7,6 +7,7 @@ import {
   CircleX,
   FolderGit2,
   Gauge,
+  Lightbulb,
   Route,
   Save,
   TerminalSquare,
@@ -21,6 +22,8 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { t } from '@/lib/i18n';
+import { resetSeen } from '@/lib/coachmarks';
+import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { ConfirmButton, Field, FolderField, PageHeading, SectionTitle, SwitchField } from '@/components/shared';
 
@@ -242,6 +245,18 @@ export function SettingsPage() {
           </Button>
         </SettingsCard>
         <EnginesCard />
+        <SettingsCard icon={<Lightbulb />} title={t('guide.settingsTitle')} description={t('guide.settingsHint')}>
+          <Button
+            variant="outline"
+            className="w-fit"
+            onClick={() => {
+              resetSeen();
+              toast.success(t('guide.guidesShown'));
+            }}
+          >
+            {t('guide.showAgain')}
+          </Button>
+        </SettingsCard>
         <SettingsCard
           icon={<TriangleAlert />}
           title={t('settings.dangerZone')}

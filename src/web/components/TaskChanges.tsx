@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { COACHMARK, Coachmark } from './Coachmark';
 import { ChevronRight, Copy } from 'lucide-react';
 import { toast } from 'sonner';
 import { api, type FileChange, type Task, type TaskChanges as Changes } from '@/lib/api';
@@ -45,13 +46,15 @@ export function TaskChanges({ task, className }: { task: Task; className?: strin
               <FileRow key={file.path} file={file} />
             ))}
           </div>
-          <div className="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
-            <span className="shrink-0">{t('tasks.mergeYourself')}</span>
-            <code className="min-w-0 truncate font-mono">{mergeCommand}</code>
-            <Button variant="ghost" size="icon-sm" aria-label={t('tasks.copyMergeCommand')} onClick={copy}>
-              <Copy />
-            </Button>
-          </div>
+          <Coachmark id={COACHMARK.taskChanges}>
+            <div className="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
+              <span className="shrink-0">{t('tasks.mergeYourself')}</span>
+              <code className="min-w-0 truncate font-mono">{mergeCommand}</code>
+              <Button variant="ghost" size="icon-sm" aria-label={t('tasks.copyMergeCommand')} onClick={copy}>
+                <Copy />
+              </Button>
+            </div>
+          </Coachmark>
         </>
       )}
     </section>

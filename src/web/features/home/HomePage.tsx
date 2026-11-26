@@ -4,6 +4,7 @@ import { PAGE, agentState, useHashRoute, useHub, waitingOnUser } from '@/lib/hub
 import { ACT, AGENT_STATUS, MESSAGE_STATUS, TASK_STATUS, USER_ID, type Agent, type TaskStatus } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Composer } from '@/components/Composer';
+import { COACHMARK, Coachmark } from '@/components/Coachmark';
 import { AgentAvatar, PageHeading, TASK_TONE } from '@/components/shared';
 import { t } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
@@ -50,21 +51,23 @@ export function HomePage({ openAgent, openNeeds }: { openAgent: (id: string) => 
       <PageHeading
         title={t('home.office')}
         action={
-          <Button
-            variant="ghost"
-            onClick={openNeeds}
-            className={cn(
-              'h-auto gap-3 rounded-lg border-2 border-foreground px-4 py-2 comic-shadow-sm',
-              needs.count ? '-rotate-1 bg-warning text-background hover:bg-warning/90' : 'bg-card',
-            )}
-          >
-            <CircleHelp />
-            <span className="text-xs font-bold tracking-wider uppercase">{t('inbox.needsYou')}</span>
-            <span className="text-xl font-bold tabular-nums">{needs.count}</span>
-            <span className={cn('text-xs', needs.count ? 'text-background' : 'text-muted-foreground')}>
-              {needs.count ? t('home.needsHint') : t('inbox.noPendingItems')}
-            </span>
-          </Button>
+          <Coachmark id={COACHMARK.needsYou}>
+            <Button
+              variant="ghost"
+              onClick={openNeeds}
+              className={cn(
+                'h-auto gap-3 rounded-lg border-2 border-foreground px-4 py-2 comic-shadow-sm',
+                needs.count ? '-rotate-1 bg-warning text-background hover:bg-warning/90' : 'bg-card',
+              )}
+            >
+              <CircleHelp />
+              <span className="text-xs font-bold tracking-wider uppercase">{t('inbox.needsYou')}</span>
+              <span className="text-xl font-bold tabular-nums">{needs.count}</span>
+              <span className={cn('text-xs', needs.count ? 'text-background' : 'text-muted-foreground')}>
+                {needs.count ? t('home.needsHint') : t('inbox.noPendingItems')}
+              </span>
+            </Button>
+          </Coachmark>
         }
       />
       {/* Keep the whole floor visible on desktop; smaller screens can scroll the plan. */}

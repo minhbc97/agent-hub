@@ -50,9 +50,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { i18n, t } from '@/lib/i18n';
 import { AgentMap } from './AgentMap';
 import { McpServerDialog } from './McpServerDialog';
+import { AgentTips } from '@/features/guide/AgentTips';
 import { Markdown } from '@/components/Markdown';
 import { AgentTerminal } from '@/components/AgentTerminal';
 import { EngineSetup } from '@/components/EngineSetup';
+import { COACHMARK, Coachmark } from '@/components/Coachmark';
 import {
   Avatar,
   Caption,
@@ -408,9 +410,11 @@ function AgentEditor({
                 set('fallbackModel', '');
               }}
             >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
+              <Coachmark id={COACHMARK.fallbackEngine} side="top">
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+              </Coachmark>
               <SelectContent>
                 <SelectItem value={NO_FALLBACK}>{t('agents.noFallback')}</SelectItem>
                 {fallbackChoices.map((engine) => (
@@ -539,10 +543,12 @@ function AgentEditor({
       )}
       {v.engine === ENGINE.claude && (
         <div className="grid gap-1.5">
-          <Label className="flex items-center gap-2 font-normal">
-            <Switch checked={v.isLean} onCheckedChange={(x) => set('isLean', x)} />
-            {t('agents.leanMode')}
-          </Label>
+          <Coachmark id={COACHMARK.leanMode} side="top">
+            <Label className="flex w-fit items-center gap-2 font-normal">
+              <Switch checked={v.isLean} onCheckedChange={(x) => set('isLean', x)} />
+              {t('agents.leanMode')}
+            </Label>
+          </Coachmark>
           <p className="text-xs/5 text-muted-foreground">{t('agents.leanModeHint')}</p>
         </div>
       )}
@@ -942,6 +948,7 @@ export function AgentDetail({ id }: { id: string }) {
               ))}
             </Card>
           </div>
+          <AgentTips agent={a} onConfigure={() => setEditing(true)} />
           {a.handoff && (
             <Card className="mb-6 gap-0 p-5">
               <Caption>{t('agents.handoffNote')}</Caption>

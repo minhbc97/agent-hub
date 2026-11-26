@@ -538,5 +538,49 @@
     "notInstalled": "{{name}} command “{{command}}” was not found on this machine.",
     "installGuide": "Install guide",
     "loginHint": "First time using {{name}}: open a terminal, run “{{command}}” and sign in. Every agent reuses that sign-in."
+  },
+  "guide": {
+    "gettingStarted": "Getting started",
+    "hideGettingStarted": "Hide the getting started list",
+    "steps": {
+      "addAgent": "Add an agent to the team",
+      "sendMessage": "Send the lead your first request",
+      "createTask": "Create a task",
+      "reviewTask": "Finish a task",
+      "createWorkflow": "Create a workflow"
+    },
+    "gotIt": "Got it",
+    "skipAll": "Skip all",
+    "needsYou": {
+      "title": "Waiting on you",
+      "body": "Agent questions and tasks to review land here. A number above 0 means work is paused until you decide."
+    },
+    "leanMode": {
+      "title": "Lean mode",
+      "body": "Runs Claude without your user-level plugins, skills and MCP servers. Each model call then carries about 10k baseline tokens instead of 49k. Pick any MCP server it needs below."
+    },
+    "fallbackEngine": {
+      "title": "Fallback engine",
+      "body": "When the main engine runs out of quota, the agent switches to this one right away, with its handoff note, instead of waiting for the reset."
+    },
+    "terminal": {
+      "title": "See what the agent is doing",
+      "body": "The terminal shows each command, file and tool the agent uses in the running turn. A Claude agent reads what you send mid-turn in that same turn, so steer it as soon as it drifts."
+    },
+    "taskChanges": {
+      "title": "Task code",
+      "body": "The hub never merges. Review the diff here, and run this git merge in your repo when it looks right."
+    },
+    "tipsTitle": "Tips for this agent",
+    "hideTip": "Hide tip",
+    "tips": {
+      "leanMode": "Turn on lean mode to cut the baseline per model call from about 49k tokens to 10k.",
+      "fallbackEngine": "Pick a fallback engine so the agent keeps working when it runs out of quota.",
+      "allowedCommands": "Allow commands such as npm test so the agent can run tests itself. Headless turns cannot ask you, so commands not allowed are refused."
+    },
+    "settingsTitle": "Guides and tips",
+    "settingsHint": "Show the hints, tips and getting started list you hid on this device again.",
+    "showAgain": "Show guides again",
+    "guidesShown": "Guides and tips are back on."
   }
 }

@@ -538,5 +538,49 @@
     "notInstalled": "Chưa tìm thấy lệnh “{{command}}” của {{name}} trên máy này.",
     "installGuide": "Hướng dẫn cài đặt",
     "loginHint": "Lần đầu dùng {{name}}: mở terminal, chạy “{{command}}” và đăng nhập. Mọi agent dùng lại đăng nhập này."
+  },
+  "guide": {
+    "gettingStarted": "Bắt đầu",
+    "hideGettingStarted": "Ẩn danh sách bắt đầu",
+    "steps": {
+      "addAgent": "Thêm một agent vào team",
+      "sendMessage": "Nhắn việc đầu tiên cho lead",
+      "createTask": "Tạo một task",
+      "reviewTask": "Hoàn thành một task",
+      "createWorkflow": "Tạo một quy trình"
+    },
+    "gotIt": "Đã hiểu",
+    "skipAll": "Bỏ qua tất cả",
+    "needsYou": {
+      "title": "Việc chờ bạn",
+      "body": "Câu hỏi của agent và task chờ duyệt dồn về đây. Số khác 0 nghĩa là có việc đang dừng chờ bạn quyết."
+    },
+    "leanMode": {
+      "title": "Chế độ gọn",
+      "body": "Bật để Claude chạy không kèm plugin, skill và MCP cấp user. Mỗi lần gọi model chỉ mang khoảng 10k token nền thay vì 49k. Cần MCP nào thì chọn riêng bên dưới."
+    },
+    "fallbackEngine": {
+      "title": "Engine dự phòng",
+      "body": "Khi engine chính hết hạn mức, agent chuyển sang engine này ngay, kèm sổ bàn giao, thay vì đứng chờ đến giờ reset."
+    },
+    "terminal": {
+      "title": "Xem agent đang làm gì",
+      "body": "Terminal hiện từng lệnh, file và tool agent dùng trong lượt đang chạy. Với agent Claude, tin bạn gửi lúc đang chạy được đọc ngay trong lượt đó, nên thấy sai hướng thì nhắn để chỉnh."
+    },
+    "taskChanges": {
+      "title": "Code của task",
+      "body": "Hub không tự merge. Xem diff ở đây, thấy ổn thì tự chạy lệnh git merge này trong repo."
+    },
+    "tipsTitle": "Mẹo cho agent này",
+    "hideTip": "Ẩn mẹo",
+    "tips": {
+      "leanMode": "Bật chế độ gọn để giảm token nền mỗi lần gọi model từ khoảng 49k xuống 10k.",
+      "fallbackEngine": "Chọn engine dự phòng để agent không đứng chờ khi hết hạn mức.",
+      "allowedCommands": "Thêm lệnh được phép như npm test để agent tự chạy test. Lượt chạy nền không hỏi bạn được nên lệnh chưa cho phép bị từ chối."
+    },
+    "settingsTitle": "Hướng dẫn và mẹo",
+    "settingsHint": "Hiện lại các gợi ý, mẹo và danh sách bắt đầu đã ẩn trên máy này.",
+    "showAgain": "Hiện lại hướng dẫn",
+    "guidesShown": "Đã bật lại hướng dẫn và mẹo."
   }
 }
