@@ -10,7 +10,8 @@
     "codex",
     "orchestration",
     "self-hosted",
-    "cli"
+    "cli",
+    "mcp"
   ],
   "license": "MIT",
   "author": "minhbc97",

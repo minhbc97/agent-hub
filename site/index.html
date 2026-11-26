@@ -675,6 +675,53 @@
                 schedules.
               </p>
             </article>
+            <article>
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path
+                  d="M12 3v3M5.6 5.6l2.1 2.1M3 12h3M5.6 18.4l2.1-2.1M12 18v3M18.4 18.4l-2.1-2.1M18 12h3M18.4 5.6l-2.1 2.1"
+                />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
+              <h3 data-i18n="f7Title">MCP per agent</h3>
+              <p data-i18n="f7">Choose MCP servers for each Claude or Codex agent, or add a server from the hub.</p>
+            </article>
+            <article>
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9" />
+                <path d="M10 21h4" />
+              </svg>
+              <h3 data-i18n="f8Title">Notifications</h3>
+              <p data-i18n="f8">Get system notifications about important work while the hub tab is out of view.</p>
+            </article>
+            <article>
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M4 5h16v12H8l-4 4z" />
+                <path d="M8 9h8M8 13h5" />
+              </svg>
+              <h3 data-i18n="f9Title">In-app guides</h3>
+              <p data-i18n="f9">Coachmarks, a getting-started list and setup tips for each agent.</p>
+            </article>
           </div>
         </div>
       </section>
@@ -749,7 +796,10 @@
                 aria-hidden="true"
               >
                 <path d="M20 6 9 17l-5-5" /></svg
-              ><span data-i18n="s2">Never reads your CLI credentials; each CLI keeps its own sign-in.</span>
+              ><span data-i18n="s2"
+                >Never reads your CLI sign-in. A selected Claude MCP config is copied to a temporary file for that turn;
+                Add MCP server passes your values to the CLI's mcp add command and the hub keeps no copy.</span
+              >
             </li>
             <li>
               <svg
@@ -762,7 +812,10 @@
                 aria-hidden="true"
               >
                 <path d="M20 6 9 17l-5-5" /></svg
-              ><span data-i18n="s3">Claude agents cannot run git push, merge or rebase.</span>
+              ><span data-i18n="s3"
+                >Claude agents cannot run git push, merge or rebase unless that exact command is in the agent's Allowed
+                commands.</span
+              >
             </li>
             <li>
               <svg
@@ -776,6 +829,22 @@
               >
                 <path d="M20 6 9 17l-5-5" /></svg
               ><span data-i18n="s4">Codex runs in its workspace-write sandbox, with flags passed per turn.</span>
+            </li>
+            <li>
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M20 6 9 17l-5-5" /></svg
+              ><span data-i18n="s5"
+                >The only automatic external check is the npm version lookup; disable it with
+                AGENT_HUB_NO_UPDATE_CHECK=1. Configured OpenRouter agents also call the OpenRouter API.</span
+              >
             </li>
           </ul>
         </div>
@@ -842,6 +911,12 @@
         f5: 'Sau một số tin agent→agent liên tiếp mà không có người chen vào, chuỗi tin dừng lại và chờ bạn bấm thử lại.',
         f6Title: 'Công việc và quy trình',
         f6: 'Board từ TODO đến DONE, và quy trình có bước duyệt, "trả lại" về bước trước, chạy theo lịch cron.',
+        f7Title: 'MCP riêng cho từng agent',
+        f7: 'Chọn server MCP cho từng agent Claude hoặc Codex, hoặc thêm server ngay trong hub.',
+        f8Title: 'Thông báo',
+        f8: 'Nhận thông báo hệ thống về việc quan trọng khi tab hub không được nhìn.',
+        f9Title: 'Hướng dẫn trong app',
+        f9: 'Coachmark, danh sách Bắt đầu và mẹo cấu hình theo từng agent.',
         seeTitle: 'Biết ngay ai đang làm gì',
         seeLede: 'Giao diện tiếng Việt và tiếng Anh, sáng và tối.',
         altTasks: 'Board công việc với các cột TODO, DOING, REVIEW, BLOCKED, DONE',
@@ -851,9 +926,10 @@
         safeTitle: 'Thiết kế để chạy trên máy của bạn',
         safeLede: 'Hub chạy lệnh trên máy bạn, nên mặc định được siết chặt.',
         s1: 'Chỉ nghe 127.0.0.1, chặn request ghi khác origin và DNS rebinding.',
-        s2: 'Không đọc credential của CLI; mỗi CLI giữ đăng nhập riêng.',
-        s3: 'Agent Claude không chạy được git push, merge hay rebase.',
+        s2: 'Không đọc đăng nhập CLI. Cấu hình MCP được chọn cho Claude được chép vào file tạm trong lượt chạy; Add MCP server truyền giá trị cho lệnh mcp add của CLI và hub không lưu bản sao.',
+        s3: 'Agent Claude không chạy git push, merge hay rebase trừ khi đúng lệnh đó có trong Lệnh được phép của agent.',
         s4: 'Codex chạy trong sandbox workspace-write, cờ chỉ truyền cho từng lượt.',
+        s5: 'Kiểm tra tự động duy nhất ra ngoài là tra phiên bản npm; tắt bằng AGENT_HUB_NO_UPDATE_CHECK=1. Agent OpenRouter đã cấu hình cũng gọi API OpenRouter.',
         finalTitle: 'Thử ngay với việc tiếp theo của bạn',
         finalReq: 'Giấy phép MIT. Đã chạy trên Windows 11; rất mong được báo lỗi trên macOS và Linux.',
         foot: 'Giấy phép MIT · Avatar: DiceBear Micah (CC BY 4.0)',

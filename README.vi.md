@@ -10,8 +10,9 @@ trả lời khi agent hỏi.
 
 Mỗi tin nhắn chạy CLI một lượt ở chế độ headless và nối session bằng id. Agent nhắn cho nhau bằng cách ghi file JSON vào
 thư mục outbox riêng. Câu trả lời thường chỉ bạn thấy, nên hai agent không thể trả lời qua lại vô tận. Dữ liệu là một
-file SQLite trên máy bạn, server chỉ nghe `127.0.0.1`, và hub không đọc đăng nhập của CLI. Ngoại lệ duy nhất:
-server MCP bạn chọn cho agent chế độ gọn được chép cấu hình, gồm cả token, vào một file riêng chỉ tồn tại trong lượt chạy.
+file SQLite trên máy bạn, server chỉ nghe `127.0.0.1`, và hub không đọc đăng nhập của CLI. Với Claude, cấu hình MCP
+được chọn cho agent (có thể chứa token) chỉ được chép vào file riêng trong lượt chạy. Thêm server MCP sẽ chạy lệnh
+`mcp add` của CLI với các giá trị bạn nhập; hub không giữ bản sao. Nếu cấu hình agent OpenRouter, prompt được gửi tới API OpenRouter.
 
 ## Bắt đầu nhanh
 
@@ -45,8 +46,9 @@ Engine và session:
   engine dự phòng tới lúc reset.
 - Trước khi session quá dài hoặc cache hết hạn, agent viết sổ bàn giao; session sau bắt đầu từ sổ đó thay vì đọc lại
   toàn bộ lịch sử.
-- Chế độ gọn cho agent Claude giảm phần nền mỗi lần gọi từ khoảng 49k token xuống khoảng 10k, MCP chọn riêng theo
-  agent.
+- Chế độ gọn cho agent Claude giảm phần nền mỗi lần gọi từ khoảng 49k token xuống khoảng 10k.
+- MCP được chọn riêng cho từng agent Claude và Codex; có thể thêm server ngay trong hub, hub chuyển giá trị cho lệnh
+  `mcp add` của CLI.
 
 Điều phối:
 
@@ -62,6 +64,9 @@ Giao diện:
 - Quy trình gồm các bước cho agent hoặc người, bước cần duyệt, quay lại bước trước khi bị trả, chạy tay hoặc cron.
 - Hộp thư kiểu Slack với hàng "Cần bạn", trang chủ vẽ các agent ngồi ở bàn, sơ đồ ai nhắn cho ai, lịch sử lượt chạy
   kèm token và chi phí.
+- Hướng dẫn trong app: coachmark, danh sách Bắt đầu và mẹo cấu hình theo từng agent.
+- Thông báo hệ thống khi tab hub không được nhìn.
+- Nhắc khi npm có phiên bản mới.
 - Tiếng Việt và tiếng Anh, giao diện sáng và tối.
 
 ## Cấu hình
@@ -70,6 +75,7 @@ Giao diện:
 | --- | --- | --- |
 | `--data <thư mục>` hoặc `HUB_DATA` | `./data` | Thư mục dữ liệu (DB SQLite, outbox của agent) |
 | `HUB_PORT` | `4310` | Cổng HTTP |
+| `AGENT_HUB_NO_UPDATE_CHECK=1` | chưa đặt | Tắt kiểm tra phiên bản npm tự động chạy nền. Agent OpenRouter đã cấu hình cũng gọi API OpenRouter. |
 | `OPENROUTER_API_KEY` | không có | Chỉ cần cho agent OpenRouter. Không lưu vào DB, không truyền cho tiến trình CLI |
 | `<data>/models.json` | danh sách có sẵn | Thay danh sách model của engine trong ô chọn, vd. `{"claude":[{"id":"claude-opus-5-5","label":"Opus 5.5"}]}` |
 
@@ -79,12 +85,14 @@ Hub chạy lệnh trên máy bạn, nên:
 
 - Server chỉ nghe `127.0.0.1`, chặn request ghi khác origin và chặn DNS rebinding.
 - Agent Claude chạy với `--permission-mode acceptEdits` (lệnh như `npm test` chỉ chạy được khi có
-  trong **Lệnh được phép** của agent, mặc định trống) và bị chặn `git push/merge/rebase` qua `--disallowedTools`.
+  trong **Lệnh được phép** của agent, mặc định trống). `git push/merge/rebase` bị chặn trừ khi đúng lệnh đó được ghi
+  trong **Lệnh được phép**.
 - Agent Codex chạy `sandbox_mode="workspace-write"` (thêm `windows.sandbox="unelevated"` trên Windows). Cờ chỉ truyền
   cho từng lượt, không sửa `~/.codex/config.toml`.
 - Agent Antigravity chạy với `--mode accept-edits`.
 
-Hạn chế đã biết: chặn `git push` theo tiền tố lệnh, chưa bắt được dạng `git -C dir push`.
+Kết nối tự động ra ngoài là kiểm tra phiên bản npm chạy nền; tắt bằng `AGENT_HUB_NO_UPDATE_CHECK=1`. Agent OpenRouter
+gọi API khi được cấu hình.
 
 ## Nền tảng
 
@@ -101,7 +109,7 @@ Hạn chế đã biết: chặn `git push` theo tiền tố lệnh, chưa bắt 
 ## Lộ trình
 
 - Giờ làm việc: giờ agent bắt đầu, dừng, ngừng nhận việc mới
-- Thông báo (Windows toast, Slack, Telegram)
+- Thông báo: đã có thông báo hệ thống trên trình duyệt; Slack và Telegram vẫn nằm trong lộ trình.
 - Xuất / nhập cấu hình
 - % hạn mức đã dùng cho Antigravity (CLI chỉ báo khi đã hết quota)
 
