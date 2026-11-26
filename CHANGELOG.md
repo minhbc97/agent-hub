@@ -5,6 +5,17 @@ the project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.4.2] - 2026-11-26
+
+### Fixed
+
+- On Windows, agent CLIs left running by a hard-stopped hub (for example a `tsx watch` restart) are ended when the hub starts again, and what their interrupted turn left in the worktree is saved to the task before new turns run.
+
+### Changed
+
+- A lead sending a request with an existing task key to another agent hands that agent the task, so its worktree gets the task's code (for example for QA review). The agent preamble says so and tells agents never to ask teammates to check out or commit.
+- The project site shows `npx @minhbc/agent-hub@latest` as the install command.
+
 ## [0.4.1] - 2026-11-26
 
 ### Fixed
