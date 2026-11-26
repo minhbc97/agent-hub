@@ -26,7 +26,7 @@ Requires Node.js 24+ and at least one agent CLI installed and signed in:
 [Antigravity](https://antigravity.google/docs/cli/install). An OpenRouter API key also works, for text-only agents.
 
 ```bash
-npx @minhbc/agent-hub
+npx @minhbc/agent-hub@latest
 ```
 
 The hub checks npm for newer versions in the background and shows an update command when one is available.
@@ -37,10 +37,8 @@ agent when prompted. Click **Test run** on an agent to check that it answers in 
 Data is stored in `./data` under the folder you run the command from. To always use the same place:
 
 ```bash
-npx @minhbc/agent-hub --data "$HOME/.agent-hub"
+npx @minhbc/agent-hub@latest --data "$HOME/.agent-hub"
 ```
-
-Use `npx @minhbc/agent-hub@latest` to pick up a new version.
 
 ## Features
 
