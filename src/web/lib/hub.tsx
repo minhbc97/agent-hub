@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import {
   ACT,
@@ -16,6 +17,7 @@ import {
   type Workspace,
 } from './api.ts';
 import { t } from './i18n.ts';
+import { qk } from './query.ts';
 
 /** A message the user just sent, shown at once until the server has it (or the send fails). */
 export interface OutgoingMessage {
@@ -65,75 +67,91 @@ function readWs(): string | null {
   }
 }
 
+function useQueryErrorToast(error: unknown) {
+  useEffect(() => {
+    if (error) toast.error(error instanceof Error ? error.message : String(error));
+  }, [error]);
+}
+
 export function HubProvider({ children }: { children: ReactNode }) {
-  const [ready, setReady] = useState(false);
-  const [meta, setMeta] = useState<Meta | null>(null);
-  const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
+  const queryClient = useQueryClient();
   const [wsId, setWsId] = useState<string | null>(readWs);
-  const [agents, setAgents] = useState<Agent[]>([]);
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [workflows, setWorkflows] = useState<Workflow[]>([]);
-  const [tokens, setTokens] = useState<TokenTotal[]>([]);
   const [outgoing, setOutgoing] = useState<OutgoingMessage[]>([]);
   const terminalListeners = useRef(new Set<TerminalListener>());
   const wsRef = useRef(wsId);
   wsRef.current = wsId;
+  const metaQuery = useQuery({ queryKey: qk.meta, queryFn: api.meta });
+  const workspacesQuery = useQuery({ queryKey: qk.workspaces, queryFn: api.workspaces });
+  const workspaces = workspacesQuery.data ?? [];
+  const ws = workspaces.find((workspace) => workspace.id === wsId) ?? null;
+  const queryWsId = ws?.id ?? '';
+  const agentsQuery = useQuery({
+    queryKey: qk.agents(queryWsId),
+    queryFn: () => api.agents(queryWsId),
+    enabled: !!ws,
+    staleTime: Infinity,
+  });
+  const messagesQuery = useQuery({
+    queryKey: qk.messages(queryWsId),
+    queryFn: () => api.messages(queryWsId),
+    enabled: !!ws,
+    staleTime: Infinity,
+  });
+  const tasksQuery = useQuery({
+    queryKey: qk.tasks(queryWsId),
+    queryFn: () => api.tasks(queryWsId),
+    enabled: !!ws,
+    staleTime: Infinity,
+  });
+  const workflowsQuery = useQuery({
+    queryKey: qk.workflows(queryWsId),
+    queryFn: () => api.workflows(queryWsId),
+    enabled: !!ws,
+    staleTime: Infinity,
+  });
+  const tokensQuery = useQuery({
+    queryKey: qk.tokens(queryWsId),
+    queryFn: () => api.tokens(queryWsId),
+    enabled: !!ws,
+    staleTime: Infinity,
+  });
+  const agents = agentsQuery.data ?? [];
+  const messages = messagesQuery.data ?? [];
+  const tasks = tasksQuery.data ?? [];
+  const workflows = workflowsQuery.data ?? [];
+  const tokens = tokensQuery.data ?? [];
+  const hasValidWorkspaceSelection = wsId === null ? workspaces.length === 0 : !!ws;
+  const hasWorkspaceData =
+    !ws ||
+    (agentsQuery.isSuccess &&
+      messagesQuery.isSuccess &&
+      tasksQuery.isSuccess &&
+      workflowsQuery.isSuccess &&
+      tokensQuery.isSuccess);
+  const ready = workspacesQuery.isSuccess && hasValidWorkspaceSelection && hasWorkspaceData;
 
-  const clearWorkspaceData = useCallback(() => {
-    setAgents([]);
-    setMessages([]);
-    setTasks([]);
-    setWorkflows([]);
-    setTokens([]);
+  const setWorkspaceId = useCallback((id: string | null) => {
+    if (id === wsRef.current) return;
+    wsRef.current = id;
+    setWsId(id);
   }, []);
 
-  /** Drops the old workspace's data at once: until the new data arrives, nothing of it may show or be acted on. */
-  const selectWorkspace = useCallback(
-    (id: string) => {
-      if (id === wsRef.current) return;
-      setReady(false);
-      clearWorkspaceData();
-      wsRef.current = id;
-      setWsId(id);
-    },
-    [clearWorkspaceData],
-  );
+  const selectWorkspace = useCallback((id: string) => setWorkspaceId(id), [setWorkspaceId]);
 
   const reload = useCallback(async () => {
-    const list = await api.workspaces();
-    setWorkspaces(list);
-    let id = wsRef.current;
-    if (!id || !list.some((w) => w.id === id)) id = list[0]?.id ?? null;
-    if (id !== wsRef.current) {
-      setReady(false);
-      clearWorkspaceData();
-      setWsId(id);
-      wsRef.current = id;
-    }
-    if (id) {
-      const [a, m, t, w, tk] = await Promise.all([
-        api.agents(id),
-        api.messages(id),
-        api.tasks(id),
-        api.workflows(id),
-        api.tokens(id),
-      ]);
-      if (wsRef.current !== id) return;
-      setAgents(a);
-      setMessages(m);
-      setTasks(t);
-      setWorkflows(w);
-      setTokens(tk);
-    }
-    setReady(true);
-  }, [clearWorkspaceData]);
+    const invalidations = [queryClient.invalidateQueries({ queryKey: qk.workspaces })];
+    if (wsRef.current) invalidations.push(queryClient.invalidateQueries({ queryKey: ['ws', wsRef.current] }));
+    await Promise.all(invalidations);
+  }, [queryClient]);
 
-  const reloadMeta = useCallback(() => api.meta().then(setMeta), []);
+  const reloadMeta = useCallback(async () => {
+    await queryClient.invalidateQueries({ queryKey: qk.meta });
+  }, [queryClient]);
 
   useEffect(() => {
-    reloadMeta().catch(() => {});
-  }, [reloadMeta]);
+    if (!workspacesQuery.isSuccess || (wsId && workspaces.some((workspace) => workspace.id === wsId))) return;
+    setWorkspaceId(workspaces[0]?.id ?? null);
+  }, [workspacesQuery.isSuccess, workspaces, wsId, setWorkspaceId]);
 
   useEffect(() => {
     try {
@@ -141,28 +159,44 @@ export function HubProvider({ children }: { children: ReactNode }) {
     } catch {
       /* storage unavailable */
     }
-    reload().catch((e) => toast.error(String(e.message ?? e)));
-  }, [wsId, reload]);
+  }, [wsId]);
+
+  useQueryErrorToast(metaQuery.error);
+  useQueryErrorToast(workspacesQuery.error);
+  useQueryErrorToast(agentsQuery.error);
+  useQueryErrorToast(messagesQuery.error);
+  useQueryErrorToast(tasksQuery.error);
+  useQueryErrorToast(workflowsQuery.error);
+  useQueryErrorToast(tokensQuery.error);
 
   // Server pushes "something changed"; coalesce bursts into one reload.
   useEffect(() => {
     let pending: number | undefined;
+    const pendingWorkspaceIds = new Set<string>();
     const es = new EventSource('/api/events');
     es.onmessage = (message: MessageEvent<string>) => {
-      const event = JSON.parse(message.data) as { type: string; id?: string };
+      const event = JSON.parse(message.data) as { type: string; id?: string; workspaceId?: string };
       // Output is streamed several times a second and changes nothing the hub data holds.
       if (event.type === 'terminal') {
         for (const listener of terminalListeners.current) listener(event.id ?? '');
         return;
       }
+      const eventWorkspaceId = event.workspaceId ?? wsRef.current;
+      if (eventWorkspaceId) pendingWorkspaceIds.add(eventWorkspaceId);
       clearTimeout(pending);
-      pending = window.setTimeout(() => reload().catch(() => {}), 120);
+      pending = window.setTimeout(() => {
+        void queryClient.invalidateQueries({ queryKey: qk.workspaces });
+        for (const eventWsId of pendingWorkspaceIds) {
+          void queryClient.invalidateQueries({ queryKey: ['ws', eventWsId] });
+        }
+        pendingWorkspaceIds.clear();
+      }, 120);
     };
     return () => {
       clearTimeout(pending);
       es.close();
     };
-  }, [reload]);
+  }, [queryClient]);
 
   const onTerminalOutput = useCallback((listener: TerminalListener) => {
     terminalListeners.current.add(listener);
@@ -208,9 +242,9 @@ export function HubProvider({ children }: { children: ReactNode }) {
     const byId = new Map(agents.map((a) => [a.id, a]));
     return {
       ready,
-      meta,
+      meta: metaQuery.data ?? null,
       workspaces,
-      ws: workspaces.find((w) => w.id === wsId) ?? null,
+      ws,
       agents,
       messages,
       tasks,
@@ -227,9 +261,9 @@ export function HubProvider({ children }: { children: ReactNode }) {
     };
   }, [
     ready,
-    meta,
+    metaQuery.data,
     workspaces,
-    wsId,
+    ws,
     agents,
     messages,
     tasks,

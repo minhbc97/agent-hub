@@ -37,7 +37,7 @@ Phụ thuộc một chiều: `routes` → logic (`bus`, `workflow`, `runner`) �
 | `src/server/cron.ts` | Bộ đọc cron 5 trường (`*`, danh sách, khoảng, bước). |
 | `src/server/db.ts` | Schema, migration cộng cột, mọi truy vấn SQL. |
 | `src/shared/contracts.ts` | Kiểu và hằng số dùng chung server và web. |
-| `src/web/lib/hub.tsx` | `HubProvider` / `useHub`: tải dữ liệu, nghe SSE, `attempt()` báo lỗi bằng toast. |
+| `src/web/lib/hub.tsx` | `HubProvider` / `useHub`: dữ liệu qua TanStack Query, SSE invalidate query theo workspace, `attempt()` báo lỗi bằng toast. |
 
 ## Vòng đời một tin nhắn
 
