@@ -227,7 +227,13 @@ function loopHoldReason(parentId: string | null, ws: Workspace): string | null {
  * The agent that delegated a task is not running while it is done, so the result has to wake it up.
  * Sent as the worker, not the hub: hub mail starts a new chain, which would hide delegation loops from the loop guard.
  */
-function reportToDelegator(task: Task, worker: Agent, result: string, parentId: string | null) {
+function reportToDelegator(
+  task: Task,
+  worker: Agent,
+  result: string,
+  parentId: string | null,
+  subject = `${task.key} done · ${task.title}`,
+) {
   const delegator = getAgent(task.createdBy);
   if (!delegator || delegator.id === worker.id) return; // created by the human or a schedule, or since deleted
   const stopped = loopHoldReason(parentId, getWorkspace(task.workspaceId)!);
@@ -236,7 +242,7 @@ function reportToDelegator(task: Task, worker: Agent, result: string, parentId: 
     fromId: worker.id,
     toId: delegator.id,
     act: ACT.inform,
-    subject: `${task.key} done · ${task.title}`,
+    subject,
     body: task.baseCommit ? `${result}\n\nCode: git diff ${task.baseCommit} ${taskBranch(task)}` : result,
     taskId: task.id,
     parentId,
@@ -244,6 +250,24 @@ function reportToDelegator(task: Task, worker: Agent, result: string, parentId: 
     holdReason: stopped,
   });
   emit({ type: 'message', workspaceId: task.workspaceId, id: msg.id });
+}
+
+/** Longest reply forwarded when a worker ends a task turn without reporting. */
+const MAX_SILENT_REPLY_CHARS = 4000;
+
+/**
+ * A worker that ends a turn on its task without writing to its outbox (it only answered the human) leaves the
+ * delegator asleep and the task "doing" forever. Its reply goes to the delegator instead, so the lead can act on it.
+ */
+function reportSilentTurn(agent: Agent, batch: Message[], reply: string, parentId: string | null) {
+  const task = batch
+    .map((m) => (m.taskId ? getTask(m.taskId) : undefined))
+    .find((t) => t?.status === TASK_STATUS.doing && t.assigneeId === agent.id);
+  if (!task) return;
+  const body =
+    `${agent.name} ended a turn on ${task.key} without sending a result through its outbox. Its reply to the human:\n\n` +
+    reply.slice(0, MAX_SILENT_REPLY_CHARS);
+  reportToDelegator(task, agent, body, parentId, `${task.key} · no report from ${agent.name}`);
 }
 
 /** The agent believes it sent these; tell the human, or a lost question waits forever without anyone knowing. */
@@ -469,12 +493,13 @@ function oneTask(agent: Agent, pending: Message[]): Message[] {
   return pending.filter((m) => [null, current].includes(ownTask(m)));
 }
 
-/** One broken outbox must not stop mail for every other agent. */
-function collectOutbox(agent: Agent, parentId: string | null) {
+/** One broken outbox must not stop mail for every other agent. Returns whether any message was accepted. */
+function collectOutbox(agent: Agent, parentId: string | null): boolean {
   try {
-    scanOutbox(agent, parentId);
+    return scanOutbox(agent, parentId).accepted.length > 0;
   } catch (err) {
     console.error(`outbox scan failed for ${agent.name}`, err);
+    return false;
   }
 }
 
@@ -517,6 +542,8 @@ function start(agent: Agent, batch: Message[], team: Agent[], engine: Engine) {
   // The outbox continues the longest agent chain in the batch, so batching never resets the loop guard.
   const chainParent = batch.reduce((best, m) => (agentHops(m.id) > agentHops(best.id) ? m : best), msg);
   const taskIds = new Set(batch.map((m) => m.taskId));
+  // Set when the turn answered normally; an engine without an outbox (OpenRouter) reports through its reply instead.
+  let silentReply: { read: Message[]; text: string } | null = null;
 
   runTurn(
     agent.id,
@@ -567,6 +594,7 @@ function start(agent: Agent, batch: Message[], team: Agent[], engine: Engine) {
           reportToDelegator(task, agent, openRouterTaskReply.body, msg.id);
       }
       if (result.isError) for (const m of read) blockTaskOnFailure(m, agent.id, result.text);
+      else if (agent.engine !== ENGINE.openrouter) silentReply = { read, text: result.text };
     })
     .catch((err) => {
       const reason = String(err?.message ?? err);
@@ -577,7 +605,8 @@ function start(agent: Agent, batch: Message[], team: Agent[], engine: Engine) {
       }
     })
     .finally(() => {
-      collectOutbox(agent, chainParent.id);
+      const hasSent = collectOutbox(agent, chainParent.id);
+      if (silentReply && !hasSent) reportSilentTurn(agent, silentReply.read, silentReply.text, chainParent.id);
       running.delete(agent.id);
       tick();
     });

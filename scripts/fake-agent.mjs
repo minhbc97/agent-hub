@@ -16,7 +16,8 @@ process.stdin.on('end', () => {
   // The preamble has an example key; the real one is in a request's header, or the last mentioned.
   const key = input.match(/act: request \| task: (T-\d+)/)?.[1] ?? [...input.matchAll(/"task":"(T-\d+)"/g)].at(-1)?.[1];
   const agent = process.env.HUB_AGENT;
-  if (key && process.env.HUB_OUTBOX) {
+  // "[silent]": answer only the human, as an agent that forgets its outbox does.
+  if (key && process.env.HUB_OUTBOX && !input.includes('[silent]')) {
     const msg = { to: 'user', act: 'done', task: key, body: `${agent} finished ${key}` };
     writeFileSync(join(process.env.HUB_OUTBOX, `${Date.now()}-done.json`), JSON.stringify(msg));
   }

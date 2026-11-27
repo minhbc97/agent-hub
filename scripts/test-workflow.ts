@@ -391,6 +391,18 @@ const direct = db.createTask({
 workerDone('lead', direct.key);
 await settle(delegation.id);
 assert.equal(reports().length, 2, 'only the message the worker wrote');
+// A worker that ends its task turn without writing to its outbox still wakes the delegator, with its reply.
+writeFileSync(
+  resolve(outboxDir(delegator.id), 'silent.json'),
+  JSON.stringify({ to: 'worker', act: 'request', task: 'new', subject: 'silent', body: 'build it [silent]' }),
+);
+await settle(delegation.id);
+const silentTask = db.listTasks(delegation.id).find((t) => t.title === 'silent')!;
+const noReport = reports().find((m) => m.taskId === silentTask.id)!;
+assert.ok(noReport, 'the delegator hears about a turn that sent nothing');
+assert.match(noReport.subject, /no report from worker/);
+assert.match(noReport.body, /worker handled/);
+assert.equal(db.getTask(silentTask.id)!.status, TASK_STATUS.doing, 'the task stays open for the lead to decide');
 // Reports count as agent hops, so delegation cannot dodge the loop guard.
 db.updateWorkspace(delegation.id, { settings: { ...db.getWorkspace(delegation.id)!.settings, maxHops: 1 } });
 delegate('too deep');
